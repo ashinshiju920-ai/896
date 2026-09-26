@@ -1,0 +1,90 @@
+# ==============================================================================
+# Robots.txt for Xylem Learning (https://xylemlearning.online)
+# Explicitly allows verified search engines while disallowing AI scrapers,
+# LLM training bots, and aggressive content harvesters.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. EXPLICITLY ALLOW VERIFIED SEARCH ENGINES (SEO Preservation)
+# ------------------------------------------------------------------------------
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-News
+User-agent: Bingbot
+User-agent: Slurp
+User-agent: DuckDuckBot
+User-agent: Baiduspider
+User-agent: YandexBot
+User-agent: Applebot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+# ------------------------------------------------------------------------------
+# 2. DISALLOW AI SCRAPERS & LLM TRAINING BOTS
+# ------------------------------------------------------------------------------
+# OpenAI
+User-agent: GPTBot
+User-agent: ChatGPT-User
+Disallow: /
+
+# Anthropic (Claude)
+User-agent: ClaudeBot
+User-agent: Claude-Web
+User-agent: anthropic-ai
+Disallow: /
+
+# Common Crawl (Mass Web Scraping)
+User-agent: CCBot
+Disallow: /
+
+# Google AI Extended Training
+User-agent: Google-Extended
+Disallow: /
+
+# ByteDance / TikTok Scrapers
+User-agent: Bytespider
+Disallow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Disallow: /
+
+# Amazon Web Scraper / Alexa AI
+User-agent: Amazonbot
+Disallow: /
+
+# Cohere AI
+User-agent: cohere-ai
+Disallow: /
+
+# Meta / Facebook AI Scrapers
+User-agent: FacebookBot
+User-agent: Meta-ExternalAgent
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
+# Other AI Training / Automated Harvesters
+User-agent: Diffbot
+User-agent: Omgilibot
+User-agent: Timpibot
+User-agent: YouBot
+Disallow: /
+
+# Aggressive SEO Scrapers & Harvesters
+User-agent: SemrushBot
+User-agent: AhrefsBot
+User-agent: MJ12bot
+User-agent: DotBot
+User-agent: PetalBot
+User-agent: ZoominfoBot
+User-agent: Scrapy
+Disallow: /
+
+# ------------------------------------------------------------------------------
+# 3. DEFAULT RULES FOR ALL OTHER CRAWLERS & BROWSERS
+# ------------------------------------------------------------------------------
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/

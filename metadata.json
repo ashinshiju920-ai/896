@@ -1,0 +1,6 @@
+{
+  "name": "Xylem Learning - Digital Book Store",
+  "description": "Online digital and physical book selling e-commerce store for IELTS, OET, PTE, and German exam preparation study materials.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

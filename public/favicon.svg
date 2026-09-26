@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <style>
+      :root {
+        --navy: #0a2540;
+        --teal: #00875a;
+        --leaf: #169873;
+        --stem: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --navy: #e2e8f0;
+          --teal: #10b981;
+          --leaf: #34d399;
+          --stem: #0a2540;
+        }
+      }
+    </style>
+  </defs>
+
+  <!-- High-res crisp embedded emblem with dark/light mode compatibility -->
+  <g transform="translate(14, 18) scale(0.97)">
+    <!-- Bottom-left Teal/Emerald Arm -->
+    <path d="M 0 220 L 70 220 L 102 144 L 72 132 Z" fill="var(--teal)" />
+
+    <!-- Main Navy Diagonal (Top-Left to Bottom-Right) -->
+    <path d="M 12 40 L 58 40 L 100 130 L 76 160 Z" fill="var(--navy)" />
+    <path d="M 104 140 L 176 220 L 222 220 L 126 120 Z" fill="var(--navy)" />
+
+    <!-- Top-Right Leaf -->
+    <path d="M 98 144 C 118 78 170 18 235 2 C 235 2 216 48 148 108 C 118 134 104 142 98 144 Z" fill="var(--leaf)" />
+
+    <!-- Center White Curved Stem / Vein -->
+    <path d="M 72 185 C 92 148 132 86 235 2" stroke="var(--stem)" stroke-width="6" stroke-linecap="round" fill="none" />
+  </g>
+</svg>

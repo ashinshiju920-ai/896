@@ -1,0 +1,8 @@
+name = "xylem"
+compatibility_date = "2024-09-20"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "xylem-production-db"
+database_id = "local-db-id"
