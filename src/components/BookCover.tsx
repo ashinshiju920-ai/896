@@ -172,7 +172,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
               />
             </div>
             {/* Optional badge overlay if specified */}
-            {book.coverTheme?.badgeText && (
+            {book?.coverTheme?.badgeText && (
               <div className="relative z-10 mt-auto pt-2 flex justify-center pb-1">
                 <div
                   className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold shadow-md bg-black/75 backdrop-blur-xs text-white border border-white/20"
@@ -238,7 +238,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
                 <div
                   className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold shadow-md ${theme.badgeBg}`}
                 >
-                  {book.coverTheme.badgeText || '500+ MOCK TESTS'}
+                  {book?.coverTheme?.badgeText || '500+ MOCK TESTS'}
                 </div>
               </div>
             </div>

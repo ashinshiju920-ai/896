@@ -141,7 +141,7 @@ export const HomeView: React.FC = () => {
                   </div>
                 ) : (
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#071d36]/90 backdrop-blur-md border border-white/20 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center shadow-md tracking-wider">
-                    {path.badgeText}
+                    {path?.badgeText || ''}
                   </div>
                 )}
 
