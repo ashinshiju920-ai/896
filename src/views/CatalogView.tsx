@@ -3,6 +3,7 @@ import { ChevronRight, Star, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
+import { BackButton } from '../components/BackButton';
 import { ExamCategory } from '../types';
 
 export const CatalogView: React.FC = () => {
@@ -118,18 +119,21 @@ export const CatalogView: React.FC = () => {
   const activeCategoryTitle = selectedCategory === 'All' ? 'Complete Exam Study Materials' : `${selectedCategory} Preparation`;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Breadcrumb */}
-      <nav className="flex items-center space-x-2 text-xs text-slate-500">
-        <Link
-          to="/"
-          className="hover:text-emerald-700 transition-colors"
-        >
-          Home
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="font-semibold text-slate-800">{activeCategoryTitle}</span>
-      </nav>
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
+      {/* Breadcrumb + Back */}
+      <div className="flex items-center justify-between">
+        <BackButton to="/" label="Home" />
+        <nav className="hidden sm:flex items-center space-x-2 text-xs text-slate-500">
+          <Link
+            to="/"
+            className="hover:text-emerald-700 transition-colors"
+          >
+            Home
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <span className="font-semibold text-slate-800">{activeCategoryTitle}</span>
+        </nav>
+      </div>
 
       {/* Category Hero Banner (Image 4 top) */}
       <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#0a2540] via-[#0d3356] to-[#081d33] p-6 sm:p-10 text-white shadow-lg">

@@ -2,12 +2,17 @@ import React from 'react';
 import { Award, BookOpen, Users, CheckCircle2, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { XylemLogo } from '../components/XylemLogo';
+import { BackButton } from '../components/BackButton';
 
 export const AboutView: React.FC = () => {
   const { setCurrentView } = useShop();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-12 space-y-10 sm:space-y-16">
+      {/* Back Button */}
+      <div className="flex items-center">
+        <BackButton to="/" label="Home" />
+      </div>
       {/* Brand Hero */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
         <div className="flex justify-center mb-4">

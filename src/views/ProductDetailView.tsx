@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
+import { BackButton } from '../components/BackButton';
 import { BookFormat, ProductAddon } from '../types';
 import { getBookAddons, calculateAddonsPricing } from '../utils/pricing';
 import { useParams, Link } from 'react-router-dom';
@@ -157,30 +158,33 @@ export const ProductDetailView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-      {/* Breadcrumbs */}
-      <nav className="flex items-center space-x-2 text-xs text-slate-500">
-        <Link
-          to="/"
-          className="hover:text-emerald-700 transition-colors"
-        >
-          Home
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <Link
-          to={`/books?category=${encodeURIComponent(book.category)}`}
-          className="hover:text-emerald-700 transition-colors"
-        >
-          {book.category}
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="font-semibold text-slate-800 truncate max-w-xs sm:max-w-md">
-          {book.title}
-        </span>
-      </nav>
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-8 sm:space-y-12">
+      {/* Breadcrumbs + Back Button */}
+      <div className="flex items-center justify-between">
+        <BackButton to={`/books?category=${encodeURIComponent(book.category)}`} label="Back to Catalog" />
+        <nav className="hidden sm:flex items-center space-x-2 text-xs text-slate-500">
+          <Link
+            to="/"
+            className="hover:text-emerald-700 transition-colors"
+          >
+            Home
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <Link
+            to={`/books?category=${encodeURIComponent(book.category)}`}
+            className="hover:text-emerald-700 transition-colors"
+          >
+            {book.category}
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <span className="font-semibold text-slate-800 truncate max-w-xs sm:max-w-md">
+            {book.title}
+          </span>
+        </nav>
+      </div>
 
-      {/* Main Product Layout (Image 2 Left & Image 4 Top-Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
+      {/* Main Product Layout - stacks vertically on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 lg:gap-14">
         {/* Left Column: Gallery & Book Preview */}
         <div className="lg:col-span-6 flex flex-col sm:flex-row gap-4 items-center sm:items-start justify-center">
           {/* Thumbnails list on left */}

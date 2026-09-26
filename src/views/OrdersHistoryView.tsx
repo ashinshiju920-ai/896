@@ -2,6 +2,7 @@ import React from 'react';
 import { Package, DownloadCloud, BookOpen, Clock, ChevronRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
+import { BackButton } from '../components/BackButton';
 
 export const OrdersHistoryView: React.FC = () => {
   const {
@@ -12,20 +13,23 @@ export const OrdersHistoryView: React.FC = () => {
   } = useShop();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
-            My Orders & Downloads
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Access and re-download your digital study guides, or track physical shipments.
-          </p>
+      <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <BackButton to="/" label="Home" />
+          <div>
+            <h1 className="text-xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
+              My Orders & Downloads
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 hidden sm:block">
+              Access and re-download your digital study guides, or track physical shipments.
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setCurrentView('catalog')}
-          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+          className="hidden sm:flex text-xs font-semibold text-emerald-700 hover:text-emerald-800 items-center gap-1"
         >
           <span>Browse Store</span>
           <ChevronRight className="w-4 h-4" />

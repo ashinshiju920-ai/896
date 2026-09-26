@@ -173,7 +173,7 @@ const ShopApp: React.FC = () => {
 
       {/* Toast Notifications */}
       {toasts && toasts.length > 0 && (
-        <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm">
+        <div className="fixed bottom-4 sm:bottom-5 left-4 right-4 sm:left-auto sm:right-5 z-50 flex flex-col gap-2 pointer-events-none sm:max-w-sm sm:w-auto w-auto">
           {toasts.map((t) => (
             <div
               key={t.id}
