@@ -81,7 +81,9 @@ export const CatalogView: React.FC = () => {
       }
 
       // Price filter (based on active format or digital price)
-      const bookPrice = selectedFormat === 'physical' ? book.prices.physical.price : book.prices.digital.price;
+      const bookPrice = selectedFormat === 'physical'
+        ? (book.prices?.physical?.price ?? 999)
+        : (book.prices?.digital?.price ?? 199);
       if (selectedPriceRanges.length > 0) {
         const matchesPrice = selectedPriceRanges.some((range) => {
           if (range === 'under-1000') return bookPrice < 1000;
@@ -99,12 +101,16 @@ export const CatalogView: React.FC = () => {
         const orderA = typeof a.order === 'number' ? a.order : 999;
         const orderB = typeof b.order === 'number' ? b.order : 999;
         if (orderA !== orderB) return orderA - orderB;
-        return b.reviewCount - a.reviewCount;
+        return (b.reviewCount || 0) - (a.reviewCount || 0);
       }
-      if (sortBy === 'popularity') return b.reviewCount - a.reviewCount;
-      if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'price-low') return a.prices.digital.price - b.prices.digital.price;
-      if (sortBy === 'price-high') return b.prices.digital.price - a.prices.digital.price;
+      if (sortBy === 'popularity') return (b.reviewCount || 0) - (a.reviewCount || 0);
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      if (sortBy === 'price-low') {
+        return (a.prices?.digital?.price ?? 199) - (b.prices?.digital?.price ?? 199);
+      }
+      if (sortBy === 'price-high') {
+        return (b.prices?.digital?.price ?? 199) - (a.prices?.digital?.price ?? 199);
+      }
       return 0;
     });
   }, [selectedCategory, selectedPriceRanges, selectedTypes, selectedFormat, sortBy]);
@@ -320,9 +326,15 @@ export const CatalogView: React.FC = () => {
           {filteredBooks.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredBooks.map((book) => {
-                const currentPrice = selectedFormat === 'physical' ? book.prices.physical.price : book.prices.digital.price;
-                const originalPrice = selectedFormat === 'physical' ? book.prices.physical.originalPrice : book.prices.digital.originalPrice;
-                const discount = selectedFormat === 'physical' ? book.prices.physical.discountPercent : book.prices.digital.discountPercent;
+                const currentPrice = selectedFormat === 'physical'
+                  ? (book.prices?.physical?.price ?? 999)
+                  : (book.prices?.digital?.price ?? 199);
+                const originalPrice = selectedFormat === 'physical'
+                  ? (book.prices?.physical?.originalPrice ?? 1299)
+                  : (book.prices?.digital?.originalPrice ?? 599);
+                const discount = selectedFormat === 'physical'
+                  ? (book.prices?.physical?.discountPercent ?? 23)
+                  : (book.prices?.digital?.discountPercent ?? 67);
 
                 return (
                   <div

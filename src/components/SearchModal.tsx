@@ -110,10 +110,10 @@ export const SearchModal: React.FC = () => {
                   <p className="text-xs text-slate-500 truncate">{book.subtitle}</p>
                   <div className="flex items-center gap-3 mt-1 text-xs">
                     <span className="font-bold text-slate-900">
-                      ₹{book.prices.digital.price}
+                      ₹{book.prices?.digital?.price ?? 199}
                     </span>
                     <span className="text-slate-400 line-through text-[11px]">
-                      ₹{book.prices.digital.originalPrice}
+                      ₹{book.prices?.digital?.originalPrice ?? 599}
                     </span>
                     <span className="flex items-center text-amber-500 text-[11px] font-semibold">
                       <Star className="w-3 h-3 fill-amber-400 mr-1" />

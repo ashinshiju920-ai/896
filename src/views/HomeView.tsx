@@ -257,13 +257,13 @@ export const HomeView: React.FC = () => {
               <div className="p-3 sm:p-4 pt-2 border-t border-slate-100 mt-2">
                 <div className="flex items-baseline gap-1.5 mb-2.5">
                   <span className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                    ₹{book.prices.digital.price}
+                    ₹{book.prices?.digital?.price ?? 199}
                   </span>
                   <span className="text-[10px] sm:text-xs text-slate-400 line-through font-['DM_Sans',sans-serif]">
-                    ₹{book.prices.digital.originalPrice}
+                    ₹{book.prices?.digital?.originalPrice ?? 599}
                   </span>
                   <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-600 ml-auto font-['DM_Sans',sans-serif]">
-                    {book.prices.digital.discountPercent}% OFF
+                    {book.prices?.digital?.discountPercent ?? 67}% OFF
                   </span>
                 </div>
 
@@ -272,7 +272,7 @@ export const HomeView: React.FC = () => {
                   onClick={() => buyNow(book, 'digital')}
                   className="w-full py-2 sm:py-2.5 px-2.5 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif]"
                 >
-                  <span>Buy Now • ₹{book.prices.digital.price}</span>
+                  <span>Buy Now • ₹{book.prices?.digital?.price ?? 199}</span>
                 </button>
               </div>
             </div>

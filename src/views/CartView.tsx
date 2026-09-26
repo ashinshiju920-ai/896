@@ -256,7 +256,7 @@ export const CartView: React.FC = () => {
                 {book.title}
               </h4>
               <div className="text-xs font-bold text-slate-900 mt-1">
-                ₹{book.prices.digital.price}
+                ₹{book.prices?.digital?.price ?? 199}
               </div>
               <button
                 onClick={(e) => {

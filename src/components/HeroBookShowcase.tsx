@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { BOOKS } from '../data/books';
 
 export const HeroBookShowcase: React.FC = () => {
   const { navigateToProduct, navigateToCatalog, openPdfViewer, books } = useShop();
@@ -41,9 +42,10 @@ export const HeroBookShowcase: React.FC = () => {
     setHoveredBook(null);
   };
 
-  const ieltsBook = books.find((b) => b.category === 'IELTS') || books[0];
-  const oetBook = books.find((b) => b.category === 'OET') || books[1] || books[0];
-  const germanBook = books.find((b) => b.category === 'German') || books[3] || books[0];
+  const safeBooks = Array.isArray(books) && books.length > 0 ? books : BOOKS;
+  const ieltsBook = safeBooks.find((b) => b?.category === 'IELTS') || safeBooks[0] || BOOKS[0];
+  const oetBook = safeBooks.find((b) => b?.category === 'OET') || safeBooks[1] || safeBooks[0] || BOOKS[1];
+  const germanBook = safeBooks.find((b) => b?.category === 'German') || safeBooks[3] || safeBooks[0] || BOOKS[2];
 
   return (
     <div className="relative w-full max-w-xl mx-auto flex items-center justify-center select-none py-2 sm:py-4">

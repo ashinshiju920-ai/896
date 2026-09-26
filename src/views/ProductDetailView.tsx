@@ -923,7 +923,7 @@ export const ProductDetailView: React.FC = () => {
                   <span>{rec.rating}</span>
                 </div>
                 <div className="text-xs font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                  ₹{rec.prices.digital.price}
+                  ₹{rec.prices?.digital?.price ?? 199}
                 </div>
               </div>
               <button
@@ -954,10 +954,10 @@ export const ProductDetailView: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-lg font-bold text-slate-900">
-              ₹{book.prices.physical.price}
+              ₹{book.prices?.physical?.price ?? 999}
             </div>
             <div className="text-xs text-slate-400 line-through">
-              ₹{book.prices.physical.originalPrice}
+              ₹{book.prices?.physical?.originalPrice ?? 1299}
             </div>
           </div>
           <button
