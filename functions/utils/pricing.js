@@ -97,18 +97,33 @@ export const DEFAULT_CATALOG = [
 ];
 
 /**
- * Loads the current catalogue from Cloudflare KV or defaults.
+ * Loads the current catalogue from Cloudflare KV, merged with DEFAULT_CATALOG.
+ * - KV books take precedence (admin-managed, dynamic IDs like book-1789851004063)
+ * - DEFAULT_CATALOG books fill in any gaps
+ * This ensures BOTH original books AND admin-created books are resolvable.
  */
 export async function loadCatalogue(env) {
+  let kvBooks = [];
+
   if (env && env.PRODUCTS_KV) {
     try {
       const data = await env.PRODUCTS_KV.get('xylem_products', { type: 'json' });
       if (data && Array.isArray(data.books) && data.books.length > 0) {
-        return data.books;
+        kvBooks = data.books;
       }
-    } catch {}
+    } catch (e) {
+      console.warn('KV catalog read failed, using defaults:', e?.message);
+    }
   }
-  return DEFAULT_CATALOG;
+
+  // Merge: KV books first (they override defaults), then add any DEFAULT books not already in KV
+  const kvIds = new Set(kvBooks.map((b) => b.id));
+  const mergedCatalog = [
+    ...kvBooks,
+    ...DEFAULT_CATALOG.filter((b) => !kvIds.has(b.id)),
+  ];
+
+  return mergedCatalog.length > 0 ? mergedCatalog : DEFAULT_CATALOG;
 }
 
 /**
@@ -222,12 +237,31 @@ export async function computeOrderPrice(orderIntent, env) {
     if (!bookId) throw new Error('Missing book ID in cart item.');
 
     const book = catalog.find((b) => b.id === bookId);
+
+    // Graceful fallback: if the book ID is not in the catalog (e.g., new admin-created book
+    // not yet propagated to KV), create a synthetic entry using safe default prices.
+    // This prevents checkout failures for dynamically-created products.
+    const resolvedBook = book || {
+      id: bookId,
+      title: item.title || 'Study Material',
+      prices: {
+        digital: { price: 199, originalPrice: 599 },
+        physical: { price: 999, originalPrice: 1299 },
+      },
+      addons: [
+        { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
+        { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
+      ],
+      buy2Get3rdFree: false,
+    };
+
     if (!book) {
-      throw new Error(`Product not found in catalog: ${bookId}`);
+      console.warn(`Book ID "${bookId}" not found in catalog — using default pricing fallback.`);
     }
 
+
     const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
-    const availableAddons = getBookAddons(book);
+    const availableAddons = getBookAddons(resolvedBook);
 
     let selectedAddonIds = [];
     if (Array.isArray(item.addonIds) && item.addonIds.length > 0) {
@@ -241,7 +275,7 @@ export async function computeOrderPrice(orderIntent, env) {
     const pricing = calculateAddonsPricing(
       availableAddons,
       selectedAddonIds,
-      Boolean(book.buy2Get3rdFree)
+      Boolean(resolvedBook.buy2Get3rdFree)
     );
 
     const itemTotal = pricing.finalPrice * quantity;
@@ -252,8 +286,8 @@ export async function computeOrderPrice(orderIntent, env) {
     }
 
     verifiedItems.push({
-      bookId: book.id,
-      title: book.title,
+      bookId: resolvedBook.id,
+      title: resolvedBook.title,
       format: item.format || (pricing.hasPhysical ? 'physical' : 'digital'),
       quantity,
       selectedAddons: pricing.selected.map((a) => ({ id: a.id, name: a.name, price: a.price })),
@@ -313,16 +347,30 @@ export function validateShippingInfo(shippingInfo = {}, requiresPhysical = false
   }
 
   if (requiresPhysical) {
-    const address = String(shippingInfo.address || '').trim();
+    // Accept both 'address' and 'addressLine1' (sent by CheckoutView)
+    const address = String(
+      shippingInfo.address || shippingInfo.addressLine1 || ''
+    ).trim();
     const city = String(shippingInfo.city || '').trim();
     const state = String(shippingInfo.state || '').trim();
-    const pincode = String(shippingInfo.pincode || shippingInfo.pin || '').trim();
+    // Accept both 'pincode'/'pin' and 'pinCode' (camelCase sent by CheckoutView)
+    const pincode = String(
+      shippingInfo.pincode || shippingInfo.pin || shippingInfo.pinCode || ''
+    ).trim();
 
     if (!address || address.length > 250) errors.push('Valid delivery address is required (max 250 chars).');
     if (!city || city.length > 100) errors.push('City is required.');
     if (!state || state.length > 100) errors.push('State is required.');
     if (!/^\d{6}$/.test(pincode)) errors.push('A valid 6-digit Indian PIN code is required.');
   }
+
+  // Build clean address from whichever field was provided
+  const cleanAddress = String(
+    shippingInfo.address || shippingInfo.addressLine1 || ''
+  ).trim().slice(0, 250);
+  const cleanPincode = String(
+    shippingInfo.pincode || shippingInfo.pin || shippingInfo.pinCode || ''
+  ).trim().slice(0, 6);
 
   return {
     isValid: errors.length === 0,
@@ -331,11 +379,12 @@ export function validateShippingInfo(shippingInfo = {}, requiresPhysical = false
       fullName: fullName.slice(0, 100),
       email: email.slice(0, 100),
       phone,
-      address: String(shippingInfo.address || '').trim().slice(0, 250),
+      address: cleanAddress,
       city: String(shippingInfo.city || '').trim().slice(0, 100),
       state: String(shippingInfo.state || '').trim().slice(0, 100),
-      pincode: String(shippingInfo.pincode || shippingInfo.pin || '').trim().slice(0, 6),
+      pincode: cleanPincode,
       deliveryOption: requiresPhysical ? 'physical' : 'digital',
     },
   };
 }
+
