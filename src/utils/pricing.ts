@@ -1,4 +1,4 @@
-import { Book, BookFormat, ProductAddon } from '../types';
+import { Book, BookFormat, ProductAddon, CartItem } from '../types';
 
 /**
  * Returns active, customer-selectable optional add-ons for a product.
@@ -463,5 +463,118 @@ export const validateCoupon = (code: string, subtotal: number): number => {
       return 0;
   }
 };
+
+export interface CartReconciliationResult {
+  reconciledCart: CartItem[];
+  removedItems: Array<{ id: string; title: string; reason: string }>;
+  modifiedItems: Array<{ id: string; title: string; changes: string }>;
+  hasChanges: boolean;
+  isValid: boolean;
+  errorMessage?: string;
+}
+
+/**
+ * Validates and reconciles cart items against the authoritative catalog.
+ * - Detects unavailable or inactive products and removes them.
+ * - Detects unavailable or inactive add-ons and strips them.
+ * - Synchronizes prices and original prices with the latest catalog values.
+ * - Returns clear error messages and flags changes.
+ */
+export const validateAndReconcileCart = (
+  cart: CartItem[],
+  catalog: Book[]
+): CartReconciliationResult => {
+  if (!Array.isArray(cart) || cart.length === 0) {
+    return {
+      reconciledCart: [],
+      removedItems: [],
+      modifiedItems: [],
+      hasChanges: false,
+      isValid: true,
+    };
+  }
+
+  const reconciledCart: CartItem[] = [];
+  const removedItems: Array<{ id: string; title: string; reason: string }> = [];
+  const modifiedItems: Array<{ id: string; title: string; changes: string }> = [];
+
+  for (const item of cart) {
+    const bookId = item.bookId || item.book?.id;
+    const catalogBook = catalog.find((b) => b.id === bookId);
+
+    // 1. Check product availability
+    if (!catalogBook || catalogBook.active === false) {
+      removedItems.push({
+        id: bookId,
+        title: item.book?.title || catalogBook?.title || bookId,
+        reason: 'One of the selected products is no longer available.',
+      });
+      continue;
+    }
+
+    // 2. Validate and prune selected add-ons
+    const selectableAddons = getSelectableAddons(catalogBook);
+    const validAddonIdSet = new Set(selectableAddons.map((a) => a.id));
+
+    const rawAddonIds = Array.isArray(item.selectedAddonIds) ? item.selectedAddonIds : [];
+    const validAddonIds: string[] = [];
+    let hadInvalidAddon = false;
+
+    for (const aId of rawAddonIds) {
+      if (validAddonIdSet.has(aId)) {
+        validAddonIds.push(aId);
+      } else {
+        hadInvalidAddon = true;
+      }
+    }
+
+    // 3. Recalculate authoritative price from catalog
+    const displayCalc = calculateDisplayPrice(catalogBook, item.format || 'digital', validAddonIds);
+    const freshPrice = displayCalc.totalPrice;
+    const freshOrigPrice = displayCalc.totalOriginalPrice;
+
+    const priceChanged = item.price !== freshPrice || item.originalPrice !== freshOrigPrice;
+    if (hadInvalidAddon || priceChanged) {
+      modifiedItems.push({
+        id: bookId,
+        title: catalogBook.title,
+        changes: hadInvalidAddon
+          ? 'One of the selected add-ons is no longer available and was removed.'
+          : 'Product price was updated to match current catalog.',
+      });
+    }
+
+    reconciledCart.push({
+      ...item,
+      bookId,
+      book: catalogBook,
+      price: freshPrice,
+      originalPrice: freshOrigPrice,
+      selectedAddonIds: validAddonIds,
+      selectedAddons: displayCalc.selectedAddons,
+    });
+  }
+
+  const hasChanges = removedItems.length > 0 || modifiedItems.length > 0;
+
+  let errorMessage: string | undefined;
+  if (removedItems.length > 0) {
+    errorMessage = 'One of the selected products is no longer available.';
+  } else if (modifiedItems.some((m) => m.changes.includes('add-ons'))) {
+    errorMessage = 'One of the selected optional materials is no longer available.';
+  } else if (modifiedItems.length > 0) {
+    errorMessage = 'Product prices in your cart have been updated to the current catalog.';
+  }
+
+  return {
+    reconciledCart,
+    removedItems,
+    modifiedItems,
+    hasChanges,
+    isValid: removedItems.length === 0 && !hasChanges,
+    errorMessage,
+  };
+};
+
 
 

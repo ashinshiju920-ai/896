@@ -741,7 +741,7 @@ export async function computeOrderPrice(orderIntent, env) {
     const bundleConfig = BUNDLE_DEALS.find((b) => b.id === bookId);
     const isBundle = Boolean(item.isBundle || bundleConfig);
     const book = catalog.find((b) => b.id === bookId);
-    if (!book && !isBundle) {
+    if ((!book || book.active === false) && !isBundle) {
       throw new Error('One of the selected products is no longer available.');
     }
 

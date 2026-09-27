@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock,
   ShieldCheck,
@@ -21,9 +21,11 @@ import { BackButton } from '../components/BackButton';
 import { BookCover } from '../components/BookCover';
 import { createCashfreeOrder, loadCashfreeSDK, CashfreeOrderPricing } from '../utils/cashfree';
 import { trackCheckoutStarted, resetCheckoutTracking } from '../utils/analytics';
+import { validateAndReconcileCart } from '../utils/pricing';
 
 export const CheckoutView: React.FC = () => {
   const {
+    books,
     cart,
     subtotal,
     deliveryFee,
@@ -37,6 +39,7 @@ export const CheckoutView: React.FC = () => {
     couponDiscount,
     applyCoupon,
     removeCoupon,
+    reconcileCartWithCatalog,
     shippingInfo,
     setShippingInfo,
     showToast,
@@ -124,16 +127,30 @@ export const CheckoutView: React.FC = () => {
     (sum, item) => sum + ((item.originalPrice || item.price) * item.quantity),
     0
   );
-  const displayDiscount = Math.max(0, totalOriginalPrice - total);
-  const discountPercent = totalOriginalPrice > 0
-    ? Math.round((displayDiscount / totalOriginalPrice) * 100)
-    : 0;
 
   // Authoritative server-synced prices (server always takes precedence over estimated client values)
   const payableAmount = serverPayableAmount !== null ? serverPayableAmount : total;
   const authoritativeSubtotal = serverPricing ? serverPricing.subtotal : subtotal;
   const authoritativeDeliveryFee = serverPricing ? serverPricing.shipping : deliveryFee;
-  const authoritativeDiscount = serverPricing ? serverPricing.discount : displayDiscount;
+  const authoritativeDiscount = serverPricing ? serverPricing.discount : couponDiscount;
+
+  // Catalog MRP savings (difference between catalog MRP and actual payable amount)
+  const totalSavings = Math.max(0, totalOriginalPrice - payableAmount);
+  const discountPercent = totalOriginalPrice > 0
+    ? Math.round((totalSavings / totalOriginalPrice) * 100)
+    : 0;
+
+  // Pre-validate cart immediately when entering checkout or when catalog refreshes
+  useEffect(() => {
+    if (cart.length > 0 && books.length > 0) {
+      const preflight = validateAndReconcileCart(cart, books);
+      if (preflight.hasChanges) {
+        reconcileCartWithCatalog();
+      }
+    }
+  }, [books, reconcileCartWithCatalog]);
+
+  const isSubmittingRef = useRef(false);
 
 
   const handleApplyCoupon = async () => {
@@ -189,6 +206,9 @@ export const CheckoutView: React.FC = () => {
   };
 
   const handleProceedToPayment = async () => {
+    // 0. Double-Click & In-Flight Guard
+    if (isSubmittingRef.current || isProcessing) return;
+
     // 1. Mandatory Pre-Flight Validation
     if (!shippingInfo.fullName.trim() || shippingInfo.fullName.trim().length < 3) {
       showToast('Please enter your full name (minimum 3 characters)', 'warning');
@@ -216,6 +236,15 @@ export const CheckoutView: React.FC = () => {
       }
     }
 
+    // 2. Pre-Flight Cart Availability & Consistency Validation
+    const preflight = validateAndReconcileCart(cart, books);
+    if (!preflight.isValid || preflight.hasChanges) {
+      reconcileCartWithCatalog();
+      showToast(preflight.errorMessage || 'One of the selected products is no longer available.', 'warning');
+      return;
+    }
+
+    isSubmittingRef.current = true;
     setIsProcessing(true);
     try {
       const cartPayload = cart.map((item: any) => ({
@@ -263,8 +292,12 @@ export const CheckoutView: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
+      if (err.message && (err.message.toLowerCase().includes('no longer available') || err.message.toLowerCase().includes('inactive'))) {
+        reconcileCartWithCatalog();
+      }
       showToast(err.message || 'Error processing order. Please try again.', 'warning');
     } finally {
+      isSubmittingRef.current = false;
       setIsProcessing(false);
     }
   };
@@ -502,7 +535,7 @@ export const CheckoutView: React.FC = () => {
               {authoritativeDiscount > 0 && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-emerald-700 font-medium">Discount Applied</span>
+                    <span className="text-emerald-700 font-medium">Coupon Discount ({appliedCoupon || 'PROMO'})</span>
                     <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200/80 uppercase">
                       OFFER SAVINGS
                     </span>
@@ -525,9 +558,9 @@ export const CheckoutView: React.FC = () => {
                 <div className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
                   Total Amount
                 </div>
-                {authoritativeDiscount > 0 && (
+                {totalSavings > 0 && (
                   <div className="text-xs font-semibold text-emerald-700 mt-0.5">
-                    You save ₹{authoritativeDiscount} ({discountPercent}% off)
+                    You save ₹{totalSavings} ({discountPercent}% off)
                   </div>
                 )}
               </div>

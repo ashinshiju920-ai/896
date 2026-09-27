@@ -65,6 +65,7 @@ export type ProductAddOn = ProductAddon;
 export interface Book {
   id: string;
   title: string;
+  active?: boolean;
   subtitle: string;
   category: ExamCategory;
   type: 'Study Guides' | 'Practice Books' | 'Mock Tests' | 'Vocabulary & Grammar' | 'Bundle Packs';

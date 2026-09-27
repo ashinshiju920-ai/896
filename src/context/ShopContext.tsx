@@ -16,6 +16,7 @@ import {
   getCartLineKey,
   calculateDisplayPrice,
   getSelectableAddons,
+  validateAndReconcileCart,
 } from '../utils/pricing';
 import { trackAddToCart } from '../utils/analytics';
 
@@ -72,6 +73,7 @@ interface ShopContextType {
   updateCartQty: (bookId: string, format: BookFormat, delta: number, selectedAddonIds?: string[]) => void;
   removeFromCart: (bookId: string, format: BookFormat, selectedAddonIds?: string[]) => void;
   clearCart: () => void;
+  reconcileCartWithCatalog: (customCatalog?: Book[]) => { changed: boolean; removedCount: number; error?: string };
   cartCount: number;
   subtotal: number;
   discount: number;
@@ -498,6 +500,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const activeToastMessagesRef = useRef<Set<string>>(new Set());
+
+  const showToast = useCallback((message: string, type: 'success' | 'info' | 'warning' = 'success') => {
+    if (!message || !message.trim()) return;
+    const cleanMsg = message.trim();
+    if (activeToastMessagesRef.current.has(cleanMsg)) {
+      return; // Deduplicate: do not show identical toast while already visible
+    }
+    activeToastMessagesRef.current.add(cleanMsg);
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === cleanMsg)) return prev;
+      return [...prev, { id, message: cleanMsg, type }];
+    });
+    setTimeout(() => {
+      activeToastMessagesRef.current.delete(cleanMsg);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  }, []);
 
   // Customer Authentication State (Phase 7)
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
@@ -543,13 +564,46 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentView, selectedBookId, selectedCategory]);
 
-  const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
-  };
+  // Reconcile cart with catalog on demand or after changes
+  const reconcileCartWithCatalog = useCallback((catalogToCheck?: Book[]) => {
+    const targetCatalog = (catalogToCheck && catalogToCheck.length > 0) ? catalogToCheck : books;
+    if (!targetCatalog || targetCatalog.length === 0) return { changed: false, removedCount: 0 };
+
+    let changed = false;
+    let removedCount = 0;
+    let errorMessage: string | undefined;
+
+    setCart((currentCart) => {
+      if (!currentCart || currentCart.length === 0) return currentCart;
+      const result = validateAndReconcileCart(currentCart, targetCatalog);
+      if (result.hasChanges) {
+        changed = true;
+        removedCount = result.removedItems.length;
+        errorMessage = result.errorMessage;
+        return result.reconciledCart;
+      }
+      return currentCart;
+    });
+
+    if (changed && errorMessage) {
+      showToast(errorMessage, 'warning');
+    }
+
+    return { changed, removedCount, error: errorMessage };
+  }, [books, showToast]);
+
+  // Automatically reconcile cart whenever the catalog updates
+  useEffect(() => {
+    if (books && books.length > 0 && cart.length > 0) {
+      const result = validateAndReconcileCart(cart, books);
+      if (result.hasChanges) {
+        setCart(result.reconciledCart);
+        if (result.errorMessage) {
+          showToast(result.errorMessage, 'warning');
+        }
+      }
+    }
+  }, [books, showToast]);
 
   const addToCart = (
     book: Book,
@@ -714,7 +768,31 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setShippingInfo((prev) => (prev.deliveryOption !== targetOption ? { ...prev, deliveryOption: targetOption } : prev));
   }, [hasPhysicalItem]);
 
-  const total = Math.max(0, subtotal + deliveryFee - couponDiscount);
+  // Keep coupon discount synchronized with current subtotal & cart state
+  useEffect(() => {
+    if (cart.length === 0) {
+      if (appliedCoupon !== null) setAppliedCoupon(null);
+      if (couponDiscount !== 0) setCouponDiscount(0);
+      return;
+    }
+
+    if (appliedCoupon) {
+      if (appliedCoupon === 'XYLEM20') {
+        setCouponDiscount(Math.round(subtotal * 0.2));
+      } else if (appliedCoupon === 'FIRST50') {
+        setCouponDiscount(Math.min(50, subtotal));
+      } else if (appliedCoupon === 'SPECIALOFFER' || appliedCoupon === 'OFFER67') {
+        setCouponDiscount(Math.round(subtotal * 0.15));
+      } else {
+        setCouponDiscount((prev) => Math.min(subtotal, Math.max(0, prev)));
+      }
+    } else if (couponDiscount !== 0) {
+      setCouponDiscount(0);
+    }
+  }, [cart.length, subtotal, appliedCoupon]);
+
+  const effectiveCouponDiscount = Math.min(subtotal, Math.max(0, couponDiscount));
+  const total = Math.max(0, subtotal + deliveryFee - effectiveCouponDiscount);
 
   // Coupon handling
   const applyCoupon = (code: string, estimatedDiscount?: number): boolean => {
@@ -1229,6 +1307,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateCartQty,
         removeFromCart,
         clearCart,
+        reconcileCartWithCatalog,
         cartCount,
         subtotal,
         discount: couponDiscount,

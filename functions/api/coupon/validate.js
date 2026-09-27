@@ -85,7 +85,7 @@ export async function onRequestPost(context) {
   } catch (err) {
     console.error('Coupon validation error:', err);
     return new Response(
-      JSON.stringify({ valid: false, error: 'Coupon is not valid for this order.' }),
+      JSON.stringify({ valid: false, error: err?.message || 'Coupon is not valid for this order.' }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
