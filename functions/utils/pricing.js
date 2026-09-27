@@ -134,11 +134,13 @@ export function getBookAddons(book) {
     return book.addons.slice(0, 4);
   }
 
-  const digitalPrice = Number(book?.prices?.digital?.price) || 199;
-  const digitalOrig = Number(book?.prices?.digital?.originalPrice) || 599;
+  // IMPORTANT: These fallback defaults must match the client-side pricing.ts exactly
+  // Client uses `?? 499` for digital and `?? 899` for physical
+  const digitalPrice = Number(book?.prices?.digital?.price) || 499;
+  const digitalOrig = Number(book?.prices?.digital?.originalPrice) || 999;
 
-  const physicalPrice = Number(book?.prices?.physical?.price) || 999;
-  const physicalOrig = Number(book?.prices?.physical?.originalPrice) || 1299;
+  const physicalPrice = Number(book?.prices?.physical?.price) || 899;
+  const physicalOrig = Number(book?.prices?.physical?.originalPrice) || 1499;
 
   return [
     {
@@ -240,17 +242,17 @@ export async function computeOrderPrice(orderIntent, env) {
 
     // Graceful fallback: if the book ID is not in the catalog (e.g., new admin-created book
     // not yet propagated to KV), create a synthetic entry using safe default prices.
-    // This prevents checkout failures for dynamically-created products.
+    // IMPORTANT: These defaults must match the client-side pricing.ts fallbacks exactly.
     const resolvedBook = book || {
       id: bookId,
       title: item.title || 'Study Material',
       prices: {
-        digital: { price: 199, originalPrice: 599 },
-        physical: { price: 999, originalPrice: 1299 },
+        digital: { price: 499, originalPrice: 999 },
+        physical: { price: 899, originalPrice: 1499 },
       },
       addons: [
-        { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
-        { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
+        { id: 'digital', name: 'Digital (PDF)', price: 499, originalPrice: 999, deliveryOption: 'digital' },
+        { id: 'physical', name: 'Physical (Printed)', price: 899, originalPrice: 1499, deliveryOption: 'physical' },
       ],
       buy2Get3rdFree: false,
     };
