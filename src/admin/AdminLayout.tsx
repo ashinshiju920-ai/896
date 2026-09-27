@@ -236,7 +236,7 @@ export const AdminLayout: React.FC = () => {
           onLogout={handleLogout}
           isCloudSyncing={isCloudSyncing}
           lastCloudSync={lastCloudSync}
-          onRefreshCloud={refreshProductsFromCloud}
+          onRefreshCloud={async () => { await refreshProductsFromCloud(true); }}
         />
 
         {/* Section View Container */}
@@ -371,7 +371,7 @@ export const AdminLayout: React.FC = () => {
             <SettingsPage
               isCloudSyncing={isCloudSyncing}
               lastCloudSync={lastCloudSync}
-              onRefreshCloud={refreshProductsFromCloud}
+              onRefreshCloud={async () => { await refreshProductsFromCloud(true); }}
               onSyncToCloud={async () => { await syncBooksToCloud(); }}
               onResetCatalog={resetBooksToDefault}
               showToast={showToast}

@@ -166,9 +166,14 @@ export const DEFAULT_CATALOG = [
  * - DEFAULT_CATALOG books fill in any gaps
  * This ensures BOTH original books AND admin-created books are resolvable.
  */
+let memoryCatalogCache = null;
+let memoryCatalogCacheTimestamp = 0;
+const CACHE_TTL_MS = 30000; // 30-second in-memory worker isolate cache
+
 export async function loadCatalogue(env) {
   let kvBooks = [];
 
+  // 1. Primary: Cloudflare KV retrieval
   if (env && env.PRODUCTS_KV) {
     try {
       const data = await env.PRODUCTS_KV.get('xylem_products', { type: 'json' });
@@ -180,7 +185,44 @@ export async function loadCatalogue(env) {
     }
   }
 
-  // Merge: KV books first (they override defaults), then add any DEFAULT books not already in KV
+  // 2. Authoritative Fallback: Cloudinary raw storage (exact parity with functions/api/products.js)
+  if (kvBooks.length === 0) {
+    const cloudName = env && env.CLOUDINARY_CLOUD_NAME ? String(env.CLOUDINARY_CLOUD_NAME).trim() : '';
+    const now = Date.now();
+    if (memoryCatalogCache && (now - memoryCatalogCacheTimestamp < CACHE_TTL_MS)) {
+      kvBooks = memoryCatalogCache;
+    } else if (cloudName) {
+      try {
+        const rawUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${now}`;
+        const fetchSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+          ? AbortSignal.timeout(4000)
+          : undefined;
+        const res = await fetch(rawUrl, { cache: 'no-store', signal: fetchSignal });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.books) && data.books.length > 0) {
+            kvBooks = data.books;
+            memoryCatalogCache = data.books;
+            memoryCatalogCacheTimestamp = now;
+
+            // Opportunistically cache to KV if PRODUCTS_KV is bound
+            if (env && env.PRODUCTS_KV) {
+              try {
+                await env.PRODUCTS_KV.put('xylem_products', JSON.stringify(data));
+                if (data.version) {
+                  await env.PRODUCTS_KV.put('xylem_products_version', String(data.version));
+                }
+              } catch {}
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Cloudinary catalog read failed in loadCatalogue:', e?.message);
+      }
+    }
+  }
+
+  // Merge: KV/Cloudinary books first (they override defaults), then add any DEFAULT books not already in KV
   const kvIds = new Set(kvBooks.map((b) => b.id));
   const mergedCatalog = [
     ...kvBooks,
@@ -194,8 +236,11 @@ export async function loadCatalogue(env) {
  * Returns available add-ons for a book.
  */
 export function getBookAddons(book) {
-  if (book && Array.isArray(book.addons) && book.addons.length > 0) {
-    return book.addons.slice(0, 4).map((a) => ({
+  const rawAddons = Array.isArray(book?.addOns)
+    ? book.addOns
+    : (Array.isArray(book?.addons) ? book.addons : []);
+  if (rawAddons.length > 0) {
+    return rawAddons.slice(0, 4).map((a) => ({
       ...a,
       id: a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id),
     }));
@@ -735,14 +780,40 @@ export async function computeOrderPrice(orderIntent, env) {
   const verifiedItems = [];
 
   for (const item of cart) {
-    const bookId = item.bookId || item.productId || item.id;
+    const bookId = item.bookId || item.productId || item.id || item.book?.id;
     if (!bookId) throw new Error('Missing book ID in cart item.');
 
     const bundleConfig = BUNDLE_DEALS.find((b) => b.id === bookId);
     const isBundle = Boolean(item.isBundle || bundleConfig);
-    const book = catalog.find((b) => b.id === bookId);
-    if ((!book || book.active === false) && !isBundle) {
-      throw new Error('One of the selected products is no longer available.');
+    let book = catalog.find((b) => b.id === bookId);
+    const isBookInactive = (b) => b && (b.active === false || b.isActive === false);
+
+    if ((!book || isBookInactive(book)) && !isBundle) {
+      // Fallback check to Cloudinary if not in catalog
+      const cloudName = targetEnv && targetEnv.CLOUDINARY_CLOUD_NAME ? String(targetEnv.CLOUDINARY_CLOUD_NAME).trim() : '';
+      if (cloudName) {
+        try {
+          const rawUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`;
+          const fetchSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+            ? AbortSignal.timeout(3000)
+            : undefined;
+          const freshRes = await fetch(rawUrl, { cache: 'no-store', signal: fetchSignal });
+          if (freshRes.ok) {
+            const freshData = await freshRes.json();
+            if (freshData && Array.isArray(freshData.books) && freshData.books.length > 0) {
+              memoryCatalogCache = freshData.books;
+              memoryCatalogCacheTimestamp = Date.now();
+              const freshBook = freshData.books.find((b) => b.id === bookId);
+              if (freshBook && !isBookInactive(freshBook)) {
+                book = freshBook;
+              }
+            }
+          }
+        } catch {}
+      }
+      if ((!book || isBookInactive(book)) && !isBundle) {
+        throw new Error('One of the selected products is no longer available.');
+      }
     }
 
     const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
@@ -792,9 +863,40 @@ export async function computeOrderPrice(orderIntent, env) {
     }
 
     // Server-side validation: reject unknown or inactive add-ons
-    const addOnValidation = validateSelectedAddOns(book, selectedAddonIds);
+    let addOnValidation = validateSelectedAddOns(book, selectedAddonIds);
     if (!addOnValidation.isValid) {
-      throw new Error(addOnValidation.error);
+      // If validation failed, check if Cloudinary has updated product add-on definitions
+      const cloudName = targetEnv && targetEnv.CLOUDINARY_CLOUD_NAME ? String(targetEnv.CLOUDINARY_CLOUD_NAME).trim() : '';
+      if (cloudName) {
+        try {
+          const rawUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`;
+          const fetchSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+            ? AbortSignal.timeout(3000)
+            : undefined;
+          const freshRes = await fetch(rawUrl, { cache: 'no-store', signal: fetchSignal });
+          if (freshRes.ok) {
+            const freshData = await freshRes.json();
+            if (freshData && Array.isArray(freshData.books) && freshData.books.length > 0) {
+              memoryCatalogCache = freshData.books;
+              memoryCatalogCacheTimestamp = Date.now();
+              const freshBook = freshData.books.find((b) => b.id === bookId);
+              if (freshBook) {
+                const retryValidation = validateSelectedAddOns(freshBook, selectedAddonIds);
+                if (retryValidation.isValid) {
+                  book = freshBook;
+                  addOnValidation = retryValidation;
+                }
+              }
+            }
+          }
+        } catch (retryErr) {
+          console.warn('Could not refresh catalog during add-on validation:', retryErr?.message);
+        }
+      }
+
+      if (!addOnValidation.isValid) {
+        throw new Error(addOnValidation.error);
+      }
     }
 
     const isPhysicalFormat = item.format === 'physical' || selectedAddonIds.includes('physical');

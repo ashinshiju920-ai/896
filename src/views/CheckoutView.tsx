@@ -22,6 +22,7 @@ import { BookCover } from '../components/BookCover';
 import { createCashfreeOrder, loadCashfreeSDK, CashfreeOrderPricing } from '../utils/cashfree';
 import { trackCheckoutStarted, resetCheckoutTracking } from '../utils/analytics';
 import { validateAndReconcileCart } from '../utils/pricing';
+import { Book } from '../types';
 
 export const CheckoutView: React.FC = () => {
   const {
@@ -41,6 +42,8 @@ export const CheckoutView: React.FC = () => {
     applyCoupon,
     removeCoupon,
     reconcileCartWithCatalog,
+    pruneInvalidAddon,
+    refreshProductsFromCloud,
     shippingInfo,
     setShippingInfo,
     showToast,
@@ -258,7 +261,9 @@ export const CheckoutView: React.FC = () => {
     try {
       const cartPayload = cart.map((item: any) => ({
         bookId: item.bookId || item.book?.id,
-        addonIds: item.selectedAddonIds || [item.format || 'digital'],
+        addonIds: (item.selectedAddonIds && item.selectedAddonIds.length > 0)
+          ? item.selectedAddonIds
+          : [item.format || 'digital'],
         format: item.format || 'digital',
         quantity: item.quantity || 1,
       }));
@@ -301,10 +306,40 @@ export const CheckoutView: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
-      if (err.message && (err.message.toLowerCase().includes('no longer available') || err.message.toLowerCase().includes('inactive'))) {
-        const reconciliation = reconcileCartWithCatalog();
-        if (!reconciliation.changed) {
-          showToast('Your cart changed. Please refresh and review the order before payment.', 'warning');
+      const errMsg = String(err?.message || '');
+      const isAvailabilityError =
+        errMsg.toLowerCase().includes('no longer available') ||
+        errMsg.toLowerCase().includes('inactive') ||
+        errMsg.toLowerCase().includes('unknown add-on');
+
+      if (isAvailabilityError) {
+        // 1. Extract any specific unknown or inactive add-on ID
+        const addonMatch =
+          errMsg.match(/Unknown add-on ID "([^"]+)"/i) ||
+          errMsg.match(/Add-on "([^"]+)" is inactive/i);
+        const badAddonId = addonMatch ? addonMatch[1] : null;
+
+        // 2. Fetch fresh catalog from server
+        let freshBooks: Book[] | null = null;
+        try {
+          freshBooks = await refreshProductsFromCloud(true);
+        } catch {}
+
+        // 3. Immediately prune the invalid add-on if identified
+        if (badAddonId) {
+          pruneInvalidAddon(badAddonId);
+          showToast(
+            'The selected optional material is no longer available and was removed from your cart. Please review your updated order before proceeding.',
+            'warning'
+          );
+        } else {
+          const targetCatalog = (freshBooks && freshBooks.length > 0) ? freshBooks : books;
+          const reconciliation = reconcileCartWithCatalog(targetCatalog);
+          if (reconciliation.changed) {
+            showToast('Your cart was updated to match current availability. Please review before proceeding.', 'info');
+          } else {
+            showToast('One of the items in your cart is currently unavailable. Please review your cart.', 'warning');
+          }
         }
       } else {
         showToast(err.message || 'Error processing order. Please try again.', 'warning');

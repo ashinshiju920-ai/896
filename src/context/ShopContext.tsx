@@ -51,7 +51,7 @@ interface ShopContextType {
   isCloudSyncing: boolean;
   isCatalogReady: boolean;
   lastCloudSync: Date | null;
-  refreshProductsFromCloud: (force?: boolean) => Promise<void>;
+  refreshProductsFromCloud: (force?: boolean) => Promise<Book[] | null>;
   syncBooksToCloud: (booksToSync?: Book[]) => Promise<{ success: boolean; error?: string }>;
 
   // Exam Paths (Image 1 - Hero & Homepage Category Cards)
@@ -69,6 +69,8 @@ interface ShopContextType {
 
   // Cart
   cart: CartItem[];
+  setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  pruneInvalidAddon: (badAddonId: string) => void;
   addToCart: (book: Book, format?: BookFormat, quantity?: number, selectedAddonIds?: string[]) => void;
   buyNow: (book: Book, format?: BookFormat, quantity?: number, selectedAddonIds?: string[]) => void;
   updateCartQty: (bookId: string, format: BookFormat, delta: number, selectedAddonIds?: string[]) => void;
@@ -285,8 +287,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return triggerCloudSync(customBooks || books);
   };
 
-  const refreshProductsFromCloud = async (force = false) => {
-    if (isFetchingRemoteRef.current) return;
+  const refreshProductsFromCloud = async (force = false): Promise<Book[] | null> => {
+    if (isFetchingRemoteRef.current && !force) return null;
     isFetchingRemoteRef.current = true;
     try {
       // 1. Fast version check first (skips large payload if nothing changed)
@@ -294,7 +296,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const latestVersion = await checkCatalogVersion();
         if (latestVersion !== null && latestVersion <= localCatalogVersionRef.current) {
           isFetchingRemoteRef.current = false;
-          return;
+          return books;
         }
       }
 
@@ -323,9 +325,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('xylem_books_version', String(remoteVersion));
           } catch {}
         }
+        return remote.books;
       }
+      return null;
     } catch (err) {
       console.warn('Real-time background sync fetch error:', err);
+      return null;
     } finally {
       isFetchingRemoteRef.current = false;
     }
@@ -593,6 +598,37 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       error: result.errorMessage,
     };
   }, [books, cart, showToast]);
+
+  // Prune a specific invalid/unknown add-on ID from the cart immediately
+  const pruneInvalidAddon = useCallback((badAddonId: string) => {
+    if (!badAddonId) return;
+    setCart((prevCart) => {
+      const nextCart = prevCart.map((item) => {
+        const currentAddonIds = Array.isArray(item.selectedAddonIds) ? item.selectedAddonIds : [];
+        if (currentAddonIds.includes(badAddonId)) {
+          const prunedIds = currentAddonIds.filter((id) => id !== badAddonId);
+          const targetBook = item.book || books.find((b) => b.id === (item.bookId || item.book?.id));
+          const displayCalc = calculateDisplayPrice(
+            targetBook,
+            item.format || 'digital',
+            prunedIds
+          );
+          return {
+            ...item,
+            price: displayCalc.totalPrice,
+            originalPrice: displayCalc.totalOriginalPrice,
+            selectedAddonIds: prunedIds,
+            selectedAddons: displayCalc.selectedAddons,
+          };
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem('xylem_cart_items', JSON.stringify(nextCart));
+      } catch {}
+      return nextCart;
+    });
+  }, [books]);
 
   // Automatically reconcile cart whenever the catalog updates
   useEffect(() => {
@@ -1298,6 +1334,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addReview,
 
         cart,
+        setCart,
+        pruneInvalidAddon,
         addToCart,
         buyNow,
         updateCartQty,
