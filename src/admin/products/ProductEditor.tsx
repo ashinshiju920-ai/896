@@ -14,10 +14,21 @@ import {
   Star,
   Tag,
   ShieldCheck,
+  ChevronUp,
+  ChevronDown,
+  Check,
+  Sparkles,
+  DownloadCloud,
+  BookOpen,
+  Copy,
+  History,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
-import { Book, ExamCategory, ProductAddon } from '../../types';
+import { Book, ExamCategory, ProductAddon, DigitalFileVersion } from '../../types';
 import { uploadImageToCloud } from '../../utils/cloudSync';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { ProductPurchasePreview } from '../../components/ProductPurchasePreview';
 
 interface ProductEditorProps {
   initialBook?: Book | null;
@@ -35,6 +46,61 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
   openPdfViewer,
 }) => {
   const isEditing = Boolean(initialBook);
+
+  const initialAddonsRaw = (Array.isArray(initialBook?.addOns) && initialBook.addOns.length > 0)
+    ? initialBook.addOns
+    : ((Array.isArray(initialBook?.addons) && initialBook.addons.length > 0) ? initialBook.addons : []);
+
+  const normalizedInitialAddons: ProductAddon[] = initialAddonsRaw.length > 0
+    ? initialAddonsRaw.map((a) => {
+        const rawId = a.id || `addon_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const normId = rawId === 'addon_digital' ? 'digital' : (rawId === 'addon_physical' ? 'physical' : rawId);
+        const priceRupees = Number(a.price) || (a.pricePaise ? Math.round(Number(a.pricePaise) / 100) : 0);
+        const pricePaise = a.pricePaise !== undefined ? Number(a.pricePaise) : priceRupees * 100;
+        return {
+          ...a,
+          id: normId,
+          name: a.name || '',
+          description: a.description || a.subtitle || '',
+          subtitle: a.subtitle || a.description || '',
+          price: priceRupees,
+          pricePaise: pricePaise,
+          originalPrice: Number(a.originalPrice) || priceRupees,
+          active: a.active !== false,
+          deliveryOption: a.deliveryOption || (normId === 'physical' ? 'physical' : 'digital'),
+          digitalFile: a.digitalFile || (a.pdfUrl ? {
+            filename: a.samplePdfName || `${normId}.pdf`,
+            fileUrl: a.pdfUrl,
+            mimeType: 'application/pdf',
+          } : undefined),
+          pdfUrl: a.pdfUrl || a.digitalFile?.fileUrl || '',
+          samplePdfName: a.samplePdfName || a.digitalFile?.filename || '',
+        };
+      })
+    : [
+        {
+          id: 'digital',
+          name: 'Digital (PDF)',
+          subtitle: 'Instant Download',
+          description: 'Instant Download',
+          price: initialBook?.prices?.digital?.price ?? 199,
+          pricePaise: (initialBook?.prices?.digital?.price ?? 199) * 100,
+          originalPrice: initialBook?.prices?.digital?.originalPrice ?? 599,
+          active: true,
+          deliveryOption: 'digital',
+        },
+        {
+          id: 'physical',
+          name: 'Physical (Printed)',
+          subtitle: 'Delivered in 3-5 days',
+          description: 'Delivered in 3-5 days',
+          price: initialBook?.prices?.physical?.price ?? 899,
+          pricePaise: (initialBook?.prices?.physical?.price ?? 899) * 100,
+          originalPrice: initialBook?.prices?.physical?.originalPrice ?? 1499,
+          active: true,
+          deliveryOption: 'physical',
+        },
+      ];
 
   const defaultFormData: Omit<Book, 'id'> = {
     title: initialBook?.title || '',
@@ -91,35 +157,14 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
     adText: initialBook?.adText || '',
     totalPages: initialBook?.totalPages || 280,
     reviews: initialBook?.reviews || [],
-    addons: initialBook?.addons && initialBook.addons.length > 0
-      ? initialBook.addons.map((a) => ({
-          ...a,
-          id: a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id),
-        }))
-      : [
-          {
-            id: 'digital',
-            name: 'Digital (PDF)',
-            subtitle: 'Instant Download',
-            price: initialBook?.prices?.digital?.price ?? 499,
-            originalPrice: initialBook?.prices?.digital?.originalPrice ?? 999,
-            deliveryOption: 'digital',
-          },
-          {
-            id: 'physical',
-            name: 'Physical (Printed)',
-            subtitle: 'Delivered in 3-5 days',
-            price: initialBook?.prices?.physical?.price ?? 899,
-            originalPrice: initialBook?.prices?.physical?.originalPrice ?? 1499,
-            deliveryOption: 'physical',
-          },
-        ],
+    addons: normalizedInitialAddons,
+    addOns: normalizedInitialAddons,
     buy2Get3rdFree: Boolean(initialBook?.buy2Get3rdFree),
     addonDealText: initialBook?.addonDealText || 'Special Deal: Buy Any 2 Add-ons, Get the 3rd FREE!',
   };
 
   const [form, setForm] = useState<Omit<Book, 'id'>>(defaultFormData);
-  const [activeTab, setActiveTab] = useState<'general' | 'pricing' | 'media' | 'digital' | 'curriculum' | 'addons' | 'display'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'pricing' | 'media' | 'digital' | 'curriculum' | 'addons' | 'display' | 'preview'>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -134,9 +179,339 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
+  // Phase 9 Digital Material Versioning State
+  const [productVersions, setProductVersions] = useState<DigitalFileVersion[]>([]);
+  const [addonVersionsMap, setAddonVersionsMap] = useState<Record<string, DigitalFileVersion[]>>({});
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [isReplacingFile, setIsReplacingFile] = useState(false);
+  const [replaceTargetAddonIdx, setReplaceTargetAddonIdx] = useState<number | null>(null);
+  const [replaceModalOpen, setReplaceModalOpen] = useState(false);
+  const [replaceVersionLabel, setReplaceVersionLabel] = useState('');
+  const [replaceReleaseNotes, setReplaceReleaseNotes] = useState('');
+  const [selectedReplaceFile, setSelectedReplaceFile] = useState<File | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyModalTarget, setHistoryModalTarget] = useState<{ title: string; versions: DigitalFileVersion[] }>({ title: '', versions: [] });
+  const [showInlineHistory, setShowInlineHistory] = useState(true);
+
+  // Fetch product versions on mount or book change
+  React.useEffect(() => {
+    if (initialBook?.id) {
+      fetchProductVersions();
+    }
+  }, [initialBook?.id]);
+
+  const fetchProductVersions = async () => {
+    if (!initialBook?.id) return;
+    setIsLoadingVersions(true);
+    try {
+      const res = await fetch(`/api/admin/materials?productId=${encodeURIComponent(initialBook.id)}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.versions)) {
+          setProductVersions(data.versions);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch material versions:', err);
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
+
+  const fetchAddonVersions = async (addonId: string) => {
+    if (!initialBook?.id || !addonId) return [];
+    try {
+      const res = await fetch(`/api/admin/materials?productId=${encodeURIComponent(initialBook.id)}&addOnId=${encodeURIComponent(addonId)}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.versions)) {
+          setAddonVersionsMap((prev) => ({ ...prev, [addonId]: data.versions }));
+          return data.versions;
+        }
+      }
+    } catch (err) {
+      console.warn(`Could not fetch versions for addon ${addonId}:`, err);
+    }
+    return [];
+  };
+
+  const openReplaceModal = (addonIndex: number | null = null) => {
+    setReplaceTargetAddonIdx(addonIndex);
+    setSelectedReplaceFile(null);
+    setReplaceReleaseNotes('');
+
+    if (addonIndex === null) {
+      const currVer = form.digitalFile?.version || '2026.1';
+      const parts = currVer.split('.');
+      if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+        setReplaceVersionLabel(`${parts[0]}.${Number(parts[1]) + 1}`);
+      } else {
+        setReplaceVersionLabel(`${currVer}.1`);
+      }
+    } else {
+      const targetAddon = (form.addOns || form.addons || [])[addonIndex];
+      const currVer = targetAddon?.digitalFile?.version || '1.0';
+      const parts = currVer.split('.');
+      if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+        setReplaceVersionLabel(`${parts[0]}.${Number(parts[1]) + 1}`);
+      } else {
+        setReplaceVersionLabel(`${currVer}.1`);
+      }
+    }
+    setReplaceModalOpen(true);
+  };
+
+  const handleOpenAddonHistory = async (index: number) => {
+    const targetAddon = (form.addOns || form.addons || [])[index];
+    const addonId = targetAddon.id || targetAddon.addOnId || '';
+    if (!addonId) return;
+    let vers = addonVersionsMap[addonId];
+    if (!vers) {
+      vers = await fetchAddonVersions(addonId);
+    }
+    setHistoryModalTarget({
+      title: `${targetAddon.name || 'Add-on'} — Version History`,
+      versions: vers || [],
+    });
+    setShowHistoryModal(true);
+  };
+
+  const handleExecuteReplace = async () => {
+    if (!selectedReplaceFile) {
+      showToast('Please select a genuine PDF document', 'warning');
+      return;
+    }
+    if (selectedReplaceFile.size > 50 * 1024 * 1024) {
+      showToast('File size exceeds maximum permitted limit of 50 MB', 'warning');
+      return;
+    }
+
+    setIsReplacingFile(true);
+    try {
+      const prodId = initialBook?.id || form.title.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      const isAddon = replaceTargetAddonIdx !== null;
+      const targetAddon = isAddon ? (form.addOns || form.addons || [])[replaceTargetAddonIdx] : null;
+      const addOnId = targetAddon ? (targetAddon.id || targetAddon.addOnId) : null;
+
+      const formData = new FormData();
+      formData.append('file', selectedReplaceFile);
+      formData.append('productId', prodId);
+      if (addOnId) formData.append('addOnId', addOnId);
+      if (replaceVersionLabel.trim()) formData.append('versionLabel', replaceVersionLabel.trim());
+      if (replaceReleaseNotes.trim()) formData.append('releaseNotes', replaceReleaseNotes.trim());
+
+      const res = await fetch('/api/admin/materials', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'File replacement failed');
+      }
+
+      if (!isAddon) {
+        setForm((prev) => ({
+          ...prev,
+          samplePdfName: data.version.fileName,
+          pdfUrl: data.version.storageReference || prev.pdfUrl,
+          digitalFile: {
+            ...prev.digitalFile,
+            fileVersionId: data.version.id,
+            version: data.version.versionLabel,
+            filename: data.version.fileName,
+            samplePdfName: data.version.fileName,
+            fileUrl: data.version.storageReference || prev.digitalFile?.fileUrl,
+            pdfUrl: data.version.storageReference || prev.digitalFile?.pdfUrl,
+            fileSizeBytes: data.version.sizeBytes,
+            checksum: data.version.checksum,
+            releaseNotes: data.version.releaseNotes,
+            status: 'ACTIVE',
+            createdAt: data.version.createdAt,
+          },
+        }));
+        await fetchProductVersions();
+      } else {
+        const currentAddons = [...(form.addOns || form.addons || [])];
+        if (replaceTargetAddonIdx !== null && currentAddons[replaceTargetAddonIdx]) {
+          currentAddons[replaceTargetAddonIdx] = {
+            ...currentAddons[replaceTargetAddonIdx],
+            samplePdfName: data.version.fileName,
+            pdfUrl: data.version.storageReference || currentAddons[replaceTargetAddonIdx].pdfUrl,
+            digitalFile: {
+              ...currentAddons[replaceTargetAddonIdx].digitalFile,
+              fileVersionId: data.version.id,
+              version: data.version.versionLabel,
+              filename: data.version.fileName,
+              samplePdfName: data.version.fileName,
+              fileUrl: data.version.storageReference || currentAddons[replaceTargetAddonIdx].digitalFile?.fileUrl,
+              pdfUrl: data.version.storageReference || currentAddons[replaceTargetAddonIdx].digitalFile?.pdfUrl,
+              fileSizeBytes: data.version.sizeBytes,
+              checksum: data.version.checksum,
+              releaseNotes: data.version.releaseNotes,
+              status: 'ACTIVE',
+              createdAt: data.version.createdAt,
+            },
+          };
+          updateAddons(currentAddons);
+          if (addOnId) await fetchAddonVersions(addOnId);
+        }
+      }
+
+      setIsDirty(true);
+      setReplaceModalOpen(false);
+      setSelectedReplaceFile(null);
+      setReplaceVersionLabel('');
+      setReplaceReleaseNotes('');
+      showToast(`Material updated to ${data.version.versionLabel} (ACTIVE). Previous version archived.`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'File replacement failed', 'warning');
+    } finally {
+      setIsReplacingFile(false);
+    }
+  };
+
   const updateField = <K extends keyof Omit<Book, 'id'>>(key: K, val: Omit<Book, 'id'>[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setIsDirty(true);
+  };
+
+  const updateAddons = (newAddons: ProductAddon[]) => {
+    setForm((prev) => ({
+      ...prev,
+      addons: newAddons,
+      addOns: newAddons,
+    }));
+    setIsDirty(true);
+  };
+
+  const handleAddAddon = () => {
+    const newId = `addon_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const newAddon: ProductAddon = {
+      id: newId,
+      name: '',
+      description: '',
+      subtitle: '',
+      price: 99,
+      pricePaise: 9900,
+      originalPrice: 199,
+      active: true,
+      deliveryOption: 'digital',
+      digitalFile: undefined,
+    };
+    const current = form.addOns || form.addons || [];
+    updateAddons([...current, newAddon]);
+    showToast('New add-on added. Configure details below.', 'info');
+  };
+
+  const handleDuplicateAddon = (index: number) => {
+    const current = [...(form.addOns || form.addons || [])];
+    const source = current[index];
+    if (!source) return;
+    const newId = `addon_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const duplicated: ProductAddon = {
+      ...source,
+      id: newId,
+      name: `${source.name || 'Add-on'} (Copy)`,
+    };
+    current.splice(index + 1, 0, duplicated);
+    updateAddons(current);
+    showToast('Add-on duplicated with unique ID.', 'info');
+  };
+
+  const handleRemoveAddon = (index: number) => {
+    const current = [...(form.addOns || form.addons || [])];
+    const removed = current.splice(index, 1);
+    updateAddons(current);
+    showToast(`Add-on "${removed[0]?.name || 'Item'}" removed`, 'info');
+  };
+
+  const handleMoveAddon = (index: number, direction: 'up' | 'down') => {
+    const current = [...(form.addOns || form.addons || [])];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= current.length) return;
+    const temp = current[index];
+    current[index] = current[targetIdx];
+    current[targetIdx] = temp;
+    updateAddons(current);
+  };
+
+  const handleToggleActive = (index: number) => {
+    const current = [...(form.addOns || form.addons || [])];
+    current[index] = {
+      ...current[index],
+      active: current[index].active === false ? true : false,
+    };
+    updateAddons(current);
+  };
+
+  const handleAddonFieldChange = <K extends keyof ProductAddon>(index: number, field: K, value: ProductAddon[K]) => {
+    const current = [...(form.addOns || form.addons || [])];
+    current[index] = {
+      ...current[index],
+      [field]: value,
+    };
+    if (field === 'price') {
+      const p = Math.max(0, Math.min(100000, Number(value) || 0));
+      current[index].price = p;
+      current[index].pricePaise = Math.round(p * 100);
+    }
+    updateAddons(current);
+  };
+
+  const handleAddonFileUpload = (index: number, file: File) => {
+    if (file.size > 25 * 1024 * 1024) {
+      showToast('Add-on file exceeds 25 MB limit', 'warning');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      const current = [...(form.addOns || form.addons || [])];
+      current[index] = {
+        ...current[index],
+        digitalFile: {
+          filename: file.name,
+          fileUrl: base64,
+          fileSizeBytes: file.size,
+          mimeType: 'application/pdf',
+        },
+        pdfUrl: base64,
+        samplePdfName: file.name,
+      };
+      updateAddons(current);
+      showToast(`PDF "${file.name}" attached to add-on!`, 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddonFileRemove = (index: number) => {
+    const current = [...(form.addOns || form.addons || [])];
+    current[index] = {
+      ...current[index],
+      digitalFile: undefined,
+      pdfUrl: '',
+      samplePdfName: '',
+    };
+    updateAddons(current);
+    showToast('Digital file detached from add-on', 'info');
+  };
+
+  const handleAddonStorageUrlChange = (index: number, url: string) => {
+    const current = [...(form.addOns || form.addons || [])];
+    const currentFile = current[index].digitalFile;
+    current[index] = {
+      ...current[index],
+      digitalFile: url.trim() ? {
+        filename: currentFile?.filename || `${current[index].name || 'addon'}.pdf`,
+        fileUrl: url.trim(),
+        mimeType: 'application/pdf',
+      } : undefined,
+      pdfUrl: url.trim(),
+      samplePdfName: currentFile?.filename || `${current[index].name || 'addon'}.pdf`,
+    };
+    updateAddons(current);
   };
 
   // Image Upload handler
@@ -202,13 +577,53 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
       return;
     }
 
+    // Validate add-ons
+    const addonsList = form.addOns || form.addons || [];
+    const seenIds = new Set<string>();
+    const sanitizedAddons: ProductAddon[] = [];
+
+    for (let i = 0; i < addonsList.length; i++) {
+      const a = addonsList[i];
+      let id = a.id ? a.id.trim() : `addon_${Date.now()}_${i}`;
+      if (seenIds.has(id)) {
+        id = `${id}_${Math.random().toString(36).slice(2, 6)}`;
+      }
+      seenIds.add(id);
+
+      const price = Number(a.price);
+      if (isNaN(price) || !isFinite(price) || price < 0) {
+        showToast(`Invalid price for add-on "${a.name || `Add-on #${i + 1}`}". Price must be non-negative.`, 'warning');
+        setActiveTab('addons');
+        return;
+      }
+
+      sanitizedAddons.push({
+        ...a,
+        id,
+        name: (a.name || '').trim().slice(0, 120),
+        description: (a.description || a.subtitle || '').trim().slice(0, 500),
+        subtitle: (a.subtitle || a.description || '').trim().slice(0, 150),
+        price: Math.floor(price),
+        pricePaise: a.pricePaise !== undefined ? a.pricePaise : Math.round(price * 100),
+        originalPrice: Number(a.originalPrice) || Math.floor(price),
+        active: a.active !== false,
+        deliveryOption: a.deliveryOption || 'digital',
+      });
+    }
+
+    const submissionPayload: Omit<Book, 'id'> = {
+      ...form,
+      addons: sanitizedAddons,
+      addOns: sanitizedAddons,
+    };
+
     setIsSaving(true);
     try {
-      onSave(form, initialBook?.id);
+      onSave(submissionPayload, initialBook?.id);
       setIsDirty(false);
       showToast(isEditing ? 'Product updated successfully!' : 'New product published to catalog!', 'success');
-    } catch (err) {
-      showToast('Failed to save product', 'warning');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save product', 'warning');
     } finally {
       setIsSaving(false);
     }
@@ -245,6 +660,16 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Mobile Customer Preview Toggle */}
+          <button
+            type="button"
+            onClick={() => setActiveTab(activeTab === 'preview' ? 'addons' : 'preview')}
+            className="xl:hidden inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{activeTab === 'preview' ? 'Back to Editor' : 'Customer Preview'}</span>
+          </button>
+
           <button
             type="button"
             onClick={handleCancel}
@@ -272,8 +697,9 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
           { id: 'media', label: '3. Media & Images' },
           { id: 'digital', label: '4. Digital Asset (PDF)' },
           { id: 'curriculum', label: '5. Curriculum & TOC' },
-          { id: 'addons', label: '6. Add-ons & Deals' },
+          { id: 'addons', label: '6. Optional Add-ons' },
           { id: 'display', label: '7. Marketing & Flags' },
+          { id: 'preview', label: '8. Customer Preview', className: 'xl:hidden' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -283,17 +709,20 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
               activeTab === tab.id
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
+            } ${tab.className || ''}`}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Main Form Body */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-6 space-y-6">
-        {/* TAB 1: GENERAL INFO */}
-        {activeTab === 'general' && (
+      {/* Main Grid: Form on Left (xl:col-span-7), Sticky Live Customer Preview on Right (xl:col-span-5) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        {/* Form Column */}
+        <div className={`space-y-6 ${activeTab === 'preview' ? 'hidden xl:block xl:col-span-7' : 'xl:col-span-7'}`}>
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-6 space-y-6">
+            {/* TAB 1: GENERAL INFO */}
+            {activeTab === 'general' && (
           <div className="space-y-5 animate-in fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5 sm:col-span-2">
@@ -417,9 +846,10 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const orig = form.prices?.digital?.originalPrice || price;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
                         setForm((prev) => {
-                          const updatedAddons = (prev.addons || []).map((a) =>
+                          const currentAddons = prev.addOns || prev.addons || [];
+                          const updatedAddons = currentAddons.map((a) =>
                             a.id === 'digital' || a.deliveryOption === 'digital'
-                              ? { ...a, price, originalPrice: orig }
+                              ? { ...a, price, pricePaise: price * 100, originalPrice: orig }
                               : a
                           );
                           return {
@@ -429,6 +859,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                               digital: { price, originalPrice: orig, discountPercent: discount },
                             },
                             addons: updatedAddons,
+                            addOns: updatedAddons,
                           };
                         });
                         setIsDirty(true);
@@ -448,7 +879,8 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const price = form.prices?.digital?.price || 0;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
                         setForm((prev) => {
-                          const updatedAddons = (prev.addons || []).map((a) =>
+                          const currentAddons = prev.addOns || prev.addons || [];
+                          const updatedAddons = currentAddons.map((a) =>
                             a.id === 'digital' || a.deliveryOption === 'digital'
                               ? { ...a, originalPrice: orig }
                               : a
@@ -460,6 +892,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                               digital: { price, originalPrice: orig, discountPercent: discount },
                             },
                             addons: updatedAddons,
+                            addOns: updatedAddons,
                           };
                         });
                         setIsDirty(true);
@@ -493,9 +926,10 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const orig = form.prices?.physical?.originalPrice || price;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
                         setForm((prev) => {
-                          const updatedAddons = (prev.addons || []).map((a) =>
+                          const currentAddons = prev.addOns || prev.addons || [];
+                          const updatedAddons = currentAddons.map((a) =>
                             a.id === 'physical' || a.deliveryOption === 'physical'
-                              ? { ...a, price, originalPrice: orig }
+                              ? { ...a, price, pricePaise: price * 100, originalPrice: orig }
                               : a
                           );
                           return {
@@ -505,6 +939,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                               physical: { price, originalPrice: orig, discountPercent: discount },
                             },
                             addons: updatedAddons,
+                            addOns: updatedAddons,
                           };
                         });
                         setIsDirty(true);
@@ -524,7 +959,8 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const price = form.prices?.physical?.price || 0;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
                         setForm((prev) => {
-                          const updatedAddons = (prev.addons || []).map((a) =>
+                          const currentAddons = prev.addOns || prev.addons || [];
+                          const updatedAddons = currentAddons.map((a) =>
                             a.id === 'physical' || a.deliveryOption === 'physical'
                               ? { ...a, originalPrice: orig }
                               : a
@@ -536,6 +972,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                               physical: { price, originalPrice: orig, discountPercent: discount },
                             },
                             addons: updatedAddons,
+                            addOns: updatedAddons,
                           };
                         });
                         setIsDirty(true);
@@ -664,87 +1101,199 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
 
         {/* TAB 4: DIGITAL ASSET (PDF) */}
         {activeTab === 'digital' && (
-          <div className="space-y-5 animate-in fade-in">
+          <div className="space-y-6 animate-in fade-in">
             <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-900 space-y-1">
               <div className="flex items-center gap-2 font-bold">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                <span>Protected Digital Product Security (Step 3 Verified)</span>
+                <span>Protected Digital Product Security (Step 3 & Phase 9 Verified)</span>
               </div>
               <p>
                 PDF assets configured here are strictly gatekept behind the server-authoritative <code>/api/download</code> endpoint.
                 Public visitors cannot view or scrape this asset without a verified PAID order.
+                Replacing files automatically preserves customer lifetime access and historical purchase prices.
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                Sample / Download Filename
-              </label>
-              <input
-                type="text"
-                value={form.samplePdfName}
-                onChange={(e) => updateField('samplePdfName', e.target.value)}
-                placeholder="Xylem-IELTS-Full-Preparation-Guide.pdf"
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-slate-50 focus:bg-white font-mono"
-              />
-            </div>
-
-            {/* Current Attached PDF Status */}
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${form.pdfUrl ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
-                  <FileText className="w-5 h-5" />
+            {/* DIGITAL MATERIAL - Current File & Version Card */}
+            <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-800 tracking-wider uppercase">DIGITAL MATERIAL</span>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">
-                    {form.pdfUrl ? 'Authenticated PDF Attached' : 'No Custom PDF Linked'}
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    {form.pdfUrl ? `Resource ready for paid fulfillment (${form.samplePdfName})` : 'Attach a genuine PDF below'}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {form.digitalFile?.status || 'ACTIVE'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openReplaceModal(null)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Replace File</span>
+                  </button>
                 </div>
               </div>
 
-              {form.pdfUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateField('pdfUrl', '');
-                    showToast('PDF unlinked from this book', 'info');
-                  }}
-                  className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                >
-                  Unlink PDF
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Current File</div>
+                  <div className="text-xs font-bold text-slate-900 truncate font-mono">
+                    {form.digitalFile?.filename || form.samplePdfName || 'No file attached'}
+                  </div>
+                  {form.digitalFile?.fileSizeBytes ? (
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      {(form.digitalFile.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Version</div>
+                  <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{form.digitalFile?.version || '2026.1'}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {form.digitalFile?.checksum ? `SHA256: ${form.digitalFile.checksum.slice(0, 12)}...` : 'Lifetime active grant'}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</div>
+                  <div className="text-xs font-semibold text-emerald-700">
+                    {form.digitalFile?.status || 'ACTIVE'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {form.digitalFile?.releaseNotes ? `Note: "${form.digitalFile.releaseNotes}"` : 'Current authorized release'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* VERSION HISTORY */}
+            <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-slate-600" />
+                  <span className="text-xs font-bold text-slate-800 tracking-wider uppercase">VERSION HISTORY</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={fetchProductVersions}
+                    disabled={isLoadingVersions}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                    title="Refresh version history"
+                  >
+                    <Clock className={`w-3.5 h-3.5 ${isLoadingVersions ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineHistory(!showInlineHistory)}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                  >
+                    {showInlineHistory ? 'Collapse' : 'Expand'}
+                  </button>
+                </div>
+              </div>
+
+              {showInlineHistory && (
+                <div className="space-y-2 pt-1">
+                  {isLoadingVersions ? (
+                    <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                      <span>Loading stored version history...</span>
+                    </div>
+                  ) : productVersions.length === 0 ? (
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800">{form.digitalFile?.version || '2026.1'}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">ACTIVE</span>
+                        <span className="text-slate-400 truncate max-w-[200px]">{form.digitalFile?.filename || form.samplePdfName}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">Current initial release</span>
+                    </div>
+                  ) : (
+                    productVersions.map((v) => (
+                      <div
+                        key={v.id}
+                        className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                          v.status === 'ACTIVE'
+                            ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950'
+                            : 'bg-white border-slate-200 text-slate-700 opacity-80'
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold">{v.versionLabel}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                v.status === 'ACTIVE'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              {v.status}
+                            </span>
+                            <span className="font-mono text-slate-600 truncate max-w-[250px]">{v.fileName}</span>
+                            {v.sizeBytes > 0 && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                ({(v.sizeBytes / (1024 * 1024)).toFixed(2)} MB)
+                              </span>
+                            )}
+                          </div>
+                          {v.releaseNotes && (
+                            <p className="text-[11px] text-slate-500 italic pl-1">"{v.releaseNotes}"</p>
+                          )}
+                        </div>
+
+                        <div className="text-right text-[11px] text-slate-400 shrink-0 font-medium">
+                          {new Date(v.createdAt).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Upload PDF File */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                Attach Local PDF Document (.pdf)
-              </label>
-              <input
-                type="file"
-                ref={pdfInputRef}
-                onChange={handlePdfUpload}
-                accept=".pdf,application/pdf"
-                className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-slate-50 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
-              />
-            </div>
+            {/* Direct/Manual Configuration (Advanced) */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                Direct / Upstream Link Configuration (Fallback)
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Sample / Download Filename Override
+                </label>
+                <input
+                  type="text"
+                  value={form.samplePdfName}
+                  onChange={(e) => updateField('samplePdfName', e.target.value)}
+                  placeholder="Xylem-IELTS-Full-Preparation-Guide.pdf"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white font-mono"
+                />
+              </div>
 
-            {/* Or External Storage URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                Or Protected Cloud Storage / Upstream URL
-              </label>
-              <input
-                type="url"
-                value={form.pdfUrl?.startsWith('data:') ? '' : form.pdfUrl}
-                onChange={(e) => updateField('pdfUrl', e.target.value)}
-                placeholder="https://storage.xylemlearning.com/secure/ielts-guide.pdf"
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-slate-50 focus:bg-white font-mono"
-              />
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Protected Cloud Storage / Upstream URL
+                </label>
+                <input
+                  type="url"
+                  value={form.pdfUrl?.startsWith('data:') ? '' : form.pdfUrl}
+                  onChange={(e) => updateField('pdfUrl', e.target.value)}
+                  placeholder="https://storage.xylemlearning.com/secure/ielts-guide.pdf"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white font-mono"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -866,9 +1415,33 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
           </div>
         )}
 
-        {/* TAB 6: ADD-ONS & DEALS */}
+        {/* TAB 6: OPTIONAL ADD-ONS */}
         {activeTab === 'addons' && (
           <div className="space-y-6 animate-in fade-in">
+            {/* Header info banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-gradient-to-r from-emerald-50/80 to-teal-50/50 border border-emerald-200/80 rounded-2xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-sm font-extrabold text-[#0a2540] uppercase tracking-wider">
+                    Optional Add-ons
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  Offer additional study materials that customers can purchase with this product.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddAddon}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Add Another Add-on</span>
+              </button>
+            </div>
+
             {/* Buy 2 Get 3rd Free Toggle */}
             <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-2xl flex items-center justify-between">
               <div>
@@ -887,75 +1460,320 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
               />
             </div>
 
-            {/* Addons List */}
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                Configured Add-ons
-              </label>
-
-              {(form.addons || []).map((addon, idx) => (
-                <div key={addon.id || idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="space-y-1 sm:col-span-2">
-                    <label className="text-[11px] font-medium text-slate-600">Add-on Name</label>
-                    <input
-                      type="text"
-                      value={addon.name}
-                      onChange={(e) => {
-                        const next = [...(form.addons || [])];
-                        next[idx] = { ...addon, name: e.target.value };
-                        updateField('addons', next);
-                      }}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                    />
+            {/* Add-ons List */}
+            <div className="space-y-4">
+              {(!form.addOns || form.addOns.length === 0) ? (
+                <div className="p-8 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-white shadow-xs flex items-center justify-center mx-auto text-slate-400">
+                    <Layers className="w-6 h-6" />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-slate-600">Price (₹)</label>
-                    <input
-                      type="number"
-                      value={addon.price}
-                      onChange={(e) => {
-                        const newPrice = Math.max(0, parseInt(e.target.value) || 0);
-                        const next = [...(form.addons || [])];
-                        next[idx] = { ...addon, price: newPrice };
-                        setForm((prev) => {
-                          const updatedPrices = { ...prev.prices };
-                          if (addon.id === 'digital' || addon.deliveryOption === 'digital') {
-                            const orig = updatedPrices.digital?.originalPrice || newPrice;
-                            const discount = orig > newPrice ? Math.round(((orig - newPrice) / orig) * 100) : 0;
-                            updatedPrices.digital = { ...updatedPrices.digital, price: newPrice, originalPrice: orig, discountPercent: discount };
-                          } else if (addon.id === 'physical' || addon.deliveryOption === 'physical') {
-                            const orig = updatedPrices.physical?.originalPrice || newPrice;
-                            const discount = orig > newPrice ? Math.round(((orig - newPrice) / orig) * 100) : 0;
-                            updatedPrices.physical = { ...updatedPrices.physical, price: newPrice, originalPrice: orig, discountPercent: discount };
-                          }
-                          return {
-                            ...prev,
-                            prices: updatedPrices,
-                            addons: next,
-                          };
-                        });
-                        setIsDirty(true);
-                      }}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white font-bold"
-                    />
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      No Add-ons Configured
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                      Click below to create your first add-on module (e.g. Mock Test Pack, Vocabulary Booster, or Audio Drills).
+                    </p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-slate-600">Format</label>
-                    <select
-                      value={addon.deliveryOption || 'digital'}
-                      onChange={(e) => {
-                        const next = [...(form.addons || [])];
-                        next[idx] = { ...addon, deliveryOption: e.target.value as any };
-                        updateField('addons', next);
-                      }}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                    >
-                      <option value="digital">Digital (PDF)</option>
-                      <option value="physical">Physical (Printed)</option>
-                    </select>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddAddon}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Add-on</span>
+                  </button>
                 </div>
-              ))}
+              ) : (
+                (form.addOns || []).map((addon, idx) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === (form.addOns?.length || 0) - 1;
+                  const isActive = addon.active !== false;
+
+                  return (
+                    <div
+                      key={addon.id || idx}
+                      className={`p-5 rounded-2xl border transition-all ${
+                        isActive
+                          ? 'bg-white border-slate-200/90 shadow-2xs'
+                          : 'bg-slate-50/80 border-slate-300/80 opacity-80'
+                      }`}
+                    >
+                      {/* Card Header & Controls */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-slate-100">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            #{idx + 1}
+                          </span>
+                          <h4 className="text-xs font-extrabold text-[#0a2540] truncate max-w-xs">
+                            {addon.name || 'Untitled Add-on'}
+                          </h4>
+                          <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {addon.id}
+                          </span>
+                        </div>
+
+                        {/* Control buttons */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Active / Inactive Toggle Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(idx)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                            }`}
+                            title="Toggle whether customers can view and select this add-on"
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                              }`}
+                            />
+                            <span>{isActive ? 'Active [ ON ]' : 'Inactive [ OFF ]'}</span>
+                          </button>
+
+                          {/* Reorder: Move Up */}
+                          <button
+                            type="button"
+                            disabled={isFirst}
+                            onClick={() => handleMoveAddon(idx, 'up')}
+                            className="p-1.5 text-slate-500 hover:text-slate-900 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Move Up"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+
+                          {/* Reorder: Move Down */}
+                          <button
+                            type="button"
+                            disabled={isLast}
+                            onClick={() => handleMoveAddon(idx, 'down')}
+                            className="p-1.5 text-slate-500 hover:text-slate-900 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Move Down"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+
+                          {/* Duplicate */}
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicateAddon(idx)}
+                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Duplicate Add-on"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAddon(idx)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Remove Add-on"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Add-on Form Fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                        {/* Name */}
+                        <div className="space-y-1 sm:col-span-8">
+                          <label className="text-[11px] font-bold text-slate-700 block">
+                            Add-on Name *
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={120}
+                            value={addon.name}
+                            onChange={(e) => handleAddonFieldChange(idx, 'name', e.target.value)}
+                            placeholder="e.g. 10 Full-Length IELTS Mock Tests Pack"
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        {/* Format */}
+                        <div className="space-y-1 sm:col-span-4">
+                          <label className="text-[11px] font-bold text-slate-700 block">
+                            Format / Delivery
+                          </label>
+                          <select
+                            value={addon.deliveryOption || 'digital'}
+                            onChange={(e) => handleAddonFieldChange(idx, 'deliveryOption', e.target.value as any)}
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white"
+                          >
+                            <option value="digital">Digital (Instant Download)</option>
+                            <option value="physical">Physical (Printed Material)</option>
+                          </select>
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-1 sm:col-span-12">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold text-slate-700 block">
+                              Description
+                            </label>
+                            <span className="text-[10px] text-slate-400">
+                              {(addon.description || '').length}/500
+                            </span>
+                          </div>
+                          <textarea
+                            rows={2}
+                            maxLength={500}
+                            value={addon.description || ''}
+                            onChange={(e) => handleAddonFieldChange(idx, 'description', e.target.value)}
+                            placeholder="e.g. Timed authentic exam papers with full solution keys and band 8+ model answers."
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white resize-none"
+                          />
+                        </div>
+
+                        {/* Selling Price */}
+                        <div className="space-y-1 sm:col-span-6">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold text-slate-700 block">
+                              Price (₹) *
+                            </label>
+                            <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              {addon.pricePaise || (addon.price || 0) * 100} paise
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100000"
+                              value={addon.price}
+                              onChange={(e) => handleAddonFieldChange(idx, 'price', Math.max(0, parseInt(e.target.value) || 0))}
+                              className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-bold text-slate-900"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Original Price */}
+                        <div className="space-y-1 sm:col-span-6">
+                          <label className="text-[11px] font-bold text-slate-700 block">
+                            Original Price (₹) (Optional strikethrough)
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100000"
+                              value={addon.originalPrice || ''}
+                              onChange={(e) => handleAddonFieldChange(idx, 'originalPrice', Math.max(0, parseInt(e.target.value) || 0))}
+                              placeholder="e.g. 199"
+                              className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-slate-300 bg-white text-slate-600"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Digital Material Attachment (Section 10 & 11) */}
+                        {addon.deliveryOption !== 'physical' && (
+                          <div className="space-y-2 sm:col-span-12 pt-2 border-t border-slate-100">
+                            <label className="text-[11px] font-bold text-slate-700 block">
+                              Digital Material / Asset (.pdf)
+                            </label>
+
+                            {addon.digitalFile?.filename || addon.pdfUrl ? (
+                              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                    <Check className="w-4 h-4 stroke-[3]" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <h5 className="text-xs font-bold text-emerald-950 truncate max-w-[220px]">
+                                        {addon.digitalFile?.filename || addon.samplePdfName || 'Attached Document.pdf'}
+                                      </h5>
+                                      <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                                        v{addon.digitalFile?.version || '1.0'}
+                                      </span>
+                                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded uppercase">
+                                        {addon.digitalFile?.status || 'ACTIVE'}
+                                      </span>
+                                      {addon.digitalFile?.fileSizeBytes && (
+                                        <span className="text-[9px] text-slate-500 font-mono">
+                                          {(addon.digitalFile.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-emerald-700 mt-0.5 truncate">
+                                      {addon.digitalFile?.releaseNotes ? `Note: "${addon.digitalFile.releaseNotes}"` : 'Protected study asset for verified purchasers'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => openReplaceModal(idx)}
+                                    className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                  >
+                                    <Upload className="w-3 h-3 text-slate-500" />
+                                    <span>Replace File</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenAddonHistory(idx)}
+                                    className="px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                    title="View version history"
+                                  >
+                                    <History className="w-3 h-3 text-slate-500" />
+                                    <span>History</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddonFileRemove(idx)}
+                                    className="px-2.5 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Unlink
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <h5 className="text-xs font-semibold text-slate-700">
+                                    No Digital File Attached
+                                  </h5>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">
+                                    Attach a PDF study resource to be automatically unlocked when this add-on is purchased.
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openReplaceModal(idx)}
+                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 shadow-2xs transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Upload className="w-3.5 h-3.5 text-slate-600" />
+                                  <span>Upload Digital Material</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Optional Storage URL input */}
+                            <div className="pt-1">
+                              <input
+                                type="url"
+                                value={addon.pdfUrl?.startsWith('data:') ? '' : (addon.pdfUrl || '')}
+                                onChange={(e) => handleAddonStorageUrlChange(idx, e.target.value)}
+                                placeholder="Or enter protected storage URL (e.g. https://storage.xylemlearning.com/...)"
+                                className="w-full px-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-mono"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -1001,12 +1819,19 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-slate-50"
                 />
               </div>
-
-
             </div>
           </div>
         )}
       </form>
+    </div>
+
+    {/* Right Column: Live Customer Preview (visible side-by-side on xl: screens, or full-width on mobile when activeTab === 'preview') */}
+    <div className={`space-y-4 ${activeTab === 'preview' ? 'block' : 'hidden xl:block'} xl:col-span-5`}>
+      <div className="xl:sticky xl:top-6">
+        <ProductPurchasePreview book={form as any} />
+      </div>
+    </div>
+  </div>
 
       {/* Unsaved Changes Confirmation Modal */}
       <ConfirmationModal
@@ -1022,6 +1847,220 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
         }}
         onCancel={() => setShowCancelModal(false)}
       />
+
+      {/* PHASE 9: SAFE FILE REPLACEMENT MODAL */}
+      {replaceModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Safe Digital Material Replacement
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {replaceTargetAddonIdx === null
+                      ? `Product: ${form.title || 'Main Material'}`
+                      : `Add-on: ${(form.addOns || form.addons || [])[replaceTargetAddonIdx]?.name || 'Add-on Material'}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplaceModalOpen(false)}
+                className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-[11px] text-emerald-950 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Entitlement & Order Continuity Guaranteed</span>
+                </div>
+                <p className="text-emerald-800">
+                  Activating a new PDF version preserves customer lifetime access and historical purchase records.
+                  The previous version is safely archived. If replacement fails, the old version remains valid.
+                </p>
+              </div>
+
+              {/* 1. File Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Select Replacement PDF Document (.pdf) *
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setSelectedReplaceFile(file);
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-slate-50 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                  />
+                </div>
+                {selectedReplaceFile && (
+                  <div className="text-[11px] text-slate-600 flex items-center gap-2 pt-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="font-mono">{selectedReplaceFile.name}</span>
+                    <span className="text-slate-400">({(selectedReplaceFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Version Label */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Version Label (Human-readable)
+                </label>
+                <input
+                  type="text"
+                  value={replaceVersionLabel}
+                  onChange={(e) => setReplaceVersionLabel(e.target.value)}
+                  placeholder="e.g. 2026.2, 2.0, or September 2026"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white font-mono"
+                />
+              </div>
+
+              {/* 3. Release Notes */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Release Notes / Change Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  maxLength={500}
+                  value={replaceReleaseNotes}
+                  onChange={(e) => setReplaceReleaseNotes(e.target.value)}
+                  placeholder="e.g. Updated speaking practice section and corrected answer keys."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setReplaceModalOpen(false)}
+                disabled={isReplacingFile}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteReplace}
+                disabled={!selectedReplaceFile || isReplacingFile}
+                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {isReplacingFile ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Validating & Activating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Activate New Version</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PHASE 9: VERSION HISTORY MODAL (For Add-ons & General) */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-slate-700" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  {historyModalTarget.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-2">
+              {historyModalTarget.versions.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500">
+                  No historical versions found. The current file is the initial authorized release.
+                </div>
+              ) : (
+                historyModalTarget.versions.map((v) => (
+                  <div
+                    key={v.id}
+                    className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                      v.status === 'ACTIVE'
+                        ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950'
+                        : 'bg-white border-slate-200 text-slate-700 opacity-80'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold">{v.versionLabel}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            v.status === 'ACTIVE'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {v.status}
+                        </span>
+                        <span className="font-mono text-slate-600 truncate max-w-[220px]">{v.fileName}</span>
+                        {v.sizeBytes > 0 && (
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            ({(v.sizeBytes / (1024 * 1024)).toFixed(2)} MB)
+                          </span>
+                        )}
+                      </div>
+                      {v.releaseNotes && (
+                        <p className="text-[11px] text-slate-500 italic pl-1">"{v.releaseNotes}"</p>
+                      )}
+                    </div>
+
+                    <div className="text-right text-[11px] text-slate-400 shrink-0 font-medium">
+                      {new Date(v.createdAt).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -76,25 +76,56 @@ const ALLOWED_SEARCH_BOTS = [
 
 export async function onRequest(context) {
   const { request, next } = context;
-
   const url = new URL(request.url);
-  // Always allow API routes to execute without bot-check interference
+
+  // Helper to attach standard production security headers
+  function attachSecurityHeaders(response) {
+    const headers = new Headers(response.headers);
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+    if (url.protocol === 'https:') {
+      headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
+    if (!url.pathname.startsWith('/api/')) {
+      headers.set('X-Frame-Options', 'SAMEORIGIN');
+      if (!headers.has('Content-Security-Policy')) {
+        headers.set(
+          'Content-Security-Policy',
+          "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.cashfree.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://api.qrserver.com; connect-src 'self' https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://res.cloudinary.com; frame-src 'self' https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
+        );
+      }
+    }
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  // Always allow API routes to execute without bot-check interference, but attach security headers
   if (url.pathname.startsWith('/api/')) {
-    return await next();
+    const apiRes = await next();
+    return attachSecurityHeaders(apiRes);
   }
 
   const rawUserAgent = request.headers.get('user-agent');
 
   // Rule 1: Block missing, empty, or whitespace-only User-Agents
   if (!rawUserAgent || !rawUserAgent.trim()) {
-    return new Response('Access Denied: Empty or missing User-Agent header.', {
-      status: 403,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Robots-Tag': 'noindex, nofollow',
-        'Cache-Control': 'no-store, max-age=0',
-      },
-    });
+    return attachSecurityHeaders(
+      new Response('Access Denied: Empty or missing User-Agent header.', {
+        status: 403,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Robots-Tag': 'noindex, nofollow',
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      })
+    );
   }
 
   const userAgent = rawUserAgent.toLowerCase();
@@ -102,24 +133,28 @@ export async function onRequest(context) {
   // Rule 2: Immediately allow legitimate search engine and social preview bots
   const isAllowedSearchEngine = ALLOWED_SEARCH_BOTS.some((bot) => userAgent.includes(bot));
   if (isAllowedSearchEngine) {
-    return await next();
+    const res = await next();
+    return attachSecurityHeaders(res);
   }
 
   // Rule 3: Check against the bad-bot blocklist
   const matchedBadBot = BAD_BOTS.find((bot) => userAgent.includes(bot));
   if (matchedBadBot) {
-    return new Response('Access Denied: Automated bot scraping is prohibited on this site.', {
-      status: 403,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Robots-Tag': 'noindex, nofollow',
-        'X-Blocked-Bot': matchedBadBot,
-        'Cache-Control': 'no-store, max-age=0',
-      },
-    });
+    return attachSecurityHeaders(
+      new Response('Access Denied: Automated bot scraping is prohibited on this site.', {
+        status: 403,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Robots-Tag': 'noindex, nofollow',
+          'X-Blocked-Bot': matchedBadBot,
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      })
+    );
   }
 
   // Rule 4: Normal browser traffic, legitimate search engines, and requests
-  // with empty/missing referrers are allowed through
-  return await next();
+  // with empty/missing referrers are allowed through with security headers
+  const downstream = await next();
+  return attachSecurityHeaders(downstream);
 }

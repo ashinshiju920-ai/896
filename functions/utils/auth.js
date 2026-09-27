@@ -42,6 +42,56 @@ export function bytesToHex(bytes) {
 }
 
 /**
+ * Computes SHA-256 hash of a string, returning lowercase hex string.
+ */
+export async function sha256Hex(str) {
+  const enc = new TextEncoder();
+  const digest = await crypto.subtle.digest('SHA-256', enc.encode(String(str)));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+/**
+ * Generates a cryptographically secure random token in hex.
+ */
+export function generateRandomToken(byteLength = 32) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ */
+export function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+/**
+ * Parses cookies from HTTP Request headers.
+ */
+export function parseCookies(request) {
+  const cookieHeader = request?.headers?.get('cookie') || request?.headers?.get('Cookie') || '';
+  if (!cookieHeader) return {};
+  return Object.fromEntries(
+    cookieHeader
+      .split(';')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .map((c) => {
+        const idx = c.indexOf('=');
+        if (idx === -1) return [c, ''];
+        return [c.slice(0, idx).trim(), c.slice(idx + 1).trim()];
+      })
+  );
+}
+
+/**
  * Hashes a password using Web Crypto PBKDF2 (SHA-256, >=100,000 iterations).
  * Matches Node crypto.pbkdf2Sync output byte-for-byte.
  */

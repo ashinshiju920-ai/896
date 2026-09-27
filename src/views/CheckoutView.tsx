@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Lock,
   ShieldCheck,
@@ -19,7 +19,8 @@ import { XylemLogo } from '../components/XylemLogo';
 import { CashfreeLogo } from '../components/CashfreeLogo';
 import { BackButton } from '../components/BackButton';
 import { BookCover } from '../components/BookCover';
-import { createCashfreeOrder, loadCashfreeSDK } from '../utils/cashfree';
+import { createCashfreeOrder, loadCashfreeSDK, CashfreeOrderPricing } from '../utils/cashfree';
+import { trackCheckoutStarted, resetCheckoutTracking } from '../utils/analytics';
 
 export const CheckoutView: React.FC = () => {
   const {
@@ -33,12 +34,44 @@ export const CheckoutView: React.FC = () => {
     cartCount,
     setIsSearchOpen,
     appliedCoupon,
+    couponDiscount,
+    applyCoupon,
+    removeCoupon,
     shippingInfo,
     setShippingInfo,
     showToast,
+    currentCustomer,
   } = useShop();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [serverPayableAmount, setServerPayableAmount] = useState<number | null>(null);
+  const [serverPricing, setServerPricing] = useState<CashfreeOrderPricing | null>(null);
+  const [inputCoupon, setInputCoupon] = useState('');
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponFeedback, setCouponFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Auto-fill logged-in customer details
+  useEffect(() => {
+    if (currentCustomer) {
+      setShippingInfo((prev) => ({
+        ...prev,
+        fullName: prev.fullName || currentCustomer.name || '',
+        email: prev.email || currentCustomer.email || '',
+        phone: prev.phone || currentCustomer.phone || '',
+      }));
+    }
+  }, [currentCustomer, setShippingInfo]);
+
+  // Track checkout started (deduplicated per checkout visit)
+  useEffect(() => {
+    if (cart.length > 0) {
+      const productIds = cart.map((i) => i.book.id);
+      trackCheckoutStarted(productIds, cart.length);
+    }
+    return () => {
+      resetCheckoutTracking();
+    };
+  }, [cart.length]);
 
   // If cart is empty, render clean empty checkout notice
   if (cart.length === 0) {
@@ -96,11 +129,69 @@ export const CheckoutView: React.FC = () => {
     ? Math.round((displayDiscount / totalOriginalPrice) * 100)
     : 0;
 
-  // Server-authoritative checkout sending intent only
+  // Authoritative server-synced prices (server always takes precedence over estimated client values)
+  const payableAmount = serverPayableAmount !== null ? serverPayableAmount : total;
+  const authoritativeSubtotal = serverPricing ? serverPricing.subtotal : subtotal;
+  const authoritativeDeliveryFee = serverPricing ? serverPricing.shipping : deliveryFee;
+  const authoritativeDiscount = serverPricing ? serverPricing.discount : displayDiscount;
+
+
+  const handleApplyCoupon = async () => {
+    const clean = inputCoupon.trim().toUpperCase();
+    if (!clean) return;
+
+    setIsValidatingCoupon(true);
+    setCouponFeedback(null);
+
+    try {
+      const cartPayload = cart.map((item: any) => ({
+        bookId: item.bookId || item.book?.id,
+        addonIds: item.selectedAddonIds || [item.format || 'digital'],
+        format: item.format || 'digital',
+        quantity: item.quantity || 1,
+      }));
+
+      const res = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: clean,
+          cart: cartPayload,
+          deliveryOption: hasPhysical ? 'physical' : 'digital',
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        applyCoupon(clean);
+        setCouponFeedback({
+          type: 'success',
+          message: `✓ ${data.code} applied. Discount: -₹${data.discountRupees}`,
+        });
+        showToast(`✓ ${data.code} applied! Discount: -₹${data.discountRupees}`, 'success');
+        setInputCoupon('');
+      } else {
+        const errorMsg = data.error || 'Coupon is not valid for this order.';
+        setCouponFeedback({ type: 'error', message: errorMsg });
+        showToast(errorMsg, 'warning');
+      }
+    } catch {
+      const success = applyCoupon(clean);
+      if (success) {
+        setCouponFeedback({ type: 'success', message: `✓ ${clean} applied.` });
+        setInputCoupon('');
+      } else {
+        setCouponFeedback({ type: 'error', message: 'Coupon is not valid for this order.' });
+      }
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
   const handleProceedToPayment = async () => {
-    // Validate customer info
-    if (!shippingInfo.fullName.trim()) {
-      showToast('Please enter your full name', 'warning');
+    // 1. Mandatory Pre-Flight Validation
+    if (!shippingInfo.fullName.trim() || shippingInfo.fullName.trim().length < 3) {
+      showToast('Please enter your full name (minimum 3 characters)', 'warning');
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -143,6 +234,17 @@ export const CheckoutView: React.FC = () => {
         },
         deliveryOption,
       });
+
+      // Synchronize UI with authoritative server-calculated order amount
+      if (orderData.orderAmount !== undefined) {
+        setServerPayableAmount(orderData.orderAmount);
+        if (orderData.pricing) {
+          setServerPricing(orderData.pricing);
+        }
+        if (orderData.orderAmount !== total) {
+          showToast('Your order total has been updated to the confirmed server amount.', 'info');
+        }
+      }
 
       if (orderData.paymentSessionId) {
         const cashfree = await loadCashfreeSDK(
@@ -299,6 +401,18 @@ export const CheckoutView: React.FC = () => {
                       </span>
                       <span>Qty: {item.quantity}</span>
                     </div>
+
+                    {/* Selected Add-ons Display */}
+                    {item.selectedAddons && item.selectedAddons.length > 0 && (
+                      <div className="mt-2 space-y-1 pl-2 border-l-2 border-emerald-300">
+                        {item.selectedAddons.map((addon) => (
+                          <div key={addon.id} className="flex items-center justify-between text-xs text-slate-600">
+                            <span className="truncate pr-1">+ {addon.name}</span>
+                            <span className="font-semibold text-slate-700 shrink-0">₹{addon.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-sm sm:text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
@@ -314,14 +428,78 @@ export const CheckoutView: React.FC = () => {
               ))}
             </div>
 
+            {/* Promo Code Box */}
+            <div className="py-3 border-b border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Promo Code
+                </label>
+                <span className="text-[11px] text-slate-400">Apply coupon for discount</span>
+              </div>
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200/90 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                    <div>
+                      <span className="font-bold text-xs sm:text-sm text-emerald-900">{appliedCoupon} applied</span>
+                      {couponDiscount > 0 && (
+                        <span className="block text-[11px] text-emerald-700 font-medium">Discount: -₹{couponDiscount}</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeCoupon();
+                      setCouponFeedback(null);
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={inputCoupon}
+                      onChange={(e) => setInputCoupon(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCoupon();
+                        }
+                      }}
+                      placeholder="e.g. XYLEM20"
+                      className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold uppercase text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={isValidatingCoupon || !inputCoupon.trim()}
+                      className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center min-w-[72px]"
+                    >
+                      {isValidatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                    </button>
+                  </div>
+                  {couponFeedback && (
+                    <p className={`text-xs font-medium ${couponFeedback.type === 'success' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                      {couponFeedback.message}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Price Calculations */}
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between text-slate-600">
                 <span>Subtotal</span>
-                <span className="font-bold text-slate-900">₹{subtotal}</span>
+                <span className="font-bold text-slate-900">₹{authoritativeSubtotal}</span>
               </div>
 
-              {displayDiscount > 0 && (
+              {authoritativeDiscount > 0 && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-emerald-700 font-medium">Discount Applied</span>
@@ -329,14 +507,14 @@ export const CheckoutView: React.FC = () => {
                       OFFER SAVINGS
                     </span>
                   </div>
-                  <span className="font-bold text-emerald-600">- ₹{displayDiscount}</span>
+                  <span className="font-bold text-emerald-600">- ₹{authoritativeDiscount}</span>
                 </div>
               )}
 
               <div className="flex items-center justify-between text-slate-600">
                 <span>Delivery</span>
                 <span className="font-semibold text-emerald-600">
-                  {hasPhysical ? (deliveryFee > 0 ? `₹${deliveryFee}` : 'FREE') : 'FREE (Instant Download)'}
+                  {hasPhysical ? (authoritativeDeliveryFee > 0 ? `₹${authoritativeDeliveryFee}` : 'FREE') : 'FREE (Instant Download)'}
                 </span>
               </div>
             </div>
@@ -347,14 +525,14 @@ export const CheckoutView: React.FC = () => {
                 <div className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
                   Total Amount
                 </div>
-                {displayDiscount > 0 && (
+                {authoritativeDiscount > 0 && (
                   <div className="text-xs font-semibold text-emerald-700 mt-0.5">
-                    You save ₹{displayDiscount} ({discountPercent}% off)
+                    You save ₹{authoritativeDiscount} ({discountPercent}% off)
                   </div>
                 )}
               </div>
               <div className="text-2xl sm:text-3xl font-black text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                ₹{total}
+                ₹{payableAmount}
               </div>
             </div>
 
@@ -547,7 +725,7 @@ export const CheckoutView: React.FC = () => {
                   ) : (
                     <>
                       <Lock className="w-5 h-5 text-white/90" />
-                      <span>Proceed to Payment (₹{total})</span>
+                      <span>Proceed to Payment (₹{payableAmount})</span>
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}

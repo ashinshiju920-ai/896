@@ -1,7 +1,15 @@
 // functions/api/cashfree-webhook.js
 // Cashfree PG v3 Webhook Signature Verification & Idempotent Order State Management
 
-import { getOrder, updateOrderStatus, recordOrderEvent } from '../utils/db.js';
+import {
+  getOrder,
+  updateOrderStatus,
+  recordOrderEvent,
+  createEntitlementsForPaidOrder,
+  updateOrderPaymentConfirmed,
+  recordPromotionRedemption,
+  recordAnalyticsEvent,
+} from '../utils/db.js';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
@@ -125,6 +133,16 @@ export async function onRequestPost(context) {
     eventType === 'PAYMENT_SUCCESS' ||
     payload.data?.payment?.payment_status === 'SUCCESS';
 
+  const isPaymentFailed =
+    eventType === 'PAYMENT_FAILED_WEBHOOK' ||
+    eventType === 'PAYMENT_FAILED' ||
+    payload.data?.payment?.payment_status === 'FAILED';
+
+  const isUserDropped =
+    eventType === 'PAYMENT_USER_DROPPED_WEBHOOK' ||
+    eventType === 'USER_DROPPED' ||
+    payload.data?.payment?.payment_status === 'USER_DROPPED';
+
   if (isPaymentSuccess) {
     // Idempotency: if already PAID, do not double-process
     if (order.status === 'PAID') {
@@ -134,6 +152,34 @@ export async function onRequestPost(context) {
       });
     }
 
+    // Currency validation: Must match expected order currency (default 'INR')
+    const paidCurrency = (
+      payload.data?.payment?.payment_currency ||
+      payload.data?.order?.order_currency ||
+      payload.order_currency ||
+      'INR'
+    ).toUpperCase();
+    const expectedCurrency = (order.currency || 'INR').toUpperCase();
+
+    if (paidCurrency !== expectedCurrency) {
+      console.error(
+        `CURRENCY MISMATCH: Order ${order.id} expected ${expectedCurrency}, received ${paidCurrency}.`
+      );
+      await recordOrderEvent(env, {
+        orderId: order.id,
+        eventType: 'PAYMENT_CURRENCY_MISMATCH',
+        rawPayload: JSON.stringify({
+          expectedCurrency,
+          receivedCurrency: paidCurrency,
+          rawBody,
+        }),
+      });
+      return new Response(
+        JSON.stringify({ error: 'Payment currency does not match order record' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const rawPaid =
       payload.data?.payment?.payment_amount ??
       payload.data?.order?.order_amount ??
@@ -141,7 +187,7 @@ export async function onRequestPost(context) {
     const paidPaise = Math.round(Number(rawPaid) * 100);
 
     // Confirm paid amount equals stored server-computed amount
-    if (Math.abs(order.amount_paise - paidPaise) > 1) {
+    if (isNaN(paidPaise) || Math.abs(order.amount_paise - paidPaise) > 1) {
       // Mismatch => Log and leave unpaid!
       console.error(
         `PAYMENT MISMATCH: Order ${order.id} expected ${order.amount_paise} paise, received ${paidPaise} paise.`
@@ -161,13 +207,95 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Amount confirmed => update to PAID
+    // Amount and currency confirmed => update to PAID
     await updateOrderStatus(env, order.id, 'PAID');
+    order.status = 'PAID';
+
+    // Phase 8: Store payment reconciliation data
+    const cfPaymentId = payload.data?.payment?.cf_payment_id || payload.data?.payment?.payment_id || null;
+    try {
+      await updateOrderPaymentConfirmed(env, order.id, {
+        cfPaymentId,
+        verifiedAmountPaise: paidPaise,
+        reconciliationState: Math.abs(order.amount_paise - paidPaise) <= 1 ? 'MATCHED' : 'MISMATCH',
+      });
+    } catch (reconcErr) {
+      console.warn('Could not store reconciliation data:', reconcErr.message);
+    }
+
+    await recordOrderEvent(env, {
+      orderId: order.id,
+      eventType: 'ORDER_MARKED_PAID',
+      rawPayload: JSON.stringify({
+        paymentId: cfPaymentId,
+      }),
+    });
+
+    try {
+      const entitlements = await createEntitlementsForPaidOrder(env, order);
+      await recordOrderEvent(env, {
+        orderId: order.id,
+        eventType: 'ENTITLEMENTS_CREATED',
+        rawPayload: JSON.stringify({
+          count: entitlements.length,
+          entitlementIds: entitlements.map((e) => e.id),
+        }),
+      });
+    } catch (entErr) {
+      console.warn('Could not create entitlements in webhook:', entErr.message);
+      await recordOrderEvent(env, {
+        orderId: order.id,
+        eventType: 'ENTITLEMENT_CREATION_FAILED',
+        rawPayload: JSON.stringify({ error: entErr.message }),
+      });
+    }
+
     await recordOrderEvent(env, {
       orderId: order.id,
       eventType: 'PAYMENT_SUCCESS_CONFIRMED',
       rawPayload: rawBody,
     });
+
+      // Phase 10: Record promotional coupon redemption if order had coupon applied
+      const couponCode = order.coupon_code || order.couponCode;
+      if (couponCode) {
+        try {
+          await recordPromotionRedemption(env, {
+            promotionCode: couponCode,
+            orderId: order.id,
+            customerId: order.customer_id || null,
+            customerEmail: order.customer_email || null,
+            discountPaise: order.discount_paise || order.discountPaise || 0,
+          });
+          await recordOrderEvent(env, {
+            orderId: order.id,
+            eventType: 'PROMOTION_REDEEMED',
+            rawPayload: JSON.stringify({
+              couponCode,
+              discountPaise: order.discount_paise || order.discountPaise || 0,
+            }),
+          });
+        } catch (promoErr) {
+          console.warn('Could not record promotion redemption in webhook:', promoErr.message);
+        }
+      }
+
+    // Phase 11: Record ORDER_PAID analytics event (idempotent, failure-isolated)
+    try {
+      const firstItem = Array.isArray(order.items) && order.items[0] ? order.items[0] : null;
+      await recordAnalyticsEvent(env, {
+        eventType: 'ORDER_PAID',
+        orderId: order.id,
+        customerId: order.customer_id || null,
+        productId: firstItem ? (firstItem.productId || firstItem.bookId || firstItem.id) : null,
+        metadata: {
+          amountPaise: paidPaise || order.amount_paise,
+          couponCode: couponCode || null,
+        },
+      });
+    } catch (aErr) {
+      console.warn('Analytics ORDER_PAID error (non-fatal):', aErr.message);
+    }
 
     return new Response(
       JSON.stringify({ status: 'ok', order_id: order.id, order_status: 'PAID' }),
@@ -175,7 +303,34 @@ export async function onRequestPost(context) {
     );
   }
 
-  // Other events (e.g. PAYMENT_FAILED, USER_DROPPED)
+  // Handle failure and user dropped
+  if (isPaymentFailed && order.status !== 'PAID') {
+    await updateOrderStatus(env, order.id, 'FAILED');
+    await recordOrderEvent(env, {
+      orderId: order.id,
+      eventType: 'PAYMENT_FAILED',
+      rawPayload: rawBody,
+    });
+    return new Response(
+      JSON.stringify({ status: 'ok', order_id: order.id, order_status: 'FAILED' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  if (isUserDropped && order.status !== 'PAID') {
+    await updateOrderStatus(env, order.id, 'USER_DROPPED');
+    await recordOrderEvent(env, {
+      orderId: order.id,
+      eventType: 'USER_DROPPED',
+      rawPayload: rawBody,
+    });
+    return new Response(
+      JSON.stringify({ status: 'ok', order_id: order.id, order_status: 'USER_DROPPED' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Other events (e.g. general webhook notification)
   await recordOrderEvent(env, {
     orderId: order.id,
     eventType: eventType || 'WEBHOOK_EVENT',

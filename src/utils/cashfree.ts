@@ -79,19 +79,33 @@ export interface CheckoutIntentParams {
   deliveryOption?: 'digital' | 'physical';
 }
 
-/**
- * Creates a Cashfree payment order via Cloudflare Pages endpoint.
- * STRICT RULE 3: Sends ONLY intent (IDs, format, quantities), NEVER prices or totals.
- */
-export async function createCashfreeOrder(params: CheckoutIntentParams): Promise<{
+export interface CashfreeOrderPricing {
+  subtotalPaise: number;
+  subtotal: number;
+  discountPaise: number;
+  discount: number;
+  shippingPaise: number;
+  shipping: number;
+  totalPaise: number;
+  total: number;
+}
+
+export interface CreateCashfreeOrderResult {
   success: boolean;
   paymentSessionId: string;
   orderId: string;
   orderAmount: number;
   orderCurrency?: string;
+  pricing?: CashfreeOrderPricing;
   environment?: 'sandbox' | 'production';
   isProd?: boolean;
-}> {
+}
+
+/**
+ * Creates a Cashfree payment order via Cloudflare Pages endpoint.
+ * STRICT: Sends ONLY intent (IDs, format, quantities), NEVER prices or totals.
+ */
+export async function createCashfreeOrder(params: CheckoutIntentParams): Promise<CreateCashfreeOrderResult> {
   // Strip any accidental price or status fields before sending
   const sanitizedIntent = {
     cart: (params.cart || []).map((item) => ({
@@ -126,7 +140,7 @@ export async function createCashfreeOrder(params: CheckoutIntentParams): Promise
 
     data = await res.json();
   } catch (netErr: any) {
-    throw new Error(netErr.message || 'Network error connecting to payment gateway.');
+    throw new Error(netErr.message || 'Unable to connect. Please check your connection and try again.');
   }
 
   const sessionId = data.payment_session_id || data.paymentSessionId;
@@ -139,6 +153,7 @@ export async function createCashfreeOrder(params: CheckoutIntentParams): Promise
       orderId,
       orderAmount: Number(data.order_amount ?? data.orderAmount ?? 0),
       orderCurrency: data.order_currency || data.orderCurrency || 'INR',
+      pricing: data.pricing,
       environment: data.environment || (data.isProd ? 'production' : 'sandbox'),
       isProd: Boolean(data.isProd),
     };
@@ -148,27 +163,45 @@ export async function createCashfreeOrder(params: CheckoutIntentParams): Promise
     data.error ||
     data.message ||
     (data.details && (data.details.message || data.details.error)) ||
-    `Payment gateway initialization failed (${res.status || 'unknown'})`;
+    'Payment could not be started. Please try again.';
   throw new Error(errorMessage);
+}
+
+export interface OrderStatusMaterial {
+  entitlementId: string;
+  name: string;
+  type: 'product' | 'addon';
+  available: boolean;
+  productId?: string;
+  addOnId?: string | null;
+  downloadUrl?: string | null;
 }
 
 export interface OrderStatusResponse {
   status: 'PAID' | 'PENDING' | 'FAILED' | 'USER_DROPPED' | 'NOT_FOUND';
   orderId: string;
+  isClaimed?: boolean;
+  customerId?: string | null;
   items?: any[];
+  materials?: OrderStatusMaterial[];
   fulfillment?: {
     googleSheetUrl: string;
     downloads: Array<{
       bookId: string;
+      entitlementId?: string;
       title: string;
       downloadUrl: string;
+      type?: 'product' | 'addon';
     }>;
+    materials?: OrderStatusMaterial[];
   } | null;
   total?: number;
+  currency?: string;
   customerName?: string;
   customerEmail?: string;
   date?: string;
   error?: string;
+  message?: string;
 }
 
 /**

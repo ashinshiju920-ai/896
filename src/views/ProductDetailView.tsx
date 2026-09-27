@@ -24,10 +24,16 @@ import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { BackButton } from '../components/BackButton';
 import { BookFormat, ProductAddon } from '../types';
-import { getBookAddons, calculateAddonsPricing } from '../utils/pricing';
+import {
+  getBookAddons,
+  calculateAddonsPricing,
+  getSelectableAddons,
+  calculateDisplayPrice,
+} from '../utils/pricing';
 import { useParams, Link } from 'react-router-dom';
 import { findBookBySlug } from '../utils/productSlug';
 import { NotFoundView } from './NotFoundView';
+import { trackProductView, trackAddToCart, trackAddonSelected } from '../utils/analytics';
 
 export const ProductDetailView: React.FC = () => {
   const {
@@ -50,10 +56,11 @@ export const ProductDetailView: React.FC = () => {
     ? findBookBySlug(slug, books)
     : (books.find((b) => b.id === selectedBookId) || books[0]);
 
-  // Page title for SEO
+  // Page title for SEO & Analytics view tracking
   useEffect(() => {
     if (book) {
       document.title = `${book.title} | Xylem Learning`;
+      trackProductView(book.id);
     }
     return () => {
       document.title = 'Xylem Learning — Exam Preparation Books & Study Materials';
@@ -79,39 +86,40 @@ export const ProductDetailView: React.FC = () => {
     );
   }
 
-  const availableAddons = getBookAddons(book);
-  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(() => [
-    availableAddons[0]?.id || 'digital',
-  ]);
+  // Base format state (Digital PDF vs Physical Book)
+  const [format, setFormat] = useState<BookFormat>('digital');
 
-  // Keep selectedAddonIds valid if book changes or addons change
+  // Customer-selectable active optional add-ons
+  const selectableAddons = getSelectableAddons(book);
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
+
+  // When book changes, reset add-on selection so it never leaks across products
   useEffect(() => {
-    const addons = getBookAddons(book);
-    setSelectedAddonIds((prev) => {
-      const valid = prev.filter((id) => addons.some((a) => a.id === id));
-      return valid.length > 0 ? valid : [addons[0]?.id || 'digital'];
-    });
-  }, [book.id, book.addons]);
-
-  const pricingCalc = calculateAddonsPricing(
-    availableAddons,
-    selectedAddonIds,
-    book.buy2Get3rdFree
-  );
+    setSelectedAddonIds([]);
+  }, [book.id]);
 
   const toggleAddonSelection = (addonId: string) => {
     setSelectedAddonIds((prev) => {
       if (prev.includes(addonId)) {
-        if (prev.length === 1) {
-          showToast('At least one format or add-on must be selected', 'info');
-          return prev;
-        }
         return prev.filter((id) => id !== addonId);
       } else {
-        return [...prev, addonId];
+        // Track meaningful add-on selection
+        trackAddonSelected(book.id, addonId);
+        // Prevent duplicate IDs (Set behavior)
+        return Array.from(new Set([...prev, addonId]));
       }
     });
   };
+
+  const displayCalc = calculateDisplayPrice(book, format, selectedAddonIds);
+
+  const digitalPrice = Number(book.prices?.digital?.price) || 199;
+  const digitalOrig = Number(book.prices?.digital?.originalPrice) || 599;
+  const digitalDiscount = Math.round(((digitalOrig - digitalPrice) / digitalOrig) * 100);
+
+  const physicalPrice = Number(book.prices?.physical?.price) || 899;
+  const physicalOrig = Number(book.prices?.physical?.originalPrice) || 1499;
+  const physicalDiscount = Math.round(((physicalOrig - physicalPrice) / physicalOrig) * 100);
 
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'included' | 'reviews'>('description');
@@ -130,12 +138,12 @@ export const ProductDetailView: React.FC = () => {
   const recommendations = books.filter((b) => b.id !== book.id).slice(0, 4);
 
   const handleAddToCart = () => {
-    const format: BookFormat = pricingCalc.hasPhysical ? 'physical' : 'digital';
+    trackAddToCart(book.id, selectedAddonIds);
     addToCart(book, format, quantity, selectedAddonIds);
   };
 
   const handleBuyNow = () => {
-    const format: BookFormat = pricingCalc.hasPhysical ? 'physical' : 'digital';
+    trackAddToCart(book.id, selectedAddonIds);
     buyNow(book, format, quantity, selectedAddonIds);
   };
 
@@ -345,181 +353,279 @@ export const ProductDetailView: React.FC = () => {
             </div>
           </div>
 
-          {/* Format & Add-ons Selector Cards (Customizable up to 4 with Buy 2 Get 3rd Free Deal) */}
-          <div className="space-y-3">
+          {/* 1. Base Format Selection (Digital PDF vs Physical Book) */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Select Add-ons / Formats ({selectedAddonIds.length} Selected)
+                Select Book Format
               </label>
               <span className="text-[11px] text-slate-500 font-medium">
-                Click to add or remove options
+                Choose digital or printed
               </span>
             </div>
 
-            {/* Promotional Deal Banner if configured */}
-            {book.buy2Get3rdFree && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Digital Option */}
               <div
-                className={`p-3 rounded-2xl border transition-all ${
-                  pricingCalc.freeDiscount > 0
-                    ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/70 border-emerald-300 shadow-2xs'
-                    : selectedAddonIds.length === 2
-                    ? 'bg-gradient-to-r from-amber-50 to-orange-50/80 border-amber-300 shadow-2xs'
-                    : 'bg-emerald-50/50 border-emerald-200/80'
+                role="button"
+                tabIndex={0}
+                aria-label="Select Digital PDF edition"
+                onClick={() => setFormat('digital')}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    setFormat('digital');
+                  }
+                }}
+                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none ${
+                  format === 'digital'
+                    ? 'border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
                   <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-white ${
-                      pricingCalc.freeDiscount > 0
-                        ? 'bg-emerald-600 shadow-xs'
-                        : selectedAddonIds.length === 2
-                        ? 'bg-amber-500 shadow-xs'
-                        : 'bg-emerald-600'
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      format === 'digital' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
-                    {pricingCalc.freeDiscount > 0 ? (
-                      <Gift className="w-4 h-4 animate-bounce" />
-                    ) : (
-                      <Tag className="w-4 h-4" />
-                    )}
+                    <DownloadCloud className="w-4 h-4" />
                   </div>
-                  <div className="text-xs leading-snug flex-1">
-                    {pricingCalc.freeDiscount > 0 ? (
-                      <div>
-                        <div className="font-black text-emerald-950 flex items-center gap-1.5 flex-wrap">
-                          <span>🎉 BUY 2 GET 3RD FREE APPLIED!</span>
-                          <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                            Save ₹{pricingCalc.freeDiscount}
-                          </span>
-                        </div>
-                        <p className="text-emerald-800 text-[11px] mt-0.5">
-                          You unlocked <strong>"{pricingCalc.freeAddonItem?.name}"</strong> at <strong>₹0 FREE</strong>!
-                        </p>
-                      </div>
-                    ) : selectedAddonIds.length === 2 ? (
-                      <div>
-                        <span className="font-extrabold text-amber-950 block">
-                          🔥 Just 1 more add-on away from FREE!
-                        </span>
-                        <p className="text-amber-800 text-[11px] mt-0.5">
-                          Select 1 more add-on below to get your 3rd one completely <strong>FREE (₹0)</strong>!
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="font-extrabold text-emerald-950 block">
-                          {book.addonDealText || '🎁 Special Offer: Buy 2 Add-ons, Get 3rd FREE!'}
-                        </span>
-                        <p className="text-emerald-800 text-[11px] mt-0.5">
-                          Choose any 3 add-ons below and the 3rd one will be automatically free in checkout.
-                        </p>
-                      </div>
-                    )}
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-slate-900 truncate">Digital Edition</h4>
+                    <p className="text-[10px] text-slate-500 truncate">Instant PDF Download</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Add-on Cards Grid (Renders up to 4 add-ons) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {availableAddons.map((addon) => {
-                const isSelected = selectedAddonIds.includes(addon.id);
-                const isFree =
-                  pricingCalc.freeDiscount > 0 && pricingCalc.freeAddonItem?.id === addon.id;
-                const isPhysical = addon.deliveryOption === 'physical';
-
-                return (
-                  <div
-                    key={addon.id}
-                    onClick={() => toggleAddonSelection(addon.id)}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between relative select-none ${
-                      isSelected
-                        ? 'border-emerald-600 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-500/20'
-                        : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {isSelected ? (
-                          <Check className="w-4 h-4 stroke-[3]" />
-                        ) : isPhysical ? (
-                          <BookOpen className="w-4 h-4" />
-                        ) : (
-                          <DownloadCloud className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-xs font-bold text-slate-900 truncate">
-                            {addon.name}
-                          </h4>
-                          {isFree && (
-                            <span className="text-[9px] font-black text-emerald-800 bg-emerald-200/90 px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
-                              FREE DEAL
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-500 truncate">{addon.subtitle}</p>
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      {isFree ? (
-                        <div>
-                          <div className="text-xs font-black text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                            ₹0 FREE
-                          </div>
-                          <div className="text-[10px] line-through text-slate-400 mt-0.5">
-                            ₹{addon.price}
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="text-sm font-extrabold text-slate-900">
-                            ₹{addon.price}
-                          </div>
-                          <div className="flex items-center justify-end gap-1 text-[10px]">
-                            {addon.originalPrice > addon.price && (
-                              <span className="line-through text-slate-400">
-                                ₹{addon.originalPrice}
-                              </span>
-                            )}
-                            {(addon.discountPercent ?? 0) > 0 && (
-                              <span className="font-bold text-emerald-700">
-                                {addon.discountPercent}% OFF
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                <div className="text-right shrink-0">
+                  <div className="text-sm font-extrabold text-slate-900">₹{digitalPrice}</div>
+                  {digitalOrig > digitalPrice && (
+                    <div className="flex items-center justify-end gap-1 text-[10px]">
+                      <span className="line-through text-slate-400">₹{digitalOrig}</span>
+                      {digitalDiscount > 0 && (
+                        <span className="font-bold text-emerald-700">{digitalDiscount}% OFF</span>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              </div>
 
-            {/* Total Summary Bar */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700">Total Price:</span>
-                <span className="text-base font-extrabold text-[#0a2540]">
-                  ₹{pricingCalc.finalPrice * quantity}
-                </span>
-                {pricingCalc.originalTotal > pricingCalc.finalPrice && (
-                  <span className="line-through text-slate-400 text-[11px]">
-                    ₹{pricingCalc.originalTotal * quantity}
+              {/* Physical Option */}
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label="Select Paperback Printed edition"
+                onClick={() => setFormat('physical')}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    setFormat('physical');
+                  }
+                }}
+                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none ${
+                  format === 'physical'
+                    ? 'border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      format === 'physical' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-slate-900 truncate">Paperback Edition</h4>
+                    <p className="text-[10px] text-slate-500 truncate">Delivered in 3-5 days</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-sm font-extrabold text-slate-900">₹{physicalPrice}</div>
+                  {physicalOrig > physicalPrice && (
+                    <div className="flex items-center justify-end gap-1 text-[10px]">
+                      <span className="line-through text-slate-400">₹{physicalOrig}</span>
+                      {physicalDiscount > 0 && (
+                        <span className="font-bold text-emerald-700">{physicalDiscount}% OFF</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Optional Add-ons Section: "Add Optional Materials" */}
+          {selectableAddons.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <span>Add Optional Materials</span>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Optional
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Enhance your preparation with extra mock tests & study resources.
+                  </p>
+                </div>
+                {selectedAddonIds.length > 0 && (
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    {selectedAddonIds.length} Selected
                   </span>
                 )}
               </div>
-              {pricingCalc.savingsTotal > 0 && (
+
+              {/* Add-on Cards */}
+              <div className="grid grid-cols-1 gap-2.5">
+                {selectableAddons.map((addon) => {
+                  const isChecked = selectedAddonIds.includes(addon.id);
+                  const isPhysical = addon.deliveryOption === 'physical';
+
+                  return (
+                    <div
+                      key={addon.id}
+                      role="checkbox"
+                      aria-checked={isChecked}
+                      tabIndex={0}
+                      aria-label={`${addon.name} for ₹${addon.price}`}
+                      onClick={() => toggleAddonSelection(addon.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          toggleAddonSelection(addon.id);
+                        }
+                      }}
+                      className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between select-none ${
+                        isChecked
+                          ? 'border-emerald-600 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-500/20'
+                          : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 min-w-0 pr-3">
+                        {/* Checkbox Icon */}
+                        <div
+                          className={`w-5 h-5 rounded-md mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                            isChecked ? 'bg-emerald-600 text-white shadow-xs' : 'border-2 border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-900 truncate">
+                              {addon.name}
+                            </h4>
+                            {addon.digitalFile?.filename && (
+                              <span className="text-[9px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded font-mono">
+                                PDF
+                              </span>
+                            )}
+                          </div>
+                          {addon.description && (
+                            <p className="text-[11px] text-slate-500 leading-snug line-clamp-1 mt-0.5">
+                              {addon.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-1">
+                            {isPhysical ? (
+                              <>
+                                <BookOpen className="w-3 h-3 text-slate-400" />
+                                <span>Printed Delivery</span>
+                              </>
+                            ) : (
+                              <>
+                                <DownloadCloud className="w-3 h-3 text-emerald-600" />
+                                <span className="text-emerald-700 font-medium">Instant PDF Download</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-extrabold text-slate-900">
+                          ₹{addon.price}
+                        </div>
+                        {addon.originalPrice > addon.price && (
+                          <div className="flex items-center justify-end gap-1 text-[10px]">
+                            <span className="line-through text-slate-400">
+                              ₹{addon.originalPrice}
+                            </span>
+                            {addon.discountPercent ? (
+                              <span className="font-bold text-emerald-700">
+                                {addon.discountPercent}% OFF
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bundle Upsell Incentive Card */}
+              {selectableAddons.length >= 2 && selectedAddonIds.length < selectableAddons.length && (
+                <div className="p-3.5 bg-gradient-to-r from-purple-50 via-indigo-50 to-emerald-50 border border-purple-200/80 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-800 bg-purple-200/80 px-2 py-0.5 rounded">
+                        Bundle Deal
+                      </span>
+                      <span className="text-xs font-bold text-slate-900 truncate">
+                        Buy 2 Add-ons, Get 3rd FREE
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Add all {selectableAddons.length} study resources to qualify for automatic 3rd add-on discount
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAddonIds(selectableAddons.map((a) => a.id))}
+                    className="px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
+                  >
+                    Select All Add-ons
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Total Price Summary Bar */}
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-700">Selected Total:</span>
+                <span className="text-lg font-black text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
+                  ₹{displayCalc.totalPrice * quantity}
+                </span>
+                {displayCalc.totalOriginalPrice > displayCalc.totalPrice && (
+                  <span className="line-through text-slate-400 text-xs">
+                    ₹{displayCalc.totalOriginalPrice * quantity}
+                  </span>
+                )}
+              </div>
+              {displayCalc.totalOriginalPrice > displayCalc.totalPrice && (
                 <span className="font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-0.5 rounded-full text-[11px]">
-                  Save ₹{pricingCalc.savingsTotal * quantity}
+                  Save ₹{(displayCalc.totalOriginalPrice - displayCalc.totalPrice) * quantity}
                 </span>
               )}
+            </div>
+
+            {/* Breakdown line showing Base + Selected Add-ons */}
+            <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span>Base ({format === 'physical' ? 'Physical' : 'Digital'}): ₹{displayCalc.basePrice}</span>
+              {displayCalc.selectedAddons.length > 0 && (
+                <>
+                  <span>+</span>
+                  <span>{displayCalc.selectedAddons.length} Optional Material{displayCalc.selectedAddons.length > 1 ? 's' : ''} (₹{displayCalc.addOnsPrice})</span>
+                </>
+              )}
+              {quantity > 1 && <span>× {quantity} qty</span>}
             </div>
           </div>
 

@@ -13,7 +13,7 @@ export async function onRequestGet(context) {
   const cors = getCorsHeaders(request, env);
 
   try {
-    const url = new URL(request.url);
+    const url = new URL(request.url, 'http://localhost');
     const orderId = url.searchParams.get('order_id') || url.searchParams.get('orderId');
 
     if (!orderId || typeof orderId !== 'string') {
@@ -86,9 +86,11 @@ export async function onRequestGet(context) {
           status: 'PAID',
           orderId: order.id,
           items: order.items || [],
+          materials: fulfillment?.materials || [],
           fulfillment, // Server-issued download links & copy URL
           customerName: order.customer_name,
           customerEmail: order.customer_email,
+          isClaimed: Boolean(order.customer_id),
           total: Math.round(order.amount_paise / 100),
           currency: order.currency || 'INR',
           date: order.created_at,
@@ -97,13 +99,40 @@ export async function onRequestGet(context) {
       );
     }
 
-    // Pending or unpaid order: return status with NO fulfillment links
+    if (order.status === 'FAILED') {
+      return new Response(
+        JSON.stringify({
+          status: 'FAILED',
+          orderId: order.id,
+          items: order.items || [],
+          total: Math.round(order.amount_paise / 100),
+          error: 'Payment failed.',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...cors } }
+      );
+    }
+
+    if (order.status === 'USER_DROPPED') {
+      return new Response(
+        JSON.stringify({
+          status: 'USER_DROPPED',
+          orderId: order.id,
+          items: order.items || [],
+          total: Math.round(order.amount_paise / 100),
+          error: 'Payment was not completed.',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...cors } }
+      );
+    }
+
+    // Pending or unpaid order: return status with NO fulfillment links or materials
     return new Response(
       JSON.stringify({
         status: order.status || 'PENDING',
         orderId: order.id,
         items: order.items || [],
         total: Math.round(order.amount_paise / 100),
+        message: 'Payment is being verified.',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...cors } }
     );

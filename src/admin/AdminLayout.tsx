@@ -61,12 +61,16 @@ export const AdminLayout: React.FC = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersFilterStatus, setOrdersFilterStatus] = useState<string>('all');
+  const [ordersSearch, setOrdersSearch] = useState('');
   const [ordersPagination, setOrdersPagination] = useState<{
     page: number;
     limit: number;
     total: number;
     totalPages: number;
   }>({ page: 1, limit: 15, total: 0, totalPages: 1 });
+
+  // Dashboard Stats State
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
 
   // Map current URL path to AdminSection
   const getSectionFromPath = (pathname: string): AdminSection => {
@@ -108,12 +112,13 @@ export const AdminLayout: React.FC = () => {
     };
   }, []);
 
-  // Fetch Server-Authoritative Orders from Cloudflare D1
-  const fetchOrders = useCallback(async (page = 1, status = ordersFilterStatus) => {
+  // Fetch Server-Authoritative Orders from Cloudflare D1 (with search)
+  const fetchOrders = useCallback(async (page = 1, status = ordersFilterStatus, search = ordersSearch) => {
     setOrdersLoading(true);
     try {
       const statusParam = status !== 'all' ? `&status=${encodeURIComponent(status)}` : '';
-      const res = await fetch(`/api/admin/orders?page=${page}&limit=15${statusParam}`, {
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+      const res = await fetch(`/api/admin/orders?page=${page}&limit=15${statusParam}${searchParam}`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -134,14 +139,30 @@ export const AdminLayout: React.FC = () => {
     } finally {
       setOrdersLoading(false);
     }
-  }, [ordersFilterStatus, showToast]);
+  }, [ordersFilterStatus, ordersSearch, showToast]);
 
-  // Load orders when authenticated and on dashboard or orders page
+  // Fetch consolidated dashboard statistics
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/dashboard', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.stats) setDashboardStats(data.stats);
+      }
+    } catch {
+      // Non-fatal — dashboard stats are supplementary
+    }
+  }, []);
+
+  // Load orders + dashboard stats when authenticated
   useEffect(() => {
     if (isAuthenticated && (currentSection === 'orders' || currentSection === 'dashboard')) {
-      fetchOrders(ordersPage, ordersFilterStatus);
+      fetchOrders(ordersPage, ordersFilterStatus, ordersSearch);
     }
-  }, [isAuthenticated, currentSection, ordersPage, ordersFilterStatus, fetchOrders]);
+    if (isAuthenticated && currentSection === 'dashboard') {
+      fetchDashboardStats();
+    }
+  }, [isAuthenticated, currentSection]);
 
   // Logout handler
   const handleLogout = async () => {
@@ -227,12 +248,13 @@ export const AdminLayout: React.FC = () => {
               serverOrders={serverOrders}
               ordersTotal={ordersPagination.total}
               ordersLoading={ordersLoading}
+              dashboardStats={dashboardStats}
               onNavigateSection={handleSelectSection}
               onOpenNewProduct={() => {
                 handleSelectSection('products');
                 setActiveEditingBook('new');
               }}
-              onRefreshOrders={() => fetchOrders(1, ordersFilterStatus)}
+              onRefreshOrders={() => { fetchOrders(1, ordersFilterStatus, ordersSearch); fetchDashboardStats(); }}
             />
           )}
 
@@ -285,10 +307,15 @@ export const AdminLayout: React.FC = () => {
               filterStatus={ordersFilterStatus}
               onFilterStatusChange={(status) => {
                 setOrdersFilterStatus(status);
-                fetchOrders(1, status);
+                setOrdersSearch('');
+                fetchOrders(1, status, '');
               }}
-              onPageChange={(page) => fetchOrders(page, ordersFilterStatus)}
-              onRefresh={() => fetchOrders(ordersPage, ordersFilterStatus)}
+              onPageChange={(page) => fetchOrders(page, ordersFilterStatus, ordersSearch)}
+              onRefresh={() => fetchOrders(ordersPage, ordersFilterStatus, ordersSearch)}
+              onSearch={(search) => {
+                setOrdersSearch(search);
+                fetchOrders(1, ordersFilterStatus, search);
+              }}
             />
           )}
 

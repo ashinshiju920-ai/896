@@ -3,9 +3,10 @@
 // Hardened with strict CORS, KV rate limiting, and sanitized error responses
 
 import { computeOrderPrice, validateShippingInfo } from '../utils/pricing.js';
-import { saveOrder } from '../utils/db.js';
+import { saveOrder, updateOrderStatus, saveOrderClaim, getCustomerSessionByTokenHash, recordAnalyticsEvent } from '../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
 import { checkRateLimit } from '../utils/rateLimit.js';
+import { parseCookies, generateRandomToken, sha256Hex } from '../utils/auth.js';
 
 export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
@@ -51,7 +52,7 @@ export async function onRequestPost(context) {
   const corsHeaders = getCorsHeaders(request, env);
 
   try {
-    // 1. Rate Limiting (Phase 5.3): Max 20 order attempts per IP per 10 minutes
+    // 1. Rate Limiting: Max 20 order attempts per IP per 10 minutes
     const clientIp = request.headers.get('cf-connecting-ip') || 'unknown';
     const rateCheck = await checkRateLimit(env, `order:${clientIp}`, 20, 600);
 
@@ -81,27 +82,36 @@ export async function onRequestPost(context) {
       );
     }
 
-    // NON-NEGOTIABLE RULE 3: Reject any request attempting to send prices, amounts, or totals.
+    if (!body || typeof body !== 'object') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON request payload.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // SERVER-AUTHORITATIVE PRICING: Ignore any client-supplied price, amount, or total fields.
+    // The server calculates all totals authoritatively from the server catalog in integer paise.
     const forbiddenKeys = [
       'requestedAmount',
       'price',
+      'pricePaise',
       'total',
+      'totalPaise',
       'amount',
+      'amount_paise',
       'orderAmount',
       'order_amount',
       'discount',
       'couponDiscount',
       'subtotal',
+      'subtotalPaise',
+      'shippingFee',
+      'deliveryFee',
     ];
 
     for (const key of forbiddenKeys) {
       if (key in body) {
-        return new Response(
-          JSON.stringify({
-            error: `Price tampering detected: browser may never provide '${key}'. Server is authoritative.`,
-          }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+        delete body[key];
       }
     }
 
@@ -110,12 +120,7 @@ export async function onRequestPost(context) {
         if (!item || typeof item !== 'object') continue;
         for (const key of forbiddenKeys) {
           if (key in item) {
-            return new Response(
-              JSON.stringify({
-                error: `Price tampering detected: cart item contains forbidden key '${key}'.`,
-              }),
-              { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-            );
+            delete item[key];
           }
         }
       }
@@ -150,26 +155,23 @@ export async function onRequestPost(context) {
       );
     }
 
-    // 2. Authoritative price calculation from KV catalogue
-    let pricing;
-    try {
-      pricing = await computeOrderPrice(
-        {
-          cart,
-          couponCode,
-          deliveryOption,
-        },
-        env
-      );
-    } catch (pricingErr) {
-      return new Response(
-        JSON.stringify({ error: pricingErr.message || 'Pricing computation failed.' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
+    // Check if customer is authenticated
+    const cookies = parseCookies(request);
+    let authenticatedCustomerId = null;
+    if (cookies.customer_session) {
+      try {
+        const tokenHash = await sha256Hex(cookies.customer_session);
+        const sessionData = await getCustomerSessionByTokenHash(env, tokenHash);
+        if (sessionData && sessionData.customer) {
+          authenticatedCustomerId = sessionData.customer.id;
+        }
+      } catch (sessErr) {
+        console.warn('Error reading customer session during checkout:', sessErr?.message);
+      }
     }
 
-    // 3. Validate customer & shipping details
-    const shippingValidation = validateShippingInfo(shippingInfo, pricing.hasPhysical);
+    // 2. Validate customer & shipping details
+    const shippingValidation = validateShippingInfo(shippingInfo, deliveryOption === 'physical');
     if (!shippingValidation.isValid) {
       return new Response(
         JSON.stringify({
@@ -181,6 +183,26 @@ export async function onRequestPost(context) {
     }
 
     const cleanShipping = shippingValidation.clean;
+
+    // 3. Authoritative price calculation from KV catalogue & promotions engine
+    let pricing;
+    try {
+      pricing = await computeOrderPrice(
+        {
+          cart,
+          couponCode,
+          deliveryOption,
+          customerId: authenticatedCustomerId,
+          customerEmail: cleanShipping?.email || null,
+        },
+        env
+      );
+    } catch (pricingErr) {
+      return new Response(
+        JSON.stringify({ error: pricingErr.message || 'Pricing computation failed.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
 
     // Auto-detect Production vs Sandbox
     let isProd = false;
@@ -199,12 +221,13 @@ export async function onRequestPost(context) {
     // Generate unique order ID
     const timestamp = Math.round(Date.now() / 1000);
     const orderId = `order_${timestamp}_${Math.floor(1000 + Math.random() * 9000)}`;
-    const customerId = `cust_${cleanShipping.phone}_${timestamp % 10000}`;
+    const customerId = authenticatedCustomerId || `cust_${cleanShipping.phone}_${timestamp % 10000}`;
 
     // 4. Write PENDING order row to D1 / KV BEFORE calling Cashfree
     await saveOrder(env, {
       id: orderId,
       cf_order_id: orderId,
+      customer_id: authenticatedCustomerId,
       amount_paise: pricing.totalPaise,
       currency: 'INR',
       status: 'PENDING',
@@ -213,6 +236,23 @@ export async function onRequestPost(context) {
       customer_phone: cleanShipping.phone,
       shipping: cleanShipping,
       items: pricing.items,
+      coupon_code: pricing.couponCode || null,
+      discount_paise: pricing.couponDiscountPaise || 0,
+      promotion_snapshot_json: pricing.promotionSnapshot ? JSON.stringify(pricing.promotionSnapshot) : null,
+      subtotal_paise: pricing.subtotalPaise,
+      shipping_paise: pricing.deliveryFeePaise,
+      total_paise: pricing.totalPaise,
+    });
+
+    // Generate post-payment claim secret for secure post-payment account activation
+    const claimSecret = generateRandomToken(32);
+    const claimHash = await sha256Hex(claimSecret);
+    const claimExpiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+    await saveOrderClaim(env, {
+      orderId,
+      claimHash,
+      expiresAt: claimExpiresAt,
+      purpose: 'POST_PAYMENT_ACCOUNT_CLAIM',
     });
 
     // Build return URL
@@ -254,9 +294,15 @@ export async function onRequestPost(context) {
 
     if (!cfResponse.ok || !result.payment_session_id) {
       console.error('Cashfree order creation error response:', result);
+      // Safe state transition: mark order as FAILED so it is not orphaned
+      try {
+        await updateOrderStatus(env, orderId, 'FAILED');
+      } catch (dbErr) {
+        console.warn('Failed to update order status to FAILED:', dbErr?.message);
+      }
       return new Response(
         JSON.stringify({
-          error: 'Unable to initiate order payment with gateway. Please try again later.',
+          error: 'Payment could not be started. Please try again.',
         }),
         {
           status: cfResponse.status || 500,
@@ -264,6 +310,24 @@ export async function onRequestPost(context) {
         }
       );
     }
+
+    // Phase 11: Record PAYMENT_INITIATED analytics event (non-fatal, failure-isolated)
+    try {
+      await recordAnalyticsEvent(env, {
+        eventType: 'PAYMENT_INITIATED',
+        orderId,
+        customerId: authenticatedCustomerId || null,
+        productId: pricing.items[0]?.bookId || pricing.items[0]?.productId || null,
+        metadata: {
+          itemsCount: pricing.items.length,
+          totalPaise: pricing.totalPaise,
+        },
+      });
+    } catch (aErr) {
+      console.warn('Analytics PAYMENT_INITIATED error (non-fatal):', aErr.message);
+    }
+
+    const claimCookie = `order_claim=${orderId}:${claimSecret}; HttpOnly; ${isProd ? 'Secure;' : ''} SameSite=Lax; Path=/; Max-Age=3600`;
 
     return new Response(
       JSON.stringify({
@@ -275,12 +339,26 @@ export async function onRequestPost(context) {
         orderAmount: pricing.total,
         order_amount: pricing.total,
         orderCurrency: 'INR',
+        pricing: {
+          subtotalPaise: pricing.subtotalPaise,
+          subtotal: pricing.subtotal,
+          discountPaise: pricing.couponDiscountPaise,
+          discount: pricing.couponDiscount,
+          shippingPaise: pricing.deliveryFeePaise,
+          shipping: pricing.deliveryFee,
+          totalPaise: pricing.totalPaise,
+          total: pricing.total,
+        },
         environment: isProd ? 'production' : 'sandbox',
         isProd,
       }),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': claimCookie,
+          ...corsHeaders,
+        },
       }
     );
   } catch (err) {

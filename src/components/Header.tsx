@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, Heart, DownloadCloud, ShieldCheck } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, Heart, DownloadCloud, ShieldCheck, LogIn, LogOut } from 'lucide-react';
 import { XylemLogo } from './XylemLogo';
 import { useShop } from '../context/ShopContext';
 import { ExamCategory } from '../types';
@@ -17,6 +17,8 @@ export const Header: React.FC = () => {
     wishlist,
     orders,
     shippingInfo,
+    currentCustomer,
+    logoutCustomer,
   } = useShop();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -142,17 +144,32 @@ export const Header: React.FC = () => {
                   />
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-30 animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="px-4 py-2 border-b border-slate-100">
-                      <p className="text-xs text-slate-500 font-medium">My Account</p>
+                      <p className="text-xs text-slate-500 font-medium">
+                        {currentCustomer ? 'Student Account' : 'Personal Study Dashboard'}
+                      </p>
                       <p className="text-sm font-semibold text-slate-900 truncate">
-                        {shippingInfo.fullName ? shippingInfo.fullName : 'Student Account'}
+                        {currentCustomer ? currentCustomer.name : (shippingInfo.fullName || 'Guest Student')}
                       </p>
                       <p className="text-xs text-slate-500 truncate">
-                        {shippingInfo.email ? shippingInfo.email : 'Personal Study Dashboard'}
+                        {currentCustomer ? currentCustomer.email : (shippingInfo.email || 'Sign in to sync your access')}
                       </p>
                     </div>
 
+                    {!currentCustomer && (
+                      <div className="p-2 border-b border-slate-100 bg-emerald-50/50">
+                        <Link
+                          to="/login"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="w-full px-3 py-2 bg-[#00875a] hover:bg-[#00734c] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <LogIn className="w-3.5 h-3.5" />
+                          <span>Sign In to Account</span>
+                        </Link>
+                      </div>
+                    )}
+
                     <Link
-                      to="/orders"
+                      to="/my-materials"
                       onClick={() => {
                         setUserMenuOpen(false);
                       }}
@@ -160,7 +177,7 @@ export const Header: React.FC = () => {
                     >
                       <span className="flex items-center gap-2">
                         <DownloadCloud className="w-4 h-4 text-emerald-600" />
-                        My Books & Downloads
+                        My Study Materials
                       </span>
                       {orders.length > 0 && (
                         <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
@@ -168,6 +185,17 @@ export const Header: React.FC = () => {
                         </span>
                       )}
                     </Link>
+
+                    {currentCustomer && (
+                      <Link
+                        to="/account"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                      >
+                        <User className="w-4 h-4 text-slate-500" />
+                        Account & Security
+                      </Link>
+                    )}
 
                     <Link
                       to="/books"
@@ -182,6 +210,19 @@ export const Header: React.FC = () => {
                     </Link>
 
                     <div className="border-t border-slate-100 my-1" />
+
+                    {currentCustomer && (
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          logoutCustomer();
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                        Sign Out
+                      </button>
+                    )}
 
                     <Link
                       to="/admin"
@@ -267,16 +308,60 @@ export const Header: React.FC = () => {
             ))}
 
             <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
-              <Link
-                to="/orders"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 flex items-center gap-2 touch-card"
-              >
-                <DownloadCloud className="w-4 h-4 text-emerald-600" />
-                My Downloads & Order History
-              </Link>
+              {currentCustomer ? (
+                <>
+                  <Link
+                    to="/my-materials"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-emerald-800 bg-emerald-50/70 flex items-center justify-between touch-card"
+                  >
+                    <span className="flex items-center gap-2">
+                      <DownloadCloud className="w-4 h-4 text-emerald-600" />
+                      My Study Materials
+                    </span>
+                    <span className="text-xs text-emerald-700 font-mono">{currentCustomer.name}</span>
+                  </Link>
+                  <Link
+                    to="/account"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 flex items-center gap-2 touch-card"
+                  >
+                    <User className="w-4 h-4 text-slate-500" />
+                    My Account ({currentCustomer.email})
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logoutCustomer();
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-xl text-sm text-rose-700 hover:bg-rose-50 flex items-center gap-2 touch-card cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-600" />
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-white bg-[#00875a] flex items-center justify-between touch-card"
+                  >
+                    <span className="flex items-center gap-2">
+                      <LogIn className="w-4 h-4" />
+                      Sign In to Account
+                    </span>
+                  </Link>
+                  <Link
+                    to="/my-materials"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 flex items-center gap-2 touch-card"
+                  >
+                    <DownloadCloud className="w-4 h-4 text-emerald-600" />
+                    My Study Materials
+                  </Link>
+                </>
+              )}
               <Link
                 to="/admin"
                 onClick={() => {

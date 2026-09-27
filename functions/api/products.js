@@ -58,50 +58,149 @@ function sanitizeProduct(raw) {
     ? raw.whatYouGet.map((w) => sanitizeString(w, 300)).filter(Boolean).slice(0, 30)
     : [];
 
-  let cleanAddons = Array.isArray(raw.addons) && raw.addons.length > 0
-    ? raw.addons.slice(0, 10).map((a) => {
-        const rawId = sanitizeString(a.id, 64) || 'addon';
-        const normId = rawId === 'addon_digital' ? 'digital' : (rawId === 'addon_physical' ? 'physical' : rawId);
-        return {
-          id: normId,
-          name: sanitizeString(a.name, 100) || (normId === 'physical' ? 'Physical (Printed)' : 'Digital (PDF)'),
-          subtitle: sanitizeString(a.subtitle, 150),
-          price: sanitizeNumber(a.price, 0, 100000, normId === 'physical' ? physicalPrice : digitalPrice),
-          originalPrice: sanitizeNumber(a.originalPrice, 0, 100000, normId === 'physical' ? physicalOrig : digitalOrig),
-          deliveryOption: a.deliveryOption === 'physical' || normId === 'physical' ? 'physical' : 'digital',
+  const rawAddonsList = Array.isArray(raw.addOns)
+    ? raw.addOns
+    : (Array.isArray(raw.addons) ? raw.addons : []);
+
+  const seenAddonIds = new Set();
+  const cleanAddons = [];
+
+  for (const a of rawAddonsList.slice(0, 25)) {
+    if (!a || typeof a !== 'object') continue;
+    let rawId = sanitizeString(a.id, 64) || `addon_${Date.now()}`;
+    let normId = rawId === 'addon_digital' ? 'digital' : (rawId === 'addon_physical' ? 'physical' : rawId);
+
+    // Rule 15: Server validation: Ensure unique add-on IDs within product
+    if (seenAddonIds.has(normId)) {
+      normId = `${normId}_${Math.random().toString(36).slice(2, 6)}`;
+    }
+    seenAddonIds.add(normId);
+
+    // Rule 16: Name (1-120 chars)
+    const name = sanitizeString(a.name, 120) || (normId === 'physical' ? 'Physical (Printed)' : (normId === 'digital' ? 'Digital (PDF)' : 'Optional Study Material'));
+
+    // Rule 16: Description (0-500 chars)
+    const description = sanitizeString(a.description || a.subtitle, 500);
+    const subtitle = sanitizeString(a.subtitle || a.description, 150);
+
+    // Rule 7: Price validation (non-negative, no NaN, no Infinity, sensible upper limit 100,000 rupees / 10,000,000 paise)
+    const rawPrice = Number(a.price);
+    const rawPricePaise = Number(a.pricePaise);
+
+    let aPriceRupees = 0;
+    if (!isNaN(rawPrice) && isFinite(rawPrice) && rawPrice >= 0) {
+      aPriceRupees = Math.min(100000, Math.floor(rawPrice));
+    } else if (!isNaN(rawPricePaise) && isFinite(rawPricePaise) && rawPricePaise >= 0) {
+      aPriceRupees = Math.min(100000, Math.floor(rawPricePaise / 100));
+    } else if (normId === 'physical') {
+      aPriceRupees = physicalPrice;
+    } else if (normId === 'digital') {
+      aPriceRupees = digitalPrice;
+    }
+
+    const aPricePaise = !isNaN(rawPricePaise) && isFinite(rawPricePaise) && rawPricePaise >= 0
+      ? Math.min(10000000, Math.floor(rawPricePaise))
+      : Math.round(aPriceRupees * 100);
+
+    const aOrigRupees = sanitizeNumber(
+      a.originalPrice,
+      0,
+      100000,
+      normId === 'physical' ? physicalOrig : (normId === 'digital' ? digitalOrig : aPriceRupees)
+    );
+
+    // Rule 10 & 11: Digital file validation (Phase 9 Versioning support)
+    let digitalFile = null;
+    if (a.digitalFile && typeof a.digitalFile === 'object') {
+      const fName = sanitizeString(a.digitalFile.filename || a.digitalFile.samplePdfName, 200);
+      const fUrl = a.digitalFile.fileUrl ? sanitizeString(a.digitalFile.fileUrl, 1000000) : '';
+      const fMime = sanitizeString(a.digitalFile.mimeType, 100) || 'application/pdf';
+      const fSize = sanitizeNumber(a.digitalFile.fileSizeBytes, 0, 100000000, 0);
+      const fVerId = sanitizeString(a.digitalFile.fileVersionId || a.digitalFile.versionId, 64);
+      const fVer = sanitizeString(a.digitalFile.version || a.digitalFile.versionLabel, 50);
+      const fNotes = sanitizeString(a.digitalFile.releaseNotes, 500);
+      const fChecksum = sanitizeString(a.digitalFile.checksum, 100);
+      const fStatus = a.digitalFile.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE';
+
+      if (fUrl || fName) {
+        digitalFile = {
+          filename: fName || 'addon-material.pdf',
+          fileUrl: fUrl,
+          mimeType: fMime,
+          ...(fVerId ? { fileVersionId: fVerId } : {}),
+          ...(fVer ? { version: fVer } : {}),
+          ...(fNotes ? { releaseNotes: fNotes } : {}),
+          ...(fChecksum ? { checksum: fChecksum } : {}),
+          ...(fSize > 0 ? { fileSizeBytes: fSize } : {}),
+          status: fStatus,
         };
-      })
-    : [
-        {
-          id: 'digital',
-          name: 'Digital (PDF)',
-          subtitle: 'Instant Download',
-          price: digitalPrice,
-          originalPrice: digitalOrig,
-          deliveryOption: 'digital',
-        },
-        {
-          id: 'physical',
-          name: 'Physical (Printed)',
-          subtitle: 'Delivered in 3-5 days',
-          price: physicalPrice,
-          originalPrice: physicalOrig,
-          deliveryOption: 'physical',
-        },
-      ];
+      }
+    } else if (a.pdfUrl) {
+      digitalFile = {
+        filename: sanitizeString(a.samplePdfName || `${normId}.pdf`, 200),
+        fileUrl: sanitizeString(a.pdfUrl, 1000000),
+        mimeType: 'application/pdf',
+        status: 'ACTIVE',
+      };
+    }
+
+    cleanAddons.push({
+      id: normId,
+      name,
+      subtitle,
+      description,
+      price: aPriceRupees,
+      pricePaise: aPricePaise,
+      originalPrice: aOrigRupees,
+      active: a.active !== undefined ? Boolean(a.active) : true,
+      deliveryOption: a.deliveryOption === 'physical' || normId === 'physical' ? 'physical' : 'digital',
+      digitalFile,
+      pdfUrl: digitalFile?.fileUrl || '',
+      samplePdfName: digitalFile?.filename || '',
+    });
+  }
+
+  // If raw addons were provided (even if empty []), respect it. If omitted completely on legacy records, fallback to digital/physical defaults.
+  let finalAddons = cleanAddons;
+  if (rawAddonsList.length === 0 && raw.addOns === undefined && raw.addons === undefined) {
+    finalAddons = [
+      {
+        id: 'digital',
+        name: 'Digital (PDF)',
+        subtitle: 'Instant Download',
+        description: 'Instant Download',
+        price: digitalPrice,
+        pricePaise: digitalPrice * 100,
+        originalPrice: digitalOrig,
+        active: true,
+        deliveryOption: 'digital',
+      },
+      {
+        id: 'physical',
+        name: 'Physical (Printed)',
+        subtitle: 'Delivered in 3-5 days',
+        description: 'Delivered in 3-5 days',
+        price: physicalPrice,
+        pricePaise: physicalPrice * 100,
+        originalPrice: physicalOrig,
+        active: true,
+        deliveryOption: 'physical',
+      },
+    ];
+  }
 
   // Guarantee digital and physical addons stay synchronized with prices if provided
-  cleanAddons = cleanAddons.map((addon) => {
+  finalAddons = finalAddons.map((addon) => {
     if (addon.id === 'digital' && raw.prices?.digital?.price !== undefined) {
-      return { ...addon, price: digitalPrice, originalPrice: digitalOrig };
+      return { ...addon, price: digitalPrice, pricePaise: digitalPrice * 100, originalPrice: digitalOrig };
     }
     if (addon.id === 'physical' && raw.prices?.physical?.price !== undefined) {
-      return { ...addon, price: physicalPrice, originalPrice: physicalOrig };
+      return { ...addon, price: physicalPrice, pricePaise: physicalPrice * 100, originalPrice: physicalOrig };
     }
     return addon;
   });
 
-  const addons = cleanAddons;
+  const addons = finalAddons;
 
   const reviews = Array.isArray(raw.reviews)
     ? raw.reviews.slice(0, 100).map((r) => ({
@@ -114,6 +213,35 @@ function sanitizeProduct(raw) {
         bandOrScore: sanitizeString(r.bandOrScore, 50),
       }))
     : [];
+
+  let productDigitalFile = null;
+  if (raw.digitalFile && typeof raw.digitalFile === 'object') {
+    const fVerId = sanitizeString(raw.digitalFile.fileVersionId || raw.digitalFile.versionId, 64);
+    const fVer = sanitizeString(raw.digitalFile.version || raw.digitalFile.versionLabel, 50);
+    const fNotes = sanitizeString(raw.digitalFile.releaseNotes, 500);
+    const fChecksum = sanitizeString(raw.digitalFile.checksum, 100);
+    const fStatus = raw.digitalFile.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE';
+    const fSize = sanitizeNumber(raw.digitalFile.fileSizeBytes, 0, 100000000, 0);
+
+    productDigitalFile = {
+      filename: sanitizeString(raw.digitalFile.filename || raw.samplePdfName, 200),
+      fileUrl: sanitizeString(raw.digitalFile.fileUrl || raw.pdfUrl, 1000000),
+      mimeType: sanitizeString(raw.digitalFile.mimeType, 100) || 'application/pdf',
+      ...(fVerId ? { fileVersionId: fVerId } : {}),
+      ...(fVer ? { version: fVer } : {}),
+      ...(fNotes ? { releaseNotes: fNotes } : {}),
+      ...(fChecksum ? { checksum: fChecksum } : {}),
+      ...(fSize > 0 ? { fileSizeBytes: fSize } : {}),
+      status: fStatus,
+    };
+  } else if (raw.pdfUrl) {
+    productDigitalFile = {
+      filename: sanitizeString(raw.samplePdfName, 200) || 'Official_Prep_Guide.pdf',
+      fileUrl: sanitizeString(raw.pdfUrl, 1000000),
+      mimeType: 'application/pdf',
+      status: 'ACTIVE',
+    };
+  }
 
   return {
     id: cleanId,
@@ -133,6 +261,7 @@ function sanitizeProduct(raw) {
     author: sanitizeString(raw.author, 100) || 'Xylem Learning',
     samplePdfName: sanitizeString(raw.samplePdfName, 100) || 'Official_Prep_Guide.pdf',
     pdfUrl: sanitizeString(raw.pdfUrl, 500),
+    digitalFile: productDigitalFile,
     prices: {
       digital: { price: digitalPrice, originalPrice: digitalOrig },
       physical: { price: physicalPrice, originalPrice: physicalOrig },
@@ -140,6 +269,7 @@ function sanitizeProduct(raw) {
     features,
     whatYouGet,
     addons,
+    addOns: addons,
     buy2Get3rdFree: Boolean(raw.buy2Get3rdFree),
     reviews,
     order: sanitizeNumber(raw.order, 0, 1000, 0),
@@ -167,6 +297,25 @@ export async function onRequestGet(context) {
       if (isAdmin) return books;
       return books.map((b) => {
         const { pdfUrl, ...safeBook } = b;
+        if (safeBook.digitalFile) {
+          const { fileUrl, ...safeFile } = safeBook.digitalFile;
+          safeBook.digitalFile = safeFile;
+        }
+        const rawAddons = Array.isArray(safeBook.addOns)
+          ? safeBook.addOns
+          : (Array.isArray(safeBook.addons) ? safeBook.addons : []);
+
+        const cleanAddons = rawAddons.map((a) => {
+          const { pdfUrl: aPdf, digitalFile: aFile, ...safeAddon } = a;
+          if (aFile) {
+            const { fileUrl: aFileUrl, ...safeAFile } = aFile;
+            safeAddon.digitalFile = safeAFile;
+          }
+          return safeAddon;
+        });
+
+        safeBook.addons = cleanAddons;
+        safeBook.addOns = cleanAddons;
         return safeBook;
       });
     };

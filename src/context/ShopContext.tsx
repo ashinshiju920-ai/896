@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Book, BookFormat, CartItem, Order, ShippingInfo, ExamCategory, ViewType, Review, Testimonial, ExamPath } from '../types';
+import { Book, BookFormat, CartItem, Order, ShippingInfo, ExamCategory, ViewType, Review, Testimonial, ExamPath, Customer } from '../types';
 import { BOOKS } from '../data/books';
 import { TESTIMONIALS } from '../data/testimonials';
 import { DEFAULT_EXAM_PATHS } from '../data/examPaths';
@@ -10,7 +10,14 @@ import {
   checkCatalogVersion,
   subscribeToRealtimeBroadcast,
 } from '../utils/cloudSync';
-import { getBookAddons, calculateAddonsPricing } from '../utils/pricing';
+import {
+  getBookAddons,
+  calculateAddonsPricing,
+  getCartLineKey,
+  calculateDisplayPrice,
+  getSelectableAddons,
+} from '../utils/pricing';
+import { trackAddToCart } from '../utils/analytics';
 
 interface Toast {
   id: string;
@@ -75,7 +82,7 @@ interface ShopContextType {
   couponCode: string;
   appliedCoupon: string | null;
   couponDiscount: number;
-  applyCoupon: (code: string) => boolean;
+  applyCoupon: (code: string, estimatedDiscount?: number) => boolean;
   removeCoupon: () => void;
 
   // Wishlist
@@ -112,6 +119,13 @@ interface ShopContextType {
   toasts: Toast[];
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 
+  // Customer Authentication & Account (Phase 7)
+  currentCustomer: Customer | null;
+  isCustomerLoading: boolean;
+  checkCustomerSession: () => Promise<Customer | null>;
+  logoutCustomer: () => Promise<void>;
+  setCurrentCustomer: React.Dispatch<React.SetStateAction<Customer | null>>;
+
   // Helpers
   navigateToProduct: (bookId: string) => void;
   navigateToCatalog: (category?: ExamCategory) => void;
@@ -146,8 +160,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (p === '/cart') return 'cart';
     if (p === '/checkout') return 'checkout';
     if (p === '/order-success') return 'order-success';
+    if (p === '/my-materials') return 'my-materials';
     if (p === '/orders') return 'orders';
     if (p === '/about') return 'about';
+    if (p === '/login') return 'login';
+    if (p === '/account') return 'account';
     if (p.startsWith('/admin')) return 'admin';
     return 'home';
   }, [location.pathname]);
@@ -367,7 +384,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('xylem_cart_items');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((item: any) => ({
+            ...item,
+            selectedAddonIds: Array.isArray(item.selectedAddonIds) ? item.selectedAddonIds : [],
+            selectedAddons: Array.isArray(item.selectedAddons) ? item.selectedAddons : [],
+          }));
+        }
       }
     } catch (e) {
       console.error('Failed to load cart from storage:', e);
@@ -476,6 +499,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Customer Authentication State (Phase 7)
+  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
+  const [isCustomerLoading, setIsCustomerLoading] = useState<boolean>(true);
+
+  // Centralized session check (optimizes Free plan by avoiding duplicate requests)
+  const checkCustomerSession = useCallback(async (): Promise<Customer | null> => {
+    try {
+      const res = await fetch('/api/customer/session');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.authenticated && data.customer) {
+          setCurrentCustomer(data.customer);
+          return data.customer;
+        }
+      }
+      setCurrentCustomer(null);
+      return null;
+    } catch {
+      setCurrentCustomer(null);
+      return null;
+    } finally {
+      setIsCustomerLoading(false);
+    }
+  }, []);
+
+  const logoutCustomer = useCallback(async () => {
+    try {
+      await fetch('/api/customer/logout', { method: 'POST' });
+    } catch {}
+    setCurrentCustomer(null);
+    showToast('Signed out of your account.', 'info');
+    navigate('/');
+  }, [navigate]);
+
+  // Initial check on mount only - NO polling loops
+  useEffect(() => {
+    checkCustomerSession();
+  }, [checkCustomerSession]);
+
   // Scroll to top on view changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -493,35 +555,34 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     book: Book,
     format: BookFormat = 'digital',
     quantity = 1,
-    selectedAddonIds?: string[]
+    selectedAddonIds: string[] = []
   ) => {
-    const allAddons = getBookAddons(book);
-    const activeIds =
-      selectedAddonIds && selectedAddonIds.length > 0
-        ? selectedAddonIds
-        : [format === 'digital' ? 'digital' : 'physical'];
-
-    const pricing = calculateAddonsPricing(allAddons, activeIds, book.buy2Get3rdFree);
-    const effectiveFormat: BookFormat = pricing.hasPhysical ? 'physical' : 'digital';
+    const safeSelectedIds = Array.from(
+      new Set(Array.isArray(selectedAddonIds) ? selectedAddonIds.filter(Boolean).map(String) : [])
+    );
+    trackAddToCart(book.id, safeSelectedIds);
+    const displayCalc = calculateDisplayPrice(book, format, safeSelectedIds);
+    const effectiveFormat: BookFormat =
+      format === 'physical' || displayCalc.selectedAddons.some((a) => a.deliveryOption === 'physical')
+        ? 'physical'
+        : 'digital';
 
     const cartItem: CartItem = {
       bookId: book.id,
       book,
       format: effectiveFormat,
       quantity,
-      price: pricing.finalPrice,
-      originalPrice: pricing.originalTotal,
-      selectedAddonIds: activeIds,
-      selectedAddons: pricing.selected,
-      freeAddonDiscount: pricing.freeDiscount,
+      price: displayCalc.totalPrice,
+      originalPrice: displayCalc.totalOriginalPrice,
+      selectedAddonIds: safeSelectedIds,
+      selectedAddons: displayCalc.selectedAddons,
     };
 
+    const targetKey = getCartLineKey(book.id, effectiveFormat, safeSelectedIds);
+
     setCart((prev) => {
-      const addonKey = activeIds.slice().sort().join(',');
       const existingIndex = prev.findIndex((item) => {
-        if (item.bookId !== book.id) return false;
-        const itemKey = item.selectedAddonIds ? item.selectedAddonIds.slice().sort().join(',') : '';
-        return itemKey ? itemKey === addonKey : item.format === effectiveFormat;
+        return getCartLineKey(item.bookId, item.format, item.selectedAddonIds) === targetKey;
       });
 
       if (existingIndex > -1) {
@@ -532,24 +593,26 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...prev, cartItem];
     });
 
-    const dealNote = pricing.freeDiscount > 0 ? ' (3rd Add-on FREE Deal Applied!)' : '';
-    showToast(`Added "${book.title}" to cart!${dealNote}`, 'success');
+    const addOnsNote = displayCalc.selectedAddons.length > 0
+      ? ` with ${displayCalc.selectedAddons.length} optional material${displayCalc.selectedAddons.length > 1 ? 's' : ''}`
+      : '';
+    showToast(`Added "${book.title}"${addOnsNote} to cart!`, 'success');
   };
 
   const buyNow = (
     book: Book,
     format: BookFormat = 'digital',
     quantity = 1,
-    selectedAddonIds?: string[]
+    selectedAddonIds: string[] = []
   ) => {
-    const allAddons = getBookAddons(book);
-    const activeIds =
-      selectedAddonIds && selectedAddonIds.length > 0
-        ? selectedAddonIds
-        : [format === 'digital' ? 'digital' : 'physical'];
-
-    const pricing = calculateAddonsPricing(allAddons, activeIds, book.buy2Get3rdFree);
-    const effectiveFormat: BookFormat = pricing.hasPhysical ? 'physical' : 'digital';
+    const safeSelectedIds = Array.from(
+      new Set(Array.isArray(selectedAddonIds) ? selectedAddonIds.filter(Boolean).map(String) : [])
+    );
+    const displayCalc = calculateDisplayPrice(book, format, safeSelectedIds);
+    const effectiveFormat: BookFormat =
+      format === 'physical' || displayCalc.selectedAddons.some((a) => a.deliveryOption === 'physical')
+        ? 'physical'
+        : 'digital';
 
     setCart([
       {
@@ -557,11 +620,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         book,
         format: effectiveFormat,
         quantity,
-        price: pricing.finalPrice,
-        originalPrice: pricing.originalTotal,
-        selectedAddonIds: activeIds,
-        selectedAddons: pricing.selected,
-        freeAddonDiscount: pricing.freeDiscount,
+        price: displayCalc.totalPrice,
+        originalPrice: displayCalc.totalOriginalPrice,
+        selectedAddonIds: safeSelectedIds,
+        selectedAddons: displayCalc.selectedAddons,
       },
     ]);
     setCheckoutStep(1);
@@ -574,13 +636,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     delta: number,
     selectedAddonIds?: string[]
   ) => {
-    const addonKey = selectedAddonIds ? selectedAddonIds.slice().sort().join(',') : '';
+    const targetKey = selectedAddonIds !== undefined
+      ? getCartLineKey(bookId, format, selectedAddonIds)
+      : null;
+
     setCart((prev) =>
       prev
         .map((item) => {
-          const itemKey = item.selectedAddonIds ? item.selectedAddonIds.slice().sort().join(',') : '';
-          const match =
-            item.bookId === bookId && (addonKey ? itemKey === addonKey : item.format === format);
+          const match = targetKey
+            ? getCartLineKey(item.bookId, item.format, item.selectedAddonIds) === targetKey
+            : item.bookId === bookId && item.format === format;
           if (match) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
@@ -596,15 +661,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     format: BookFormat,
     selectedAddonIds?: string[]
   ) => {
-    const addonKey = selectedAddonIds ? selectedAddonIds.slice().sort().join(',') : '';
+    const targetKey = selectedAddonIds !== undefined
+      ? getCartLineKey(bookId, format, selectedAddonIds)
+      : null;
+
     setCart((prev) =>
       prev.filter((item) => {
-        if (item.bookId !== bookId) return true;
-        const itemKey = item.selectedAddonIds ? item.selectedAddonIds.slice().sort().join(',') : '';
-        if (addonKey) {
-          return itemKey !== addonKey;
+        if (targetKey) {
+          return getCartLineKey(item.bookId, item.format, item.selectedAddonIds) !== targetKey;
         }
-        return item.format !== format;
+        return !(item.bookId === bookId && item.format === format);
       })
     );
     showToast('Item removed from cart', 'info');
@@ -634,8 +700,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Check if any physical book in cart
-  const hasPhysicalItem = cart.some((item) => item.format === 'physical');
+  // Check if any physical book or add-on in cart
+  const hasPhysicalItem = cart.some(
+    (item) =>
+      item.format === 'physical' ||
+      (Array.isArray(item.selectedAddons) && item.selectedAddons.some((a) => a.deliveryOption === 'physical'))
+  );
   const deliveryFee = hasPhysicalItem ? 99 : 0;
 
   // Keep shippingInfo.deliveryOption synchronized with cart contents
@@ -647,9 +717,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const total = Math.max(0, subtotal + deliveryFee - couponDiscount);
 
   // Coupon handling
-  const applyCoupon = (code: string): boolean => {
+  const applyCoupon = (code: string, estimatedDiscount?: number): boolean => {
     const clean = code.trim().toUpperCase();
     if (!clean) return false;
+
+    if (estimatedDiscount !== undefined) {
+      setAppliedCoupon(clean);
+      setCouponDiscount(Math.max(0, Math.min(subtotal, Math.round(estimatedDiscount))));
+      return true;
+    }
 
     if (clean === 'XYLEM20') {
       const discountVal = Math.round(subtotal * 0.2);
@@ -670,8 +746,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       showToast(`Coupon ${clean} applied!`);
       return true;
     } else {
-      showToast('Invalid coupon code. Try XYLEM20 or FIRST50', 'warning');
-      return false;
+      setAppliedCoupon(clean);
+      setCouponDiscount(0);
+      return true;
     }
   };
 
@@ -731,11 +808,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       case 'order-success':
         navigate('/order-success');
         break;
+      case 'my-materials':
+        navigate('/my-materials');
+        break;
       case 'orders':
         navigate('/orders');
         break;
       case 'about':
         navigate('/about');
+        break;
+      case 'login':
+        navigate('/login');
+        break;
+      case 'account':
+        navigate('/account');
         break;
       case 'admin':
         navigate('/admin');
@@ -1038,10 +1124,32 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanOrderId = orderId || (currentOrder?.status === 'PAID' ? currentOrder.id : undefined);
 
     if (cleanOrderId) {
+      showToast(`Preparing download for "${book.title}"...`, 'info');
       try {
-        const res = await fetch(
-          `/api/download?order_id=${encodeURIComponent(cleanOrderId)}&book_id=${encodeURIComponent(book.id)}`
-        );
+        // Request fresh server status to obtain active signed token
+        let downloadUrl = '';
+        const orderRes = await fetch(`/api/order-status?order_id=${encodeURIComponent(cleanOrderId)}`);
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          if (orderData.status === 'PAID') {
+            const mat = orderData.materials?.find(
+              (m: any) => m.productId === book.id || m.name?.includes(book.title)
+            );
+            if (mat?.downloadUrl) {
+              downloadUrl = mat.downloadUrl;
+            } else if (orderData.fulfillment?.downloads) {
+              const dl = orderData.fulfillment.downloads.find((d: any) => d.bookId === book.id);
+              if (dl?.downloadUrl) downloadUrl = dl.downloadUrl;
+            }
+          }
+        }
+
+        if (!downloadUrl) {
+          showToast('Material temporarily unavailable. Please try again later.', 'warning');
+          return;
+        }
+
+        const res = await fetch(downloadUrl);
 
         if (res.ok) {
           const contentType = res.headers.get('content-type') || '';
@@ -1050,7 +1158,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = book.samplePdfName || `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+            link.download = book.samplePdfName || `${book.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1060,21 +1168,24 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        let errMsg = 'Your digital book is temporarily unavailable. Please contact support.';
-        try {
-          const data = await res.json();
-          if (data?.error) errMsg = data.error;
-        } catch {}
+        let errMsg = 'Material temporarily unavailable. Please try again later.';
+        if (res.status === 403) {
+          errMsg = 'Your access could not be verified. Please refresh and try again.';
+        } else {
+          try {
+            const data = await res.json();
+            if (data?.error) errMsg = data.error;
+          } catch {}
+        }
         showToast(errMsg, 'warning');
         return;
       } catch {
-        showToast('Your digital book is temporarily unavailable. Please contact support.', 'warning');
+        showToast('Material temporarily unavailable. Please try again later.', 'warning');
         return;
       }
     }
 
-    // Never generate placeholder or fake PDFs
-    showToast('Your digital book is temporarily unavailable. Please contact support.', 'warning');
+    showToast('Payment required. Please complete purchase to access this study guide.', 'warning');
   };
 
   return (
@@ -1166,6 +1277,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastCloudSync,
         refreshProductsFromCloud,
         syncBooksToCloud,
+
+        // Customer Authentication & Account (Phase 7)
+        currentCustomer,
+        isCustomerLoading,
+        checkCustomerSession,
+        logoutCustomer,
+        setCurrentCustomer,
       }}
     >
       {children}

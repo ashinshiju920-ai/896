@@ -1,30 +1,268 @@
-import React from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2,
   DownloadCloud,
   BookOpen,
   ArrowRight,
-  Mail,
   ShieldCheck,
   Package,
   ExternalLink,
+  Clock,
+  AlertTriangle,
+  XCircle,
+  Loader2,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
-import { GOOGLE_SHEET_COPY_URL } from '../utils/cashfree';
+import { checkOrderStatus, OrderStatusResponse } from '../utils/cashfree';
+import { Order } from '../types';
+import { BOOKS } from '../data/books';
 
 export const OrderSuccessView: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const {
     currentOrder,
+    setCurrentOrder,
     setCurrentView,
     openPdfViewer,
     showToast,
+    books,
+    shippingInfo,
+    currentCustomer,
+    setCurrentCustomer,
   } = useShop();
 
-  const handleDownload = async (url: string, title: string, filename?: string) => {
+  const urlOrderId = (searchParams.get('order_id') || searchParams.get('orderId') || '').trim();
+
+  // Local verification states
+  const [orderStatus, setOrderStatus] = useState<'IDLE' | 'LOADING' | 'PENDING' | 'PAID' | 'FAILED' | 'USER_DROPPED' | 'NOT_FOUND'>('IDLE');
+  const [verifiedData, setVerifiedData] = useState<OrderStatusResponse | null>(null);
+  const [pollCount, setPollCount] = useState<number>(0);
+  const [isManualChecking, setIsManualChecking] = useState<boolean>(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // Post-payment Account Activation State (Phase 7)
+  const [actName, setActName] = useState<string>('');
+  const [actPassword, setActPassword] = useState<string>('');
+  const [actConfirmPassword, setActConfirmPassword] = useState<string>('');
+  const [isActivating, setIsActivating] = useState<boolean>(false);
+  const [activationSuccess, setActivationSuccess] = useState<boolean>(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [accountExists, setAccountExists] = useState<boolean>(false);
+
+  const pollTimerRef = useRef<any>(null);
+
+  // Populate activation name from order if empty
+  useEffect(() => {
+    if (currentOrder?.shipping?.fullName && !actName) {
+      setActName(currentOrder.shipping.fullName);
+    }
+  }, [currentOrder?.shipping?.fullName, actName]);
+
+  // Handle post-payment account activation
+  const handleActivateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrder) return;
+
+    if (!actPassword || actPassword.length < 8) {
+      setActivationError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (actPassword !== actConfirmPassword) {
+      setActivationError('Passwords do not match.');
+      return;
+    }
+
+    setIsActivating(true);
+    setActivationError(null);
+
     try {
-      showToast(`Initiating secure download for ${title}...`, 'info');
-      const res = await fetch(url);
+      const res = await fetch('/api/customer/activate-after-purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: currentOrder.id,
+          name: actName || currentOrder.shipping.fullName || 'Student',
+          password: actPassword,
+          confirmPassword: actConfirmPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActivationSuccess(true);
+        if (data.customer) {
+          setCurrentCustomer(data.customer);
+        }
+        showToast('Account created! Your verified purchase is now linked.', 'success');
+      } else {
+        if (res.status === 409 && data.accountExists) {
+          setAccountExists(true);
+        }
+        setActivationError(data.error || 'Failed to activate account.');
+      }
+    } catch {
+      setActivationError('Network error connecting to server. Please try again.');
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  // Core verification function against backend
+  const verifyOrder = useCallback(
+    async (orderIdToVerify: string, isManual = false) => {
+      if (!orderIdToVerify) return;
+
+      if (isManual) setIsManualChecking(true);
+
+      try {
+        const res = await checkOrderStatus(orderIdToVerify);
+        setVerifiedData(res);
+
+        if (res.status === 'PAID') {
+          setOrderStatus('PAID');
+          // Reconstruct and persist verified order into session & history
+          const reconstructedOrder: Order = {
+            id: res.orderId || orderIdToVerify,
+            date: res.date
+              ? new Date(res.date).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : new Date().toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                }),
+            items: (res.items || []).map((it: any) => {
+              const bookId = it.productId || it.bookId || it.id;
+              const bookObj =
+                (books || []).find((b) => b.id === bookId) ||
+                BOOKS.find((b) => b.id === bookId) ||
+                BOOKS[0];
+              return {
+                bookId,
+                book: bookObj,
+                format: (it.format === 'physical' ? 'physical' : 'digital') as 'digital' | 'physical',
+                quantity: it.quantity || 1,
+                price: it.unitPrice || (it.format === 'physical' ? 999 : 199),
+                productNameSnapshot: it.productNameSnapshot || bookObj?.title,
+                addOns: it.addOns || [],
+              };
+            }),
+            shipping: {
+              ...shippingInfo,
+              fullName: res.customerName || shippingInfo.fullName || 'Student',
+              email: res.customerEmail || shippingInfo.email || '',
+            },
+            subtotal: res.total || 199,
+            discount: 0,
+            deliveryFee: 0,
+            total: res.total || 199,
+            paymentMethod: 'upi',
+            status: 'PAID',
+            fulfillment: res.fulfillment ? {
+              ...res.fulfillment,
+              materials: res.materials || res.fulfillment.materials,
+            } : null,
+          };
+
+          setCurrentOrder(reconstructedOrder);
+          if (isManual) {
+            showToast('Payment verified successfully! Your materials are ready.', 'success');
+          }
+        } else if (res.status === 'PENDING') {
+          setOrderStatus('PENDING');
+          if (isManual) {
+            showToast('Payment is still being processed. Please check back shortly.', 'info');
+          }
+        } else if (res.status === 'FAILED') {
+          setOrderStatus('FAILED');
+        } else if (res.status === 'USER_DROPPED') {
+          setOrderStatus('USER_DROPPED');
+        } else {
+          setOrderStatus('NOT_FOUND');
+        }
+      } catch {
+        setOrderStatus('PENDING');
+      } finally {
+        if (isManual) setIsManualChecking(false);
+      }
+    },
+    [books, setCurrentOrder, shippingInfo, showToast]
+  );
+
+  // Initialize verification on mount or URL change
+  useEffect(() => {
+    const targetId = urlOrderId || currentOrder?.id;
+
+    if (!targetId) {
+      if (!currentOrder || currentOrder.status !== 'PAID') {
+        setOrderStatus('NOT_FOUND');
+      } else {
+        setOrderStatus('PAID');
+      }
+      return;
+    }
+
+    setOrderStatus('LOADING');
+    verifyOrder(targetId);
+  }, [urlOrderId, currentOrder?.id, verifyOrder]);
+
+  // Controlled polling with backoff for PENDING status (max 5 attempts, ~15 seconds total)
+  useEffect(() => {
+    if (orderStatus === 'PENDING' && pollCount < 5) {
+      const targetId = urlOrderId || currentOrder?.id;
+      if (targetId) {
+        pollTimerRef.current = setTimeout(() => {
+          setPollCount((prev) => prev + 1);
+          verifyOrder(targetId);
+        }, 3000);
+      }
+    }
+
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, [orderStatus, pollCount, urlOrderId, currentOrder?.id, verifyOrder]);
+
+  // Protected download handler with automatic token renewal on expiry (403)
+  const handleDownload = async (
+    url: string,
+    title: string,
+    orderId?: string,
+    entitlementId?: string
+  ) => {
+    try {
+      const activeId = entitlementId || title;
+      setDownloadingId(activeId);
+      showToast(`Preparing your download for ${title}...`, 'info');
+
+      let targetUrl = url;
+
+      // 1. Initial attempt with provided URL
+      let res = await fetch(targetUrl);
+
+      // 2. If 403 (token expired or stale), request fresh server authorization
+      if (res.status === 403 && orderId) {
+        const freshStatus = await checkOrderStatus(orderId);
+        if (freshStatus && freshStatus.status === 'PAID') {
+          const freshMat = freshStatus.materials?.find(
+            (m) => m.entitlementId === entitlementId || m.name === title
+          );
+          if (freshMat?.downloadUrl) {
+            targetUrl = freshMat.downloadUrl;
+            res = await fetch(targetUrl);
+          }
+        }
+      }
+
       if (res.ok) {
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/pdf')) {
@@ -32,7 +270,7 @@ export const OrderSuccessView: React.FC = () => {
           const blobUrl = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = blobUrl;
-          link.download = filename || `${title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+          link.download = `${title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -42,28 +280,168 @@ export const OrderSuccessView: React.FC = () => {
         }
       }
 
-      let errMsg = 'Your digital book is temporarily unavailable. Please contact support.';
-      try {
-        const data = await res.json();
-        if (data?.error) errMsg = data.error;
-      } catch {}
+      let errMsg = 'Material temporarily unavailable. Please try again later.';
+      if (res.status === 403) {
+        errMsg = 'Your access could not be verified. Please refresh and try again.';
+      } else {
+        try {
+          const data = await res.json();
+          if (data?.error) errMsg = data.error;
+        } catch {}
+      }
       showToast(errMsg, 'warning');
     } catch {
-      showToast('Your digital book is temporarily unavailable. Please contact support.', 'warning');
+      showToast('Material temporarily unavailable. Please try again later.', 'warning');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
-  const isVerifiedPaid = currentOrder && currentOrder.status === 'PAID' && currentOrder.fulfillment;
+  // 1. LOADING STATE
+  if (orderStatus === 'LOADING') {
+    return (
+      <div className="max-w-2xl mx-auto py-24 px-4 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 font-['Plus_Jakarta_Sans',sans-serif]">
+          Verifying your order...
+        </h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          Connecting to secure server to confirm payment status and authorization tokens.
+        </p>
+      </div>
+    );
+  }
 
-  if (!isVerifiedPaid) {
+  // 2. PENDING STATE (Section 20 & 21)
+  if (orderStatus === 'PENDING') {
+    const targetId = urlOrderId || currentOrder?.id || 'Unknown';
+    const isExhausted = pollCount >= 5;
+
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto ring-8 ring-amber-50">
+          <Clock className="w-8 h-8 animate-pulse" />
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-800 bg-amber-100 px-3 py-1 rounded-full">
+            Payment Verification
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
+            We're confirming your payment.
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+            {isExhausted
+              ? 'Payment verification is taking longer than expected. Your order is safely recorded and can be checked again.'
+              : 'This usually takes a few seconds while the bank confirms the transaction.'}
+          </p>
+        </div>
+
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-xs font-mono text-slate-700">
+          <span>Order ID: <strong>#{targetId}</strong></span>
+        </div>
+
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => verifyOrder(targetId, true)}
+            disabled={isManualChecking}
+            className="w-full sm:w-auto px-6 py-3 bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+          >
+            {isManualChecking ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Checking...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                <span>Check Again</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => navigate('/my-materials')}
+            className="w-full sm:w-auto px-5 py-3 border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+          >
+            Go to My Materials
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. FAILED STATE (Section 20)
+  if (orderStatus === 'FAILED') {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto ring-8 ring-rose-50">
+          <XCircle className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-rose-800 bg-rose-100 px-3 py-1 rounded-full">
+            Payment Not Completed
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
+            Your payment was not confirmed.
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+            The payment gateway reported that this transaction was not completed. No money was captured, and no digital materials have been unlocked.
+          </p>
+        </div>
+        <div className="pt-2">
+          <button
+            onClick={() => navigate('/checkout')}
+            className="px-6 py-3 bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+          >
+            Return to Checkout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. USER_DROPPED STATE (Section 20)
+  if (orderStatus === 'USER_DROPPED') {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center mx-auto ring-8 ring-slate-50">
+          <AlertTriangle className="w-8 h-8 text-amber-600" />
+        </div>
+        <div className="space-y-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 bg-slate-200 px-3 py-1 rounded-full">
+            Checkout Incomplete
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
+            Payment was not completed.
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+            The payment session was closed before completion. No digital materials have been unlocked.
+          </p>
+        </div>
+        <div className="pt-2">
+          <button
+            onClick={() => navigate('/checkout')}
+            className="px-6 py-3 bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. NOT_FOUND / UNKNOWN ERROR STATE (Section 27)
+  if (orderStatus === 'NOT_FOUND' || !currentOrder || currentOrder.status !== 'PAID') {
     return (
       <div className="max-w-2xl mx-auto py-20 px-4 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto ring-8 ring-amber-50">
-          <ShieldCheck className="w-8 h-8" />
+        <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center mx-auto ring-8 ring-slate-50">
+          <Package className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-slate-800">No verified paid order found</h2>
-        <p className="text-sm text-slate-600 max-w-md mx-auto">
-          Instant downloads and Google Sheet study planners are unlocked only after payment verification has been confirmed by the server.
+        <h2 className="text-xl font-bold text-slate-800">Order not found</h2>
+        <p className="text-xs text-slate-600 max-w-md mx-auto">
+          We could not find the requested order record. Instant downloads are unlocked only after verified server payment confirmation.
         </p>
         <button
           onClick={() => setCurrentView('catalog')}
@@ -75,35 +453,48 @@ export const OrderSuccessView: React.FC = () => {
     );
   }
 
-  const hasDigital = currentOrder.items.some((i) => i.format === 'digital');
-  const hasPhysical = currentOrder.items.some((i) => i.format === 'physical');
+  // 6. VERIFIED PAID STATE (Sections 4, 5, 6, 8)
+  const displayMaterials = (currentOrder.fulfillment?.materials && currentOrder.fulfillment.materials.length > 0)
+    ? currentOrder.fulfillment.materials
+    : (currentOrder.fulfillment?.downloads || []).map((d) => ({
+        entitlementId: d.entitlementId || d.bookId,
+        name: d.title,
+        type: (d.type || 'product') as 'product' | 'addon',
+        available: true,
+        productId: d.bookId,
+        addOnId: null,
+        downloadUrl: d.downloadUrl,
+      }));
+
+  const hasPhysical = (currentOrder.items || []).some((i) => i.format === 'physical');
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Celebration Header */}
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+      {/* Celebration Header (Section 4) */}
       <div className="text-center space-y-3">
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto ring-8 ring-emerald-50">
           <CheckCircle2 className="w-10 h-10" />
         </div>
-        <span className="text-xs font-bold uppercase tracking-widest text-emerald-700 block">
+        <span className="text-xs font-black uppercase tracking-widest text-emerald-700 block">
           PAYMENT CONFIRMED & ORDER PLACED
         </span>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
-          Thank You, {currentOrder.shipping.fullName}!
+          Thank You, {currentOrder.shipping.fullName || 'Student'}!
         </h1>
-        <p className="text-sm text-slate-600 max-w-md mx-auto">
-          We have emailed your receipt and instant download links to{' '}
-          <strong className="text-slate-900">{currentOrder.shipping.email}</strong>.
+        <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+          Your payment has been verified. Your study materials are unlocked and ready for instant access.
         </p>
 
-        <div className="inline-flex items-center gap-3 px-4 py-2 bg-slate-100 rounded-full text-xs font-medium text-slate-700">
+        <div className="inline-flex flex-wrap items-center justify-center gap-3 px-4 py-2 bg-slate-100 rounded-full text-xs font-medium text-slate-700">
           <span>Order ID: <strong className="font-mono text-slate-900">#{currentOrder.id}</strong></span>
+          <span>•</span>
+          <span>Amount Paid: <strong className="text-slate-900">₹{currentOrder.total}</strong></span>
           <span>•</span>
           <span>Date: <strong>{currentOrder.date}</strong></span>
         </div>
       </div>
 
-      {/* GOOGLE SHEET TEMPLATE DELIVERY CARD */}
+      {/* Official Google Sheet Copy Template Link (if available) */}
       {currentOrder.fulfillment?.googleSheetUrl && (
         <div className="bg-gradient-to-r from-emerald-600 via-[#00875a] to-[#0a2540] rounded-3xl p-6 sm:p-7 text-white shadow-lg border border-emerald-400/30 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -112,10 +503,10 @@ export const OrderSuccessView: React.FC = () => {
                 Study Planner & Template Access
               </span>
               <h2 className="text-xl sm:text-2xl font-bold font-['Plus_Jakarta_Sans',sans-serif] text-white">
-                Official Google Sheet / Copy Template Link
+                Official Google Sheet Study Planner Template
               </h2>
               <p className="text-xs text-slate-200 max-w-lg">
-                Click below to automatically create your personal copy in Google Sheets with full study schedule, mock tracker, and band score analytics.
+                Click below to make your personal copy in Google Sheets with interactive study schedules, mock test trackers, and band score analytics.
               </p>
             </div>
 
@@ -132,8 +523,169 @@ export const OrderSuccessView: React.FC = () => {
         </div>
       )}
 
-      {/* Digital Access Section */}
-      {hasDigital && (
+      {/* Existing Customer / Account Linked Card (Section 3) */}
+      {(currentCustomer || activationSuccess || verifiedData?.isClaimed) && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 sm:p-7 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="space-y-1 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                Lifetime Account Linked
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+              Your purchase has been added to your Xylem Learning account.
+            </h3>
+            <p className="text-xs text-slate-600">
+              Linked to {currentCustomer?.email || currentOrder.shipping.email}. Access this study material anytime from any device.
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate('/my-materials')}
+            className="px-6 py-3 bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-bold rounded-2xl shadow-xs transition-all hover:scale-105 active:scale-95 shrink-0 flex items-center gap-2 cursor-pointer"
+          >
+            <span>Go to My Materials</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Post-Payment Account Activation Card (Section 2 & 31) */}
+      {!currentCustomer && !activationSuccess && !verifiedData?.isClaimed && (
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-[#0a2540] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-700/60 space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
+                SAVE YOUR LIFETIME ACCESS
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif]">
+              Create your account to access your materials anytime.
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
+              Your purchased study materials will be permanently tied to your personal account so you can log in, review notes, and get fresh download authorizations anytime.
+            </p>
+          </div>
+
+          {accountExists ? (
+            <div className="p-4 bg-amber-500/20 border border-amber-400/30 rounded-2xl space-y-3">
+              <p className="text-xs text-amber-200">
+                An account already exists for <strong>{currentOrder.shipping.email}</strong>. Please sign in to link this verified purchase to your account.
+              </p>
+              <button
+                onClick={() => navigate('/login')}
+                className="px-5 py-2.5 bg-amber-400 text-slate-950 text-xs font-bold rounded-xl hover:bg-amber-300 transition-all cursor-pointer"
+              >
+                Sign In to Link Purchase
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleActivateAccount} className="space-y-4 max-w-lg">
+              {activationError && (
+                <div className="p-3 bg-rose-500/20 border border-rose-500/30 text-rose-200 rounded-xl text-xs">
+                  {activationError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={actName}
+                    onChange={(e) => setActName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Email (Read-only)
+                  </label>
+                  <input
+                    type="email"
+                    readOnly
+                    value={currentOrder.shipping.email}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/60 text-slate-400 text-xs cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Create Password (min 8 chars)
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={actPassword}
+                    onChange={(e) => setActPassword(e.target.value)}
+                    placeholder="Create a strong password"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={actConfirmPassword}
+                    onChange={(e) => setActConfirmPassword(e.target.value)}
+                    placeholder="Repeat password"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-4">
+                <button
+                  type="submit"
+                  disabled={isActivating}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-70 text-slate-950 text-xs font-extrabold rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isActivating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Creating Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Create My Account</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                <div className="text-xs text-slate-400">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    className="text-emerald-400 hover:underline font-semibold cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* Materials Section (Sections 4, 6, 7) */}
+      {displayMaterials.length > 0 && (
         <div className="bg-gradient-to-br from-emerald-50/70 via-white to-slate-50 border-2 border-emerald-500/40 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-emerald-100">
             <div>
@@ -141,87 +693,140 @@ export const OrderSuccessView: React.FC = () => {
                 INSTANT ACCESS READY
               </span>
               <h2 className="text-xl font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif] mt-1">
-                Your Digital Study Guides & PDFs
+                Your Study Materials Are Ready
               </h2>
             </div>
-            <span className="text-xs text-slate-500">Lifetime access & unlimited re-downloads</span>
+            <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              Verified Lifetime Access
+            </span>
           </div>
 
           <div className="space-y-4 pt-2">
-            {currentOrder.items
-              .filter((i) => i.format === 'digital')
-              .map((item) => {
-                const bookId = item.bookId || item.book?.id;
-                const serverDownload = currentOrder.fulfillment?.downloads?.find(
-                  (d) => d.bookId === bookId
-                );
-                const downloadUrl =
-                  serverDownload?.downloadUrl ||
-                  `/api/download?order_id=${encodeURIComponent(currentOrder.id)}&book_id=${encodeURIComponent(bookId)}`;
+            {displayMaterials.map((material) => {
+              const bookObj = (books || []).find((b) => b.id === material.productId);
+              const downloadUrl =
+                material.downloadUrl ||
+                `/api/download?order_id=${encodeURIComponent(currentOrder.id)}&entitlement_id=${encodeURIComponent(material.entitlementId)}`;
+              const isDownloading = downloadingId === material.entitlementId;
 
-                return (
-                  <div
-                    key={`${bookId}-digital`}
-                    className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs"
-                  >
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                      <div className="shrink-0">
-                        {item.book ? (
-                          <BookCover book={item.book} size="sm" showShadow={false} />
-                        ) : (
-                          <div className="w-12 h-16 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-400 text-xs">
-                            PDF
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                          {item.book?.title || 'Official Exam Guide'}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          {item.book?.samplePdfName || 'Exam_Prep_2026.pdf'} • High-Res PDF • Exam Edition 2026
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-emerald-700 font-semibold">
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>License Activated for {currentOrder.shipping?.email}</span>
+              return (
+                <div
+                  key={material.entitlementId}
+                  className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs hover:border-emerald-200 transition-colors"
+                >
+                  <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <div className="shrink-0">
+                      {bookObj && material.type === 'product' ? (
+                        <BookCover book={bookObj} size="sm" showShadow={false} />
+                      ) : (
+                        <div className="w-12 h-16 bg-emerald-50 border border-emerald-200 rounded-lg flex flex-col items-center justify-center font-bold text-emerald-800 text-[10px] uppercase">
+                          <span>{material.type === 'addon' ? 'Add-on' : 'PDF'}</span>
                         </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            material.type === 'addon'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {material.type === 'addon' ? 'Additional Practice Material' : 'Main Preparation Guide'}
+                        </span>
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+                        {material.name}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {material.type === 'addon' ? 'Practice Tests & Drill Notes' : 'Complete Study Guide'} • High-Res PDF
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-emerald-700 font-semibold">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Permanent License Activated for {currentOrder.shipping?.email}</span>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      {item.book && (
-                        <button
-                          onClick={() => openPdfViewer(item.book)}
-                          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-                        >
-                          <BookOpen className="w-4 h-4 text-slate-600" />
-                          <span>Read Online</span>
-                        </button>
-                      )}
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {bookObj && material.type === 'product' && (
+                      <button
+                        onClick={() => openPdfViewer(bookObj)}
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                      >
+                        <BookOpen className="w-4 h-4 text-slate-600" />
+                        <span>Read Online</span>
+                      </button>
+                    )}
 
+                    {material.available && downloadUrl ? (
                       <button
                         onClick={() =>
                           handleDownload(
                             downloadUrl,
-                            item.book?.title || 'Official Exam Guide',
-                            item.book?.samplePdfName
+                            material.name,
+                            currentOrder.id,
+                            material.entitlementId
                           )
                         }
-                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                        disabled={isDownloading}
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-[#00875a] hover:bg-[#00734c] disabled:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
                       >
-                        <DownloadCloud className="w-4 h-4" />
-                        <span>Download PDF</span>
+                        {isDownloading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Preparing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <DownloadCloud className="w-4 h-4" />
+                            <span>Download PDF</span>
+                          </>
+                        )}
                       </button>
-                    </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic px-3 py-2">
+                        Delivery pending
+                      </span>
+                    )}
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Physical Delivery Tracking Card */}
+      {/* Lifetime Access Callout (Section 4 & 8) */}
+      <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md">
+        <div className="space-y-2 text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+              Lifetime Access
+            </span>
+          </div>
+          <h3 className="text-xl font-bold font-['Plus_Jakarta_Sans',sans-serif]">
+            Your purchased materials remain available through your account.
+          </h3>
+          <p className="text-xs text-slate-300 max-w-lg">
+            Return anytime to review your guides, track practice mocks, and generate fresh authorized download links whenever you need them.
+          </p>
+        </div>
+
+        <button
+          onClick={() => navigate('/my-materials')}
+          className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95 shrink-0 flex items-center gap-2 cursor-pointer"
+        >
+          <span>Go to My Materials</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Physical Delivery Tracking Card (if order has physical books) */}
       {hasPhysical && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
           <div className="flex items-center gap-3">
@@ -248,67 +853,19 @@ export const OrderSuccessView: React.FC = () => {
         </div>
       )}
 
-      {/* Order Summary Receipt Box */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
-        <h3 className="text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif] pb-3 border-b border-slate-100">
-          Payment Receipt
-        </h3>
-
-        <div className="space-y-2 text-xs text-slate-600">
-          <div className="flex justify-between">
-            <span>Payment Method</span>
-            <span className="font-bold text-slate-900 uppercase">
-              {currentOrder.paymentMethod}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Payment Status</span>
-            <span className="font-bold text-emerald-700">Paid & Verified</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>₹{currentOrder.subtotal}</span>
-          </div>
-          {currentOrder.discount > 0 && (
-            <div className="flex justify-between text-emerald-700 font-semibold">
-              <span>Coupon Discount</span>
-              <span>-₹{currentOrder.discount}</span>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <span>Delivery</span>
-            <span>{currentOrder.deliveryFee > 0 ? `₹${currentOrder.deliveryFee}` : 'FREE'}</span>
-          </div>
-          <div className="border-t border-slate-200 pt-3 flex justify-between items-baseline">
-            <span className="text-sm font-bold text-slate-900">Total Paid</span>
-            <span className="text-xl font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-              ₹{currentOrder.total}
-            </span>
-          </div>
+      {/* Need Help Box */}
+      <div className="border border-slate-200 bg-white rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+        <div>
+          <span className="font-bold text-slate-900 block text-sm">Need help with your order?</span>
+          <span>Reference Order ID <strong className="font-mono text-slate-900">#{currentOrder.id}</strong> when contacting our support team at <a href="mailto:support@xylemlearning.com" className="text-emerald-700 underline font-semibold">support@xylemlearning.com</a>.</span>
         </div>
 
-        <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Mail className="w-4 h-4 text-emerald-600" />
-            <span>Invoice receipt sent to your email.</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentView('orders')}
-              className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              View All Orders
-            </button>
-            <button
-              onClick={() => setCurrentView('catalog')}
-              className="px-5 py-2 bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5"
-            >
-              <span>Continue Shopping</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => setCurrentView('catalog')}
+          className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl shrink-0 cursor-pointer"
+        >
+          Continue Shopping
+        </button>
       </div>
     </div>
   );

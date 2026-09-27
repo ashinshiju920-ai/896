@@ -21,6 +21,9 @@ import { CartView } from './views/CartView';
 import { CheckoutView } from './views/CheckoutView';
 import { OrderSuccessView } from './views/OrderSuccessView';
 import { OrdersHistoryView } from './views/OrdersHistoryView';
+import { MyMaterialsView } from './views/MyMaterialsView';
+import { CustomerLoginView } from './views/CustomerLoginView';
+import { CustomerAccountView } from './views/CustomerAccountView';
 import { AboutView } from './views/AboutView';
 const AdminView = React.lazy(() => import('./views/AdminView'));
 import { NotFoundView } from './views/NotFoundView';
@@ -91,7 +94,10 @@ const ShopApp: React.FC = () => {
               total: res.total || 199,
               paymentMethod: 'upi',
               status: 'PAID',
-              fulfillment: res.fulfillment,
+              fulfillment: res.fulfillment ? {
+                ...res.fulfillment,
+                materials: res.materials || res.fulfillment.materials,
+              } : null,
             };
             setCurrentOrder(verifiedOrder);
             navigate('/order-success', { replace: true });
@@ -135,7 +141,10 @@ const ShopApp: React.FC = () => {
           <Route path="/cart" element={<CartView />} />
           <Route path="/checkout" element={<CheckoutView />} />
           <Route path="/order-success" element={<OrderSuccessView />} />
-          <Route path="/orders" element={<OrdersHistoryView />} />
+          <Route path="/my-materials" element={<MyMaterialsView initialTab="materials" />} />
+          <Route path="/orders" element={<MyMaterialsView initialTab="orders" />} />
+          <Route path="/login" element={<CustomerLoginView />} />
+          <Route path="/account" element={<CustomerAccountView />} />
           <Route path="/about" element={<AboutView />} />
 
           {/* Admin routes (code-split and lazy-loaded) */}

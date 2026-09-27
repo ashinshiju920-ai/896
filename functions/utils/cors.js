@@ -43,13 +43,26 @@ export function getCorsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
   const allowed = isOriginAllowed(origin, env);
 
-  const matchedOrigin = allowed && origin ? origin : 'https://portal.xylemlearning.online';
+  if (!origin) {
+    return {
+      'Access-Control-Allow-Origin': 'https://portal.xylemlearning.online',
+      'Vary': 'Origin',
+    };
+  }
 
+  if (allowed) {
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, X-Requested-With, Cache-Control, Pragma',
+      'Access-Control-Allow-Credentials': 'true',
+      'Vary': 'Origin',
+    };
+  }
+
+  // Deny disallowed cross-origin request
   return {
-    'Access-Control-Allow-Origin': matchedOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, X-Requested-With, Cache-Control, Pragma',
-    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Origin': 'null',
     'Vary': 'Origin',
   };
 }

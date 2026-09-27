@@ -4,6 +4,7 @@ import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { BackButton } from '../components/BackButton';
 import { BOOKS } from '../data/books';
+import { getCartLineKey } from '../utils/pricing';
 
 export const CartView: React.FC = () => {
   const {
@@ -56,16 +57,14 @@ export const CartView: React.FC = () => {
           <div className="lg:col-span-8 space-y-4">
             <div className="divide-y divide-slate-200 border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs">
               {cart.map((item, idx) => {
-                const itemKey = `${item.bookId}-${
-                  item.selectedAddonIds ? item.selectedAddonIds.slice().sort().join('-') : item.format
-                }-${idx}`;
+                const itemKey = `${getCartLineKey(item.bookId, item.format, item.selectedAddonIds)}-${idx}`;
 
                 return (
                   <div
                     key={itemKey}
                     className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
-                    <div className="flex items-center gap-4 min-w-0">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
                       <div
                         onClick={() => navigateToProduct(item.bookId)}
                         className="cursor-pointer shrink-0"
@@ -73,63 +72,56 @@ export const CartView: React.FC = () => {
                         <BookCover book={item.book} size="sm" showShadow={false} />
                       </div>
 
-                      <div className="min-w-0 space-y-1">
+                      <div className="min-w-0 space-y-1.5 flex-1">
                         <h3
                           onClick={() => navigateToProduct(item.bookId)}
-                          className="text-sm sm:text-base font-semibold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif] hover:text-emerald-700 cursor-pointer truncate"
+                          className="text-sm sm:text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif] hover:text-emerald-700 cursor-pointer truncate"
                         >
                           {item.book.title}
                         </h3>
 
-                        {item.selectedAddons && item.selectedAddons.length > 0 ? (
-                          <div className="space-y-1 pt-0.5">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {item.selectedAddons.map((addon) => {
-                                const isFree =
-                                  item.freeAddonDiscount &&
-                                  item.freeAddonDiscount > 0 &&
-                                  addon.price === item.freeAddonDiscount;
-                                return (
-                                  <span
-                                    key={addon.id}
-                                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
-                                      isFree
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
-                                        : 'bg-slate-50 text-slate-700 border-slate-200'
-                                    }`}
-                                  >
-                                    {addon.name} {isFree ? '• FREE (₹0)' : `• ₹${addon.price}`}
-                                  </span>
-                                );
-                              })}
+                        {/* Format & Category Badges */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                              item.format === 'digital'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                          >
+                            {item.format === 'digital' ? 'Digital Edition (PDF eBook)' : 'Paperback Printed Edition'}
+                          </span>
+                          <span className="text-xs text-slate-400">•</span>
+                          <span className="text-xs text-slate-500 font-medium">
+                            {item.book.category}
+                          </span>
+                        </div>
+
+                        {/* Selected Optional Add-ons List */}
+                        {item.selectedAddons && item.selectedAddons.length > 0 && (
+                          <div className="space-y-1 pt-1 border-t border-slate-100">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              Selected Optional Materials:
                             </div>
-                            {item.freeAddonDiscount && item.freeAddonDiscount > 0 && (
-                              <div className="text-[10px] font-bold text-emerald-700">
-                                🎁 "Buy 2 Get 3rd Free" Applied: Saved ₹
-                                {item.freeAddonDiscount * item.quantity}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                                item.format === 'digital'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
-                              }`}
-                            >
-                              {item.format === 'digital' ? 'Digital (PDF eBook)' : 'Paperback Printed'}
-                            </span>
-                            <span className="text-xs text-slate-400">•</span>
-                            <span className="text-xs text-slate-500 font-medium">
-                              {item.book.category}
-                            </span>
+                            <div className="space-y-1">
+                              {item.selectedAddons.map((addon) => (
+                                <div
+                                  key={addon.id}
+                                  className="flex items-center justify-between text-xs text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100"
+                                >
+                                  <span className="font-medium text-slate-800 flex items-center gap-1">
+                                    <span className="text-emerald-600 font-bold">+</span>
+                                    <span>{addon.name}</span>
+                                  </span>
+                                  <span className="font-bold text-slate-900">₹{addon.price}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
-                        <div className="text-sm font-bold text-slate-900 pt-1">
-                          ₹{item.price}
+                        <div className="text-xs text-slate-500 pt-0.5">
+                          <span className="font-bold text-slate-900 text-sm">₹{item.price}</span> per item
                         </div>
                       </div>
                     </div>
