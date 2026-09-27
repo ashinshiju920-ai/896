@@ -41,10 +41,10 @@ function sanitizeProduct(raw) {
   const rawId = sanitizeString(raw.id, 64);
   const cleanId = rawId.replace(/[^a-zA-Z0-9_-]/g, '') || `prod_${Date.now()}`;
 
-  const digitalPrice = sanitizeNumber(raw.prices?.digital?.price, 0, 100000, 199);
-  const digitalOrig = sanitizeNumber(raw.prices?.digital?.originalPrice, digitalPrice, 100000, 599);
-  const physicalPrice = sanitizeNumber(raw.prices?.physical?.price, 0, 100000, 999);
-  const physicalOrig = sanitizeNumber(raw.prices?.physical?.originalPrice, physicalPrice, 100000, 1299);
+  const digitalPrice = sanitizeNumber(raw.prices?.digital?.price, 0, 100000, 499);
+  const digitalOrig = sanitizeNumber(raw.prices?.digital?.originalPrice, digitalPrice, 100000, 999);
+  const physicalPrice = sanitizeNumber(raw.prices?.physical?.price, 0, 100000, 899);
+  const physicalOrig = sanitizeNumber(raw.prices?.physical?.originalPrice, physicalPrice, 100000, 1499);
 
   const images = Array.isArray(raw.images)
     ? raw.images.map((img) => sanitizeString(img, 500)).filter(Boolean).slice(0, 8)
@@ -58,16 +58,50 @@ function sanitizeProduct(raw) {
     ? raw.whatYouGet.map((w) => sanitizeString(w, 300)).filter(Boolean).slice(0, 30)
     : [];
 
-  const addons = Array.isArray(raw.addons)
-    ? raw.addons.slice(0, 10).map((a) => ({
-        id: sanitizeString(a.id, 64) || 'addon',
-        name: sanitizeString(a.name, 100) || 'Addon',
-        subtitle: sanitizeString(a.subtitle, 150),
-        price: sanitizeNumber(a.price, 0, 100000, 0),
-        originalPrice: sanitizeNumber(a.originalPrice, 0, 100000, 0),
-        deliveryOption: a.deliveryOption === 'physical' ? 'physical' : 'digital',
-      }))
-    : [];
+  let cleanAddons = Array.isArray(raw.addons) && raw.addons.length > 0
+    ? raw.addons.slice(0, 10).map((a) => {
+        const rawId = sanitizeString(a.id, 64) || 'addon';
+        const normId = rawId === 'addon_digital' ? 'digital' : (rawId === 'addon_physical' ? 'physical' : rawId);
+        return {
+          id: normId,
+          name: sanitizeString(a.name, 100) || (normId === 'physical' ? 'Physical (Printed)' : 'Digital (PDF)'),
+          subtitle: sanitizeString(a.subtitle, 150),
+          price: sanitizeNumber(a.price, 0, 100000, normId === 'physical' ? physicalPrice : digitalPrice),
+          originalPrice: sanitizeNumber(a.originalPrice, 0, 100000, normId === 'physical' ? physicalOrig : digitalOrig),
+          deliveryOption: a.deliveryOption === 'physical' || normId === 'physical' ? 'physical' : 'digital',
+        };
+      })
+    : [
+        {
+          id: 'digital',
+          name: 'Digital (PDF)',
+          subtitle: 'Instant Download',
+          price: digitalPrice,
+          originalPrice: digitalOrig,
+          deliveryOption: 'digital',
+        },
+        {
+          id: 'physical',
+          name: 'Physical (Printed)',
+          subtitle: 'Delivered in 3-5 days',
+          price: physicalPrice,
+          originalPrice: physicalOrig,
+          deliveryOption: 'physical',
+        },
+      ];
+
+  // Guarantee digital and physical addons stay synchronized with prices if provided
+  cleanAddons = cleanAddons.map((addon) => {
+    if (addon.id === 'digital' && raw.prices?.digital?.price !== undefined) {
+      return { ...addon, price: digitalPrice, originalPrice: digitalOrig };
+    }
+    if (addon.id === 'physical' && raw.prices?.physical?.price !== undefined) {
+      return { ...addon, price: physicalPrice, originalPrice: physicalOrig };
+    }
+    return addon;
+  });
+
+  const addons = cleanAddons;
 
   const reviews = Array.isArray(raw.reviews)
     ? raw.reviews.slice(0, 100).map((r) => ({

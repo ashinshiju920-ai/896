@@ -6,7 +6,10 @@ import { Book, ProductAddon } from '../types';
  */
 export const getBookAddons = (book: Book): ProductAddon[] => {
   if (book && Array.isArray(book.addons) && book.addons.length > 0) {
-    return book.addons.slice(0, 4);
+    return book.addons.slice(0, 4).map((a) => ({
+      ...a,
+      id: a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id),
+    }));
   }
 
   const digitalPrice = book?.prices?.digital?.price ?? 499;
@@ -58,7 +61,14 @@ export const calculateAddonsPricing = (
   selectedIds: string[],
   buy2Get3rdFree = false
 ): AddonsPricingCalculation => {
-  const selected = addons.filter((a) => selectedIds.includes(a.id));
+  const normalizedSelectedIds = (selectedIds || []).map((id) =>
+    id === 'addon_digital' ? 'digital' : (id === 'addon_physical' ? 'physical' : id)
+  );
+
+  const selected = addons.filter((a) => {
+    const normId = a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id);
+    return normalizedSelectedIds.includes(normId) || normalizedSelectedIds.includes(a.id);
+  });
   const activeList = selected.length > 0 ? selected : (addons.length > 0 ? [addons[0]] : []);
 
   const subtotal = activeList.reduce((sum, a) => sum + (Number(a.price) || 0), 0);

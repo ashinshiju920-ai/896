@@ -91,24 +91,29 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
     adText: initialBook?.adText || '',
     totalPages: initialBook?.totalPages || 280,
     reviews: initialBook?.reviews || [],
-    addons: initialBook?.addons || [
-      {
-        id: 'addon_digital',
-        name: 'Digital (PDF)',
-        subtitle: 'Instant Download',
-        price: 199,
-        originalPrice: 599,
-        deliveryOption: 'digital',
-      },
-      {
-        id: 'addon_physical',
-        name: 'Physical (Printed)',
-        subtitle: 'Delivered in 3-5 days',
-        price: 999,
-        originalPrice: 1299,
-        deliveryOption: 'physical',
-      },
-    ],
+    addons: initialBook?.addons && initialBook.addons.length > 0
+      ? initialBook.addons.map((a) => ({
+          ...a,
+          id: a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id),
+        }))
+      : [
+          {
+            id: 'digital',
+            name: 'Digital (PDF)',
+            subtitle: 'Instant Download',
+            price: initialBook?.prices?.digital?.price ?? 499,
+            originalPrice: initialBook?.prices?.digital?.originalPrice ?? 999,
+            deliveryOption: 'digital',
+          },
+          {
+            id: 'physical',
+            name: 'Physical (Printed)',
+            subtitle: 'Delivered in 3-5 days',
+            price: initialBook?.prices?.physical?.price ?? 899,
+            originalPrice: initialBook?.prices?.physical?.originalPrice ?? 1499,
+            deliveryOption: 'physical',
+          },
+        ],
     buy2Get3rdFree: Boolean(initialBook?.buy2Get3rdFree),
     addonDealText: initialBook?.addonDealText || 'Special Deal: Buy Any 2 Add-ons, Get the 3rd FREE!',
   };
@@ -411,13 +416,21 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const price = Math.max(0, parseInt(e.target.value) || 0);
                         const orig = form.prices?.digital?.originalPrice || price;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
-                        setForm((prev) => ({
-                          ...prev,
-                          prices: {
-                            ...prev.prices,
-                            digital: { price, originalPrice: orig, discountPercent: discount },
-                          },
-                        }));
+                        setForm((prev) => {
+                          const updatedAddons = (prev.addons || []).map((a) =>
+                            a.id === 'digital' || a.deliveryOption === 'digital'
+                              ? { ...a, price, originalPrice: orig }
+                              : a
+                          );
+                          return {
+                            ...prev,
+                            prices: {
+                              ...prev.prices,
+                              digital: { price, originalPrice: orig, discountPercent: discount },
+                            },
+                            addons: updatedAddons,
+                          };
+                        });
                         setIsDirty(true);
                       }}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-bold"
@@ -434,13 +447,21 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const orig = Math.max(0, parseInt(e.target.value) || 0);
                         const price = form.prices?.digital?.price || 0;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
-                        setForm((prev) => ({
-                          ...prev,
-                          prices: {
-                            ...prev.prices,
-                            digital: { price, originalPrice: orig, discountPercent: discount },
-                          },
-                        }));
+                        setForm((prev) => {
+                          const updatedAddons = (prev.addons || []).map((a) =>
+                            a.id === 'digital' || a.deliveryOption === 'digital'
+                              ? { ...a, originalPrice: orig }
+                              : a
+                          );
+                          return {
+                            ...prev,
+                            prices: {
+                              ...prev.prices,
+                              digital: { price, originalPrice: orig, discountPercent: discount },
+                            },
+                            addons: updatedAddons,
+                          };
+                        });
                         setIsDirty(true);
                       }}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white text-slate-500"
@@ -471,13 +492,21 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const price = Math.max(0, parseInt(e.target.value) || 0);
                         const orig = form.prices?.physical?.originalPrice || price;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
-                        setForm((prev) => ({
-                          ...prev,
-                          prices: {
-                            ...prev.prices,
-                            physical: { price, originalPrice: orig, discountPercent: discount },
-                          },
-                        }));
+                        setForm((prev) => {
+                          const updatedAddons = (prev.addons || []).map((a) =>
+                            a.id === 'physical' || a.deliveryOption === 'physical'
+                              ? { ...a, price, originalPrice: orig }
+                              : a
+                          );
+                          return {
+                            ...prev,
+                            prices: {
+                              ...prev.prices,
+                              physical: { price, originalPrice: orig, discountPercent: discount },
+                            },
+                            addons: updatedAddons,
+                          };
+                        });
                         setIsDirty(true);
                       }}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-bold"
@@ -494,13 +523,21 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         const orig = Math.max(0, parseInt(e.target.value) || 0);
                         const price = form.prices?.physical?.price || 0;
                         const discount = orig > price ? Math.round(((orig - price) / orig) * 100) : 0;
-                        setForm((prev) => ({
-                          ...prev,
-                          prices: {
-                            ...prev.prices,
-                            physical: { price, originalPrice: orig, discountPercent: discount },
-                          },
-                        }));
+                        setForm((prev) => {
+                          const updatedAddons = (prev.addons || []).map((a) =>
+                            a.id === 'physical' || a.deliveryOption === 'physical'
+                              ? { ...a, originalPrice: orig }
+                              : a
+                          );
+                          return {
+                            ...prev,
+                            prices: {
+                              ...prev.prices,
+                              physical: { price, originalPrice: orig, discountPercent: discount },
+                            },
+                            addons: updatedAddons,
+                          };
+                        });
                         setIsDirty(true);
                       }}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white text-slate-500"
@@ -877,9 +914,27 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                       type="number"
                       value={addon.price}
                       onChange={(e) => {
+                        const newPrice = Math.max(0, parseInt(e.target.value) || 0);
                         const next = [...(form.addons || [])];
-                        next[idx] = { ...addon, price: Math.max(0, parseInt(e.target.value) || 0) };
-                        updateField('addons', next);
+                        next[idx] = { ...addon, price: newPrice };
+                        setForm((prev) => {
+                          const updatedPrices = { ...prev.prices };
+                          if (addon.id === 'digital' || addon.deliveryOption === 'digital') {
+                            const orig = updatedPrices.digital?.originalPrice || newPrice;
+                            const discount = orig > newPrice ? Math.round(((orig - newPrice) / orig) * 100) : 0;
+                            updatedPrices.digital = { ...updatedPrices.digital, price: newPrice, originalPrice: orig, discountPercent: discount };
+                          } else if (addon.id === 'physical' || addon.deliveryOption === 'physical') {
+                            const orig = updatedPrices.physical?.originalPrice || newPrice;
+                            const discount = orig > newPrice ? Math.round(((orig - newPrice) / orig) * 100) : 0;
+                            updatedPrices.physical = { ...updatedPrices.physical, price: newPrice, originalPrice: orig, discountPercent: discount };
+                          }
+                          return {
+                            ...prev,
+                            prices: updatedPrices,
+                            addons: next,
+                          };
+                        });
+                        setIsDirty(true);
                       }}
                       className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white font-bold"
                     />

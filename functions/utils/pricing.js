@@ -183,16 +183,23 @@ export async function loadCatalogue(env) {
  */
 export function getBookAddons(book) {
   if (book && Array.isArray(book.addons) && book.addons.length > 0) {
-    return book.addons.slice(0, 4);
+    return book.addons.slice(0, 4).map((a) => ({
+      ...a,
+      id: a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id),
+    }));
   }
 
   // IMPORTANT: These fallback defaults must match the client-side pricing.ts exactly
   // Client uses `?? 499` for digital and `?? 899` for physical
-  const digitalPrice = Number(book?.prices?.digital?.price) || 499;
-  const digitalOrig = Number(book?.prices?.digital?.originalPrice) || 999;
+  const numDigital = Number(book?.prices?.digital?.price);
+  const digitalPrice = !isNaN(numDigital) && numDigital >= 0 ? numDigital : 499;
+  const numDigitalOrig = Number(book?.prices?.digital?.originalPrice);
+  const digitalOrig = !isNaN(numDigitalOrig) && numDigitalOrig >= digitalPrice ? numDigitalOrig : 999;
 
-  const physicalPrice = Number(book?.prices?.physical?.price) || 899;
-  const physicalOrig = Number(book?.prices?.physical?.originalPrice) || 1499;
+  const numPhysical = Number(book?.prices?.physical?.price);
+  const physicalPrice = !isNaN(numPhysical) && numPhysical >= 0 ? numPhysical : 899;
+  const numPhysicalOrig = Number(book?.prices?.physical?.originalPrice);
+  const physicalOrig = !isNaN(numPhysicalOrig) && numPhysicalOrig >= physicalPrice ? numPhysicalOrig : 1499;
 
   return [
     {
@@ -218,7 +225,14 @@ export function getBookAddons(book) {
  * Calculates add-on pricing applying "Buy 2 Get 3rd Free" if applicable.
  */
 export function calculateAddonsPricing(addons, selectedIds = [], buy2Get3rdFree = false) {
-  const selected = addons.filter((a) => selectedIds.includes(a.id));
+  const normalizedSelectedIds = (selectedIds || []).map((id) =>
+    id === 'addon_digital' ? 'digital' : (id === 'addon_physical' ? 'physical' : id)
+  );
+
+  const selected = addons.filter((a) => {
+    const normId = a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id);
+    return normalizedSelectedIds.includes(normId) || normalizedSelectedIds.includes(a.id);
+  });
   const activeList = selected.length > 0 ? selected : (addons.length > 0 ? [addons[0]] : []);
 
   const subtotal = activeList.reduce((sum, a) => sum + (Number(a.price) || 0), 0);

@@ -636,7 +636,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if any physical book in cart
   const hasPhysicalItem = cart.some((item) => item.format === 'physical');
-  const deliveryFee = hasPhysicalItem && shippingInfo.deliveryOption === 'physical' ? 99 : 0;
+  const deliveryFee = hasPhysicalItem ? 99 : 0;
+
+  // Keep shippingInfo.deliveryOption synchronized with cart contents
+  useEffect(() => {
+    const targetOption = hasPhysicalItem ? 'physical' : 'digital';
+    setShippingInfo((prev) => (prev.deliveryOption !== targetOption ? { ...prev, deliveryOption: targetOption } : prev));
+  }, [hasPhysicalItem]);
 
   const total = Math.max(0, subtotal + deliveryFee - couponDiscount);
 
