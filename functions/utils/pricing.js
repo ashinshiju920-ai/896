@@ -20,81 +20,133 @@ export const DEFAULT_CATALOG = [
     title: 'OET Full Preparation with Mock Tests',
     prices: {
       digital: { price: 199, originalPrice: 599 },
-      physical: { price: 999, originalPrice: 1299 },
+      physical: { price: 1199, originalPrice: 1599 },
     },
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
-      { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1199, originalPrice: 1599, deliveryOption: 'physical' },
     ],
     buy2Get3rdFree: false,
   },
   {
     id: 'german-full-prep',
-    title: 'German A1-B2 Complete Mastery',
+    title: 'German Full Preparation with Mock Tests',
     prices: {
       digital: { price: 199, originalPrice: 599 },
-      physical: { price: 999, originalPrice: 1299 },
+      physical: { price: 1149, originalPrice: 1499 },
     },
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1149, originalPrice: 1499, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'pte-full-prep',
+    title: 'PTE Full Preparation with Mock Tests',
+    prices: {
+      digital: { price: 199, originalPrice: 599 },
+      physical: { price: 1099, originalPrice: 1499 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1099, originalPrice: 1499, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'ielts-complete-guide',
+    title: 'IELTS Preparation Complete Study Guide',
+    prices: {
+      digital: { price: 499, originalPrice: 999 },
+      physical: { price: 1299, originalPrice: 1599 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 499, originalPrice: 999, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1299, originalPrice: 1599, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'ielts-practice-tests',
+    title: 'IELTS Practice Tests 10 Full-Length Mock Tests',
+    prices: {
+      digital: { price: 599, originalPrice: 1199 },
+      physical: { price: 1499, originalPrice: 1899 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 599, originalPrice: 1199, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1499, originalPrice: 1899, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'ielts-vocabulary',
+    title: 'IELTS Vocabulary Build Your Word Power',
+    prices: {
+      digital: { price: 299, originalPrice: 699 },
+      physical: { price: 999, originalPrice: 1299 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 299, originalPrice: 699, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
     ],
     buy2Get3rdFree: false,
   },
   {
-    id: 'pte-academic-prep',
-    title: 'PTE Academic Complete Preparation',
+    id: 'ielts-grammar',
+    title: 'IELTS Grammar for Higher Band',
     prices: {
-      digital: { price: 199, originalPrice: 599 },
-      physical: { price: 999, originalPrice: 1299 },
+      digital: { price: 349, originalPrice: 799 },
+      physical: { price: 1099, originalPrice: 1399 },
     },
     addons: [
-      { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
-      { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
+      { id: 'digital', name: 'Digital (PDF)', price: 349, originalPrice: 799, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1099, originalPrice: 1399, deliveryOption: 'physical' },
     ],
     buy2Get3rdFree: false,
   },
   {
-    id: 'ielts-speaking-mastery',
-    title: 'IELTS Speaking 8.5 Masterclass',
+    id: 'ielts-writing-master',
+    title: 'IELTS Writing Task 1 & 2 Masterclass',
     prices: {
-      digital: { price: 199, originalPrice: 599 },
-      physical: { price: 899, originalPrice: 1199 },
+      digital: { price: 399, originalPrice: 899 },
+      physical: { price: 1199, originalPrice: 1599 },
     },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 399, originalPrice: 899, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1199, originalPrice: 1599, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
   },
   {
-    id: 'oet-nursing-pharmacology',
-    title: 'OET Nursing & Pharmacology',
+    id: 'ielts-speaking-master',
+    title: 'IELTS Speaking Masterclass',
     prices: {
-      digital: { price: 199, originalPrice: 599 },
-      physical: { price: 899, originalPrice: 1199 },
+      digital: { price: 349, originalPrice: 799 },
+      physical: { price: 1099, originalPrice: 1499 },
     },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 349, originalPrice: 799, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 1099, originalPrice: 1499, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
   },
   {
-    id: 'german-b2-grammar',
-    title: 'German B2 Advanced Grammar & Vocab',
+    id: 'academic-study-planner',
+    title: 'Academic Study Planner & Progress Tracker',
     prices: {
-      digital: { price: 199, originalPrice: 599 },
-      physical: { price: 899, originalPrice: 1199 },
+      digital: { price: 49, originalPrice: 199 },
+      physical: { price: 499, originalPrice: 799 },
     },
-  },
-  {
-    id: 'ielts-writing-band8',
-    title: 'IELTS Writing Task 1 & 2 Band 8+',
-    prices: {
-      digital: { price: 199, originalPrice: 599 },
-      physical: { price: 899, originalPrice: 1199 },
-    },
-  },
-  {
-    id: 'pte-79-plus-drills',
-    title: 'PTE 79+ Targeted Practice',
-    prices: {
-      digital: { price: 199, originalPrice: 599 },
-      physical: { price: 899, originalPrice: 1199 },
-    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 49, originalPrice: 199, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
   },
 ];
+
 
 /**
  * Loads the current catalogue from Cloudflare KV, merged with DEFAULT_CATALOG.
