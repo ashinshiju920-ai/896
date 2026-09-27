@@ -26,6 +26,7 @@ import { validateAndReconcileCart } from '../utils/pricing';
 export const CheckoutView: React.FC = () => {
   const {
     books,
+    isCatalogReady,
     cart,
     subtotal,
     deliveryFee,
@@ -122,6 +123,9 @@ export const CheckoutView: React.FC = () => {
 
   const hasPhysical = cart.some((item) => item.format === 'physical');
   const deliveryOption = hasPhysical ? 'physical' : 'digital';
+  // Validate only against the live catalog and selected ID intent. Stored display
+  // snapshots are never authoritative and cannot enable payment.
+  const cartPreflight = validateAndReconcileCart(cart, books);
 
   const totalOriginalPrice = cart.reduce(
     (sum, item) => sum + ((item.originalPrice || item.price) * item.quantity),
@@ -140,17 +144,23 @@ export const CheckoutView: React.FC = () => {
     ? Math.round((totalSavings / totalOriginalPrice) * 100)
     : 0;
 
-  // Pre-validate cart immediately when entering checkout or when catalog refreshes
+  // A server quote belongs to one cart/coupon/delivery combination only.
   useEffect(() => {
-    if (cart.length > 0 && books.length > 0) {
-      const preflight = validateAndReconcileCart(cart, books);
-      if (preflight.hasChanges) {
-        reconcileCartWithCatalog();
-      }
-    }
-  }, [books, reconcileCartWithCatalog]);
+    setServerPayableAmount(null);
+    setServerPricing(null);
+  }, [cart, appliedCoupon, deliveryOption]);
 
   const isSubmittingRef = useRef(false);
+
+  // Do not render persisted cart snapshots while the no-cache catalog fetch is
+  // still in flight; otherwise a deleted add-on can flash during hydration.
+  if (!isCatalogReady) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center text-sm font-semibold text-slate-600">
+        Verifying your cart…
+      </div>
+    );
+  }
 
 
   const handleApplyCoupon = async () => {
@@ -240,7 +250,6 @@ export const CheckoutView: React.FC = () => {
     const preflight = validateAndReconcileCart(cart, books);
     if (!preflight.isValid || preflight.hasChanges) {
       reconcileCartWithCatalog();
-      showToast(preflight.errorMessage || 'One of the selected products is no longer available.', 'warning');
       return;
     }
 
@@ -293,9 +302,13 @@ export const CheckoutView: React.FC = () => {
     } catch (err: any) {
       console.error('Checkout error:', err);
       if (err.message && (err.message.toLowerCase().includes('no longer available') || err.message.toLowerCase().includes('inactive'))) {
-        reconcileCartWithCatalog();
+        const reconciliation = reconcileCartWithCatalog();
+        if (!reconciliation.changed) {
+          showToast('Your cart changed. Please refresh and review the order before payment.', 'warning');
+        }
+      } else {
+        showToast(err.message || 'Error processing order. Please try again.', 'warning');
       }
-      showToast(err.message || 'Error processing order. Please try again.', 'warning');
     } finally {
       isSubmittingRef.current = false;
       setIsProcessing(false);
@@ -746,7 +759,7 @@ export const CheckoutView: React.FC = () => {
               <div className="pt-2">
                 <button
                   onClick={handleProceedToPayment}
-                  disabled={isProcessing}
+                  disabled={isProcessing || !isCatalogReady || cartPreflight.hasChanges || !cartPreflight.isValid}
                   id="proceed-to-payment-btn"
                   className="w-full py-4 px-6 rounded-xl bg-[#00704a] hover:bg-[#005a3b] active:scale-[0.99] text-white text-base sm:text-lg font-bold shadow-lg shadow-emerald-900/15 transition-all cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-60"
                 >

@@ -49,6 +49,7 @@ interface ShopContextType {
 
   // Real-time Cloud Synchronization
   isCloudSyncing: boolean;
+  isCatalogReady: boolean;
   lastCloudSync: Date | null;
   refreshProductsFromCloud: (force?: boolean) => Promise<void>;
   syncBooksToCloud: (booksToSync?: Book[]) => Promise<{ success: boolean; error?: string }>;
@@ -237,6 +238,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Real-time Cloud Synchronization State
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  // A persisted catalog is only a cache. Checkout waits for the first no-cache
+  // server catalog fetch before it renders purchasable cart content.
+  const [isCatalogReady, setIsCatalogReady] = useState<boolean>(false);
   const [lastCloudSync, setLastCloudSync] = useState<Date | null>(null);
   const localCatalogVersionRef = useRef<number>(0);
   const isFetchingRemoteRef = useRef<boolean>(false);
@@ -334,7 +338,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // - Immediate check on tab focus & visibility change
   // - User interaction wakeup (click / touch)
   useEffect(() => {
-    refreshProductsFromCloud(true);
+    let active = true;
+    refreshProductsFromCloud(true).finally(() => {
+      if (active) setIsCatalogReady(true);
+    });
 
     const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis) => {
       localCatalogVersionRef.current = version;
@@ -372,6 +379,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('pointerdown', onUserInteraction, { passive: true });
 
     return () => {
+      active = false;
       unsubscribe();
       clearInterval(interval);
       window.removeEventListener('focus', onWakeup);
@@ -387,11 +395,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((item: any) => ({
+          const hydratedCart = parsed.map((item: any) => ({
             ...item,
             selectedAddonIds: Array.isArray(item.selectedAddonIds) ? item.selectedAddonIds : [],
             selectedAddons: Array.isArray(item.selectedAddons) ? item.selectedAddons : [],
           }));
+          // Cart storage is an intent only. Never hydrate its saved product, add-on,
+          // or price snapshots into the live UI without resolving them against the
+          // catalog currently available to this session.
+          return validateAndReconcileCart(hydratedCart, books).reconciledCart;
         }
       }
     } catch (e) {
@@ -569,41 +581,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const targetCatalog = (catalogToCheck && catalogToCheck.length > 0) ? catalogToCheck : books;
     if (!targetCatalog || targetCatalog.length === 0) return { changed: false, removedCount: 0 };
 
-    let changed = false;
-    let removedCount = 0;
-    let errorMessage: string | undefined;
-
-    setCart((currentCart) => {
-      if (!currentCart || currentCart.length === 0) return currentCart;
-      const result = validateAndReconcileCart(currentCart, targetCatalog);
-      if (result.hasChanges) {
-        changed = true;
-        removedCount = result.removedItems.length;
-        errorMessage = result.errorMessage;
-        return result.reconciledCart;
-      }
-      return currentCart;
-    });
-
-    if (changed && errorMessage) {
-      showToast(errorMessage, 'warning');
+    const result = validateAndReconcileCart(cart, targetCatalog);
+    if (result.hasChanges) {
+      setCart(result.reconciledCart);
+      if (result.errorMessage) showToast(result.errorMessage, 'warning');
     }
 
-    return { changed, removedCount, error: errorMessage };
-  }, [books, showToast]);
+    return {
+      changed: result.hasChanges,
+      removedCount: result.removedItems.length,
+      error: result.errorMessage,
+    };
+  }, [books, cart, showToast]);
 
   // Automatically reconcile cart whenever the catalog updates
   useEffect(() => {
     if (books && books.length > 0 && cart.length > 0) {
-      const result = validateAndReconcileCart(cart, books);
-      if (result.hasChanges) {
-        setCart(result.reconciledCart);
-        if (result.errorMessage) {
-          showToast(result.errorMessage, 'warning');
-        }
-      }
+      reconcileCartWithCatalog(books);
     }
-  }, [books, showToast]);
+  }, [books, cart, reconcileCartWithCatalog]);
 
   const addToCart = (
     book: Book,
@@ -1353,6 +1349,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         openCart,
 
         isCloudSyncing,
+        isCatalogReady,
         lastCloudSync,
         refreshProductsFromCloud,
         syncBooksToCloud,
