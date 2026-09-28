@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, BookOpen, Users, CheckCircle2, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
+import { Award, BookOpen, Users, CheckCircle2, ShieldCheck, Sparkles, ArrowRight, Mail, Phone, MapPin } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { XylemLogo } from '../components/XylemLogo';
 import { BackButton } from '../components/BackButton';
@@ -79,6 +79,42 @@ export const AboutView: React.FC = () => {
           <p className="text-xs text-slate-600 leading-relaxed font-['DM_Sans',sans-serif]">
             Instant digital access so you can start studying right away, backed by high-quality print editions with nationwide delivery.
           </p>
+        </div>
+      </div>
+
+      {/* Contact & Headquarters Info */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest block mb-1">
+            HEADQUARTERS & SUPPORT
+          </span>
+          <h3 className="text-xl font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+            Get In Touch With Our Team
+          </h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-md">
+            Our learner support desk is available Monday to Saturday, 9 AM – 7 PM IST to assist with study materials, physical delivery, and order inquiries.
+          </p>
+        </div>
+
+        <div className="space-y-2.5 text-xs text-slate-700 w-full md:w-auto">
+          <a
+            href="mailto:xylembookstore@gmail.com"
+            className="flex items-center gap-2 hover:text-emerald-700 transition-colors"
+          >
+            <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-medium">xylembookstore@gmail.com</span>
+          </a>
+          <a
+            href="tel:+916282377918"
+            className="flex items-center gap-2 hover:text-emerald-700 transition-colors"
+          >
+            <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-medium">+91 6282377918 (Mon – Sat, 9 AM – 7 PM IST)</span>
+          </a>
+          <div className="flex items-start gap-2 text-slate-600 max-w-sm">
+            <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <span>Aylem Learning PVT, 34/1000 edappally junction, kochi, ernakulam, keralam 682024</span>
+          </div>
         </div>
       </div>
 

@@ -857,7 +857,7 @@ export const OrderSuccessView: React.FC = () => {
       <div className="border border-slate-200 bg-white rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
         <div>
           <span className="font-bold text-slate-900 block text-sm">Need help with your order?</span>
-          <span>Reference Order ID <strong className="font-mono text-slate-900">#{currentOrder.id}</strong> when contacting our support team at <a href="mailto:support@xylemlearning.com" className="text-emerald-700 underline font-semibold">support@xylemlearning.com</a>.</span>
+          <span>Reference Order ID <strong className="font-mono text-slate-900">#{currentOrder.id}</strong> when contacting our support team at <a href="mailto:xylembookstore@gmail.com" className="text-emerald-700 underline font-semibold">xylembookstore@gmail.com</a> or call <a href="tel:+916282377918" className="text-emerald-700 underline font-semibold">+91 6282377918</a>.</span>
         </div>
 
         <button

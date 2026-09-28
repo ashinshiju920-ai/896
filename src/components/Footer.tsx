@@ -32,12 +32,32 @@ export const Footer: React.FC = () => {
             <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
               Xylem Learning is your dedicated preparation partner for global language and professional licensing examinations. Trusted by over 50,000+ learners across India and abroad.
             </p>
-            <div className="pt-2">
-              <div className="text-xs text-emerald-400 font-semibold tracking-wider uppercase mb-1">
+            <div className="pt-2 space-y-2">
+              <div className="text-xs text-emerald-400 font-semibold tracking-wider uppercase">
                 Customer Care & Inquiries
               </div>
-              <p className="text-sm text-slate-300 font-medium">support@xylemlearning.com</p>
-              <p className="text-xs text-slate-400">+91 98765 43210 (Mon - Sat, 9 AM - 7 PM IST)</p>
+              <div className="space-y-0.5">
+                <a
+                  href="mailto:xylembookstore@gmail.com"
+                  className="text-sm text-slate-300 hover:text-emerald-400 font-medium transition-colors block"
+                >
+                  xylembookstore@gmail.com
+                </a>
+                <a
+                  href="tel:+916282377918"
+                  className="text-xs text-slate-400 hover:text-emerald-400 transition-colors block"
+                >
+                  +91 6282377918 (Mon - Sat, 9 AM - 7 PM IST)
+                </a>
+              </div>
+              <div className="pt-1.5 border-t border-slate-800/80">
+                <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
+                  Office Address
+                </span>
+                <p className="text-xs text-slate-400 leading-relaxed mt-0.5 max-w-sm">
+                  Aylem Learning PVT, 34/1000 edappally junction, kochi, ernakulam, keralam 682024
+                </p>
+              </div>
             </div>
           </div>
 

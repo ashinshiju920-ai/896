@@ -11,7 +11,7 @@ export const PdfViewerModal: React.FC = () => {
 
   const handleDownload = () => {
     // Generate text blob for true file download
-    const content = `XYLEM LEARNING - OFFICIAL DIGITAL STUDY GUIDE\n\nTitle: ${activePdfBook.title}\nSubtitle: ${activePdfBook.subtitle}\nCategory: ${activePdfBook.category}\n\nFeatures:\n${activePdfBook.features.map(f => `• ${f}`).join('\n')}\n\nWhat You Get:\n${activePdfBook.whatYouGet.map(w => `✓ ${w}`).join('\n')}\n\nTable of Contents:\n${activePdfBook.tableOfContents.map(t => `${t.chapter} ........... ${t.pages}`).join('\n')}\n\nThank you for choosing Xylem Learning!\nSupport: support@xylemlearning.com\nWebsite: https://xylemlearning.com`;
+    const content = `XYLEM LEARNING - OFFICIAL DIGITAL STUDY GUIDE\n\nTitle: ${activePdfBook.title}\nSubtitle: ${activePdfBook.subtitle}\nCategory: ${activePdfBook.category}\n\nFeatures:\n${activePdfBook.features.map(f => `• ${f}`).join('\n')}\n\nWhat You Get:\n${activePdfBook.whatYouGet.map(w => `✓ ${w}`).join('\n')}\n\nTable of Contents:\n${activePdfBook.tableOfContents.map(t => `${t.chapter} ........... ${t.pages}`).join('\n')}\n\nThank you for choosing Xylem Learning!\nSupport: xylembookstore@gmail.com\nPhone: +91 6282377918\nAddress: Aylem Learning PVT, 34/1000 edappally junction, kochi, ernakulam, keralam 682024\nWebsite: https://xylemlearning.com`;
     
     const blob = new Blob([content], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);

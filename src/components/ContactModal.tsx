@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Phone, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
+import { X, Mail, Phone, MessageSquare, Send, CheckCircle2, MapPin } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
 export const ContactModal: React.FC = () => {
@@ -107,14 +107,20 @@ export const ContactModal: React.FC = () => {
               ></textarea>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-xl flex items-center justify-between text-xs text-slate-600">
-              <div className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                <span>+91 98765 43210</span>
+            <div className="bg-slate-50 p-3.5 rounded-xl space-y-2 text-xs text-slate-600">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <a href="tel:+916282377918" className="flex items-center gap-1.5 hover:text-emerald-700 transition-colors">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>+91 6282377918</span>
+                </a>
+                <a href="mailto:xylembookstore@gmail.com" className="flex items-center gap-1.5 hover:text-emerald-700 transition-colors">
+                  <Mail className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>xylembookstore@gmail.com</span>
+                </a>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-emerald-600" />
-                <span>support@xylemlearning.com</span>
+              <div className="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500 leading-relaxed flex items-start gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                <span>Aylem Learning PVT, 34/1000 edappally junction, kochi, ernakulam, keralam 682024</span>
               </div>
             </div>
 
