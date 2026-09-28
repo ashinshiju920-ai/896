@@ -28,6 +28,7 @@ import { CustomerAccountView } from './views/CustomerAccountView';
 import { AboutView } from './views/AboutView';
 import { PrivacyPolicyView } from './views/PrivacyPolicyView';
 import { TermsConditionsView } from './views/TermsConditionsView';
+import { ShippingReturnsRefundPolicyView } from './views/ShippingReturnsRefundPolicyView';
 const AdminView = React.lazy(() => import('./views/AdminView'));
 import { NotFoundView } from './views/NotFoundView';
 import { checkOrderStatus, STUDENT_PORTAL_URL } from './utils/cashfree';
@@ -148,6 +149,7 @@ const ShopApp: React.FC = () => {
           <Route path="/about" element={<AboutView />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyView />} />
           <Route path="/terms-and-conditions" element={<TermsConditionsView />} />
+          <Route path="/shipping-returns-refund-policy" element={<ShippingReturnsRefundPolicyView />} />
 
           {/* Admin routes (code-split and lazy-loaded) */}
           <Route

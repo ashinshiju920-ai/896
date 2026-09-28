@@ -233,12 +233,12 @@ export const Footer: React.FC = () => {
             >
               Terms & Conditions
             </Link>
-            <button
-              onClick={() => showToast('Shipping: Digital items arrive instantly. Physical books ship in 3-5 days.')}
+            <Link
+              to="/shipping-returns-refund-policy"
               className="hover:text-emerald-400 transition-colors cursor-pointer"
             >
               Shipping & Returns
-            </button>
+            </Link>
             <Link
               to="/admin"
               className="hover:text-emerald-400 transition-colors text-slate-500 hover:underline"

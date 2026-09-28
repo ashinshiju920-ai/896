@@ -1660,7 +1660,7 @@ export async function getOrderDetail(env, orderId) {
 
 /**
  * Lists orders with server-side search. Parameterized — no SQL injection risk.
- * Search fields: order id, cf_order_id, cf_payment_id, customer_email, customer_name.
+ * Search fields: order id, cf_order_id, cf_payment_id, customer_email, customer_name, customer_phone.
  */
 export async function listOrdersWithSearch(env, { page = 1, limit = 20, status = null, search = null } = {}) {
   const safePage = Math.max(1, Math.floor(Number(page) || 1));
@@ -1677,21 +1677,21 @@ export async function listOrdersWithSearch(env, { page = 1, limit = 20, status =
       const filterParams = [];
 
       if (hasStatus && hasSearch) {
-        where = `WHERE status = ? AND (id = ? OR cf_order_id = ? OR cf_payment_id = ? OR customer_email LIKE ? OR customer_name LIKE ?)`;
-        filterParams.push(status, safeSearch, safeSearch, safeSearch, `%${safeSearch}%`, `%${safeSearch}%`);
+        where = `WHERE status = ? AND (id = ? OR cf_order_id = ? OR cf_payment_id = ? OR customer_email LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)`;
+        filterParams.push(status, safeSearch, safeSearch, safeSearch, `%${safeSearch}%`, `%${safeSearch}%`, `%${safeSearch}%`);
       } else if (hasStatus) {
         where = `WHERE status = ?`;
         filterParams.push(status);
       } else if (hasSearch) {
-        where = `WHERE (id = ? OR cf_order_id = ? OR cf_payment_id = ? OR customer_email LIKE ? OR customer_name LIKE ?)`;
-        filterParams.push(safeSearch, safeSearch, safeSearch, `%${safeSearch}%`, `%${safeSearch}%`);
+        where = `WHERE (id = ? OR cf_order_id = ? OR cf_payment_id = ? OR customer_email LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)`;
+        filterParams.push(safeSearch, safeSearch, safeSearch, `%${safeSearch}%`, `%${safeSearch}%`, `%${safeSearch}%`);
       }
 
       const listQuery = `SELECT id, cf_order_id, cf_payment_id, customer_id,
                                 amount_paise, currency, status,
                                 customer_name, customer_email, customer_phone,
                                 verified_amount_paise, reconciliation_state,
-                                items_json, created_at, updated_at
+                                items_json, shipping_json, created_at, updated_at
                          FROM orders ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
       const countQuery = `SELECT COUNT(*) as total FROM orders ${where}`;
 
@@ -1705,6 +1705,7 @@ export async function listOrdersWithSearch(env, { page = 1, limit = 20, status =
         ...row,
         amount: Math.round((Number(row.amount_paise) || 0) / 100),
         items: typeof row.items_json === 'string' ? JSON.parse(row.items_json || '[]') : [],
+        shipping: typeof row.shipping_json === 'string' ? JSON.parse(row.shipping_json || '{}') : {},
       }));
 
       return {
@@ -3107,15 +3108,10 @@ export async function getAnalyticsDashboardData(env, { filter = '7d', startDate 
       .bind(startIso, endIso)
       .all();
 
-    // Execute in parallel
-    const [
-      ordersSummary,
-      funnelCountsRes,
-      productEventsRes,
-      addonEventsRes,
-      paidOrdersRes,
-      promoSummaryRes,
-    ] = await Promise.all([
+    // Execute in parallel. Some deployments may not have the optional
+    // analytics_events table migrated yet; order-based sales totals must still
+    // render correctly in that case.
+    const settled = await Promise.allSettled([
       ordersSummaryPromise,
       funnelCountsPromise,
       productEventsPromise,
@@ -3123,6 +3119,21 @@ export async function getAnalyticsDashboardData(env, { filter = '7d', startDate 
       paidOrdersPromise,
       promoSummaryPromise,
     ]);
+    const settledValue = (idx, fallback = null) => {
+      const result = settled[idx];
+      if (result && result.status === 'fulfilled') return result.value;
+      if (result && result.status === 'rejected') {
+        console.warn('Analytics dashboard partial query failed:', result.reason?.message || result.reason);
+      }
+      return fallback;
+    };
+
+    const ordersSummary = settledValue(0, null);
+    const funnelCountsRes = settledValue(1, { results: [] });
+    const productEventsRes = settledValue(2, { results: [] });
+    const addonEventsRes = settledValue(3, { results: [] });
+    const paidOrdersRes = settledValue(4, { results: [] });
+    const promoSummaryRes = settledValue(5, { results: [] });
 
     // Process Orders Summary
     const paidOrders = Number(ordersSummary?.paid_orders) || 0;
@@ -3251,8 +3262,15 @@ export async function getAnalyticsDashboardData(env, { filter = '7d', startDate 
         pStats.paidOrders += (Number(item.quantity) || 1);
         pStats.title = item.title || item.productNameSnapshot || pStats.title;
 
-        // Line item product price
-        const itemPaise = Number(item.totalPricePaise) || (Number(item.totalPrice) * 100) || 0;
+        // Line item product price. Historical snapshots may store either total
+        // price, unit price, or legacy rupee fields.
+        const qty = Number(item.quantity) || 1;
+        const itemPaise =
+          Number(item.totalPricePaise) ||
+          Math.round(Number(item.totalPrice || 0) * 100) ||
+          (Number(item.unitPricePaise) * qty) ||
+          Math.round(Number(item.unitPrice || item.price || 0) * 100 * qty) ||
+          0;
         pStats.revenuePaise += itemPaise;
         pStats.revenue = Math.round(pStats.revenuePaise / 100);
 
@@ -3281,8 +3299,15 @@ export async function getAnalyticsDashboardData(env, { filter = '7d', startDate 
 
           const aStats = addonStatsMap.get(aId);
           aStats.name = addon.name || addon.nameSnapshot || aStats.name;
-          aStats.paidPurchases += 1;
-          const addonPaise = Number(addon.pricePaise) || (Number(addon.price) * 100) || 0;
+          const addonQty = Number(addon.quantity) || 1;
+          aStats.paidPurchases += addonQty;
+          const addonPaise =
+            (Number(addon.totalPricePaise) || 0) ||
+            Math.round(Number(addon.totalPrice || 0) * 100) ||
+            (Number(addon.unitPricePaise) * addonQty) ||
+            Math.round(Number(addon.pricePaise || 0) * addonQty) ||
+            Math.round(Number(addon.unitPrice || addon.price || 0) * 100 * addonQty) ||
+            0;
           aStats.revenuePaise += addonPaise;
           aStats.revenue = Math.round(aStats.revenuePaise / 100);
         }
@@ -3333,5 +3358,3 @@ export async function getAnalyticsDashboardData(env, { filter = '7d', startDate 
 
   return response;
 }
-
-

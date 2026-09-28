@@ -105,6 +105,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const aov = overview ? overview.averageOrderValue : (paidOrders > 0 ? Math.round(paidRevenue / paidOrders) : 0);
   const checkoutConversion = overview ? overview.checkoutConversionRate : 0;
 
+  const getCustomerName = (order: any) =>
+    order.customer_name || order.shipping?.fullName || order.shipping?.name || 'Guest Student';
+  const getCustomerEmail = (order: any) =>
+    order.customer_email || order.shipping?.email || '';
+  const getCustomerPhone = (order: any) =>
+    order.customer_phone || order.shipping?.phone || '';
+
+  const escapeCsv = (value: any) => {
+    const text = value === null || value === undefined ? '' : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const exportRecentOrders = () => {
+    const rows = serverOrders.map((order) => {
+      const amount = order.amount !== undefined ? order.amount : Math.round((Number(order.amount_paise) || 0) / 100);
+      const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
+      return {
+        orderId: order.id || '',
+        cashfreeOrderId: order.cf_order_id || '',
+        paymentId: order.cf_payment_id || '',
+        customerName: getCustomerName(order),
+        customerEmail: getCustomerEmail(order),
+        customerPhone: getCustomerPhone(order),
+        amount,
+        currency: order.currency || 'INR',
+        status: order.status || 'PENDING',
+        itemsCount,
+        createdAt: order.created_at || '',
+      };
+    });
+
+    const headers = [
+      'Order ID',
+      'Cashfree Order ID',
+      'Payment ID',
+      'Customer Name',
+      'Customer Email',
+      'Customer Phone',
+      'Amount',
+      'Currency',
+      'Status',
+      'Items Count',
+      'Created At',
+    ];
+    const csv = [
+      headers.map(escapeCsv).join(','),
+      ...rows.map((row) => [
+        row.orderId,
+        row.cashfreeOrderId,
+        row.paymentId,
+        row.customerName,
+        row.customerEmail,
+        row.customerPhone,
+        row.amount,
+        row.currency,
+        row.status,
+        row.itemsCount,
+        row.createdAt,
+      ].map(escapeCsv).join(',')),
+    ].join('\r\n');
+
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `recent-server-orders-${stamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Welcome Banner */}
@@ -658,9 +731,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <h3 className="text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
               Recent Server Orders
             </h3>
-            <p className="text-xs text-slate-500">Live order events from Cloudflare D1</p>
+            <p className="text-xs text-slate-500">Live order events from Cloudflare D1 with customer contact details</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={exportRecentOrders}
+              disabled={ordersLoading || serverOrders.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Export recent server orders to an Excel-compatible CSV"
+            >
+              <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Export Excel</span>
+            </button>
             <button
               onClick={onRefreshOrders}
               disabled={ordersLoading}
@@ -685,7 +767,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-100">
                 <tr>
                   <th className="py-3 px-6">Order ID</th>
-                  <th className="py-3 px-6">Customer</th>
+                  <th className="py-3 px-6">Customer Details</th>
                   <th className="py-3 px-6">Items</th>
                   <th className="py-3 px-6">Amount</th>
                   <th className="py-3 px-6">Status</th>
@@ -697,6 +779,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   const isPaid = order.status === 'PAID';
                   const amount = order.amount !== undefined ? order.amount : Math.round((Number(order.amount_paise) || 0) / 100);
                   const itemsCount = Array.isArray(order.items) ? order.items.length : 1;
+                  const customerName = getCustomerName(order);
+                  const customerEmail = getCustomerEmail(order);
+                  const customerPhone = getCustomerPhone(order);
 
                   return (
                     <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
@@ -704,8 +789,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         #{order.id}
                       </td>
                       <td className="py-3.5 px-6">
-                        <div className="font-semibold text-slate-900">{order.customer_name || 'Guest Student'}</div>
-                        <div className="text-[11px] text-slate-400">{order.customer_email || '—'}</div>
+                        <div className="font-semibold text-slate-900">{customerName}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{customerEmail || 'No email'}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">{customerPhone || 'No phone'}</div>
                       </td>
                       <td className="py-3.5 px-6">
                         <span className="font-medium text-slate-700">{itemsCount} guide{itemsCount > 1 ? 's' : ''}</span>
