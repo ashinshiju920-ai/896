@@ -11,9 +11,11 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react';
-import { ExamPath, ExamCategory } from '../../types';
+import { ExamPath, ExamCategory, CatalogBannerConfig } from '../../types';
 import { uploadImageToCloud } from '../../utils/cloudSync';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { CatalogBannerEditor } from './CatalogBannerEditor';
+import { useShop } from '../../context/ShopContext';
 
 const ARROW_COLOR_PRESETS = [
   { label: 'Teal (Default)', hex: '#00a375' },
@@ -67,6 +69,9 @@ interface CategoriesPageProps {
   onUpdateExamPath: (category: ExamCategory, updated: Partial<ExamPath>) => void;
   onDeleteExamPath?: (category: ExamCategory) => void;
   onResetDefaults: () => void;
+  catalogBanner?: CatalogBannerConfig;
+  onUpdateCatalogBanner?: (updated: Partial<CatalogBannerConfig>) => Promise<boolean> | void;
+  onResetCatalogBanner?: () => Promise<boolean> | void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
 
@@ -75,14 +80,24 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
   onUpdateExamPath,
   onDeleteExamPath,
   onResetDefaults,
+  catalogBanner,
+  onUpdateCatalogBanner,
+  onResetCatalogBanner,
   showToast,
 }) => {
+  const shop = useShop();
+  const activeCatalogBanner = catalogBanner || shop.catalogBanner;
+  const activeUpdateBanner = onUpdateCatalogBanner || shop.updateCatalogBanner;
+  const activeResetBanner = onResetCatalogBanner || shop.resetCatalogBannerToDefault;
+
+  const [activeTab, setActiveTab] = useState<'cards' | 'banner'>('cards');
   const [editingCategory, setEditingCategory] = useState<ExamCategory | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [categoryName, setCategoryName] = useState<string>('IELTS');
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+
   const [badgeText, setBadgeText] = useState('');
   const [isMedicalCross, setIsMedicalCross] = useState(false);
   const [showBadge, setShowBadge] = useState<boolean>(true);
@@ -179,40 +194,85 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <h2 className="text-xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif] flex items-center gap-2">
-            <span>Exam Category Showcase Cards</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-              Real-time Sync
-            </span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Configure showcase pathways featured on the storefront homepage. Customize icon colors, titles, badges, and backgrounds with instant cross-tab live synchronization.
-          </p>
-        </div>
+      {/* Category Navigation Tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab('cards')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'cards'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5 text-slate-700" />
+          <span>Homepage Category Cards</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200/70 text-slate-700 font-bold">
+            {examPaths.length}
+          </span>
+        </button>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
-          <button
-            type="button"
-            onClick={startAddNew}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-[#00875a] hover:bg-[#00734c] rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Showcase Card</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowResetModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>Reset Defaults</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('banner')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'banner'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Catalog Hero Banner</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">
+            Dual Image &amp; Colors
+          </span>
+        </button>
       </div>
+
+      {activeTab === 'banner' ? (
+        <CatalogBannerEditor
+          catalogBanner={activeCatalogBanner}
+          onUpdateCatalogBanner={activeUpdateBanner}
+          onResetCatalogBanner={activeResetBanner}
+          showToast={showToast}
+        />
+      ) : (
+        <>
+          {/* Top Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <h2 className="text-xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif] flex items-center gap-2">
+                <span>Exam Category Showcase Cards</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                  Real-time Sync
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Configure showcase pathways featured on the storefront homepage. Customize icon colors, titles, badges, and backgrounds with instant cross-tab live synchronization.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+              <button
+                type="button"
+                onClick={startAddNew}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-[#00875a] hover:bg-[#00734c] rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Showcase Card</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowResetModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                <span>Reset Defaults</span>
+              </button>
+            </div>
+          </div>
+
 
       {/* Editing / Adding Modal if Active */}
       {(editingCategory || isAddingNew) && (
@@ -831,6 +891,9 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+        </>
+      )}
     </div>
+
   );
 };

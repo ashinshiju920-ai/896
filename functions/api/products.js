@@ -537,6 +537,24 @@ export async function onRequestPost(context) {
         }))
       : undefined;
 
+    const rawCatalogBanner = payload.catalogBanner !== undefined ? payload.catalogBanner : currentCatalog?.catalogBanner;
+    const sanitizedCatalogBanner = rawCatalogBanner && typeof rawCatalogBanner === 'object'
+      ? {
+          title: sanitizeString(rawCatalogBanner.title, 150),
+          subtitle: sanitizeString(rawCatalogBanner.subtitle, 500),
+          desktopBgImage: sanitizeString(rawCatalogBanner.desktopBgImage, 1000),
+          mobileBgImage: sanitizeString(rawCatalogBanner.mobileBgImage, 1000),
+          titleColor: sanitizeString(rawCatalogBanner.titleColor, 50),
+          subtitleColor: sanitizeString(rawCatalogBanner.subtitleColor, 50),
+          badgeTextColor: sanitizeString(rawCatalogBanner.badgeTextColor, 50),
+          badgeBgColor: sanitizeString(rawCatalogBanner.badgeBgColor, 50),
+          overlayOpacity: sanitizeNumber(rawCatalogBanner.overlayOpacity, 0, 100, 50),
+          featurePills: Array.isArray(rawCatalogBanner.featurePills)
+            ? rawCatalogBanner.featurePills.map((p) => sanitizeString(p, 100)).slice(0, 10)
+            : undefined,
+        }
+      : undefined;
+
     const timestamp = Math.round(Date.now() / 1000);
     const updatedCatalog = {
       version: timestamp,
@@ -545,7 +563,9 @@ export async function onRequestPost(context) {
       books: sanitizedBooks,
       ...(sanitizedExamPaths !== undefined ? { examPaths: sanitizedExamPaths } : {}),
       ...(sanitizedTestimonials !== undefined ? { testimonials: sanitizedTestimonials } : {}),
+      ...(sanitizedCatalogBanner !== undefined ? { catalogBanner: sanitizedCatalogBanner } : {}),
     };
+
 
     // 4. Save to Cloudflare KV (PRODUCTS_KV)
     if (env && env.PRODUCTS_KV) {
@@ -598,6 +618,7 @@ export async function onRequestPost(context) {
         books: updatedCatalog.books,
         examPaths: updatedCatalog.examPaths,
         testimonials: updatedCatalog.testimonials,
+        catalogBanner: updatedCatalog.catalogBanner,
       }),
       {
         status: 200,

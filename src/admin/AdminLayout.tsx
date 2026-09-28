@@ -33,6 +33,9 @@ export const AdminLayout: React.FC = () => {
     updateExamPath,
     deleteExamPath,
     resetExamPathsToDefault,
+    catalogBanner,
+    updateCatalogBanner,
+    resetCatalogBannerToDefault,
     testimonials,
     addTestimonial,
     updateTestimonial,
@@ -43,6 +46,7 @@ export const AdminLayout: React.FC = () => {
     showToast,
     isCloudSyncing,
     lastCloudSync,
+
     refreshProductsFromCloud,
     syncBooksToCloud,
   } = useShop();
@@ -354,8 +358,12 @@ export const AdminLayout: React.FC = () => {
               onUpdateExamPath={(cat, updated) => updateExamPath(cat, updated)}
               onDeleteExamPath={(cat) => deleteExamPath(cat)}
               onResetDefaults={resetExamPathsToDefault}
+              catalogBanner={catalogBanner}
+              onUpdateCatalogBanner={updateCatalogBanner}
+              onResetCatalogBanner={resetCatalogBannerToDefault}
               showToast={showToast}
             />
+
           )}
 
           {/* OFFERS & COUPONS */}

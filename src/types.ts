@@ -265,6 +265,20 @@ export interface ExamPath {
   showBadge?: boolean;
 }
 
+export interface CatalogBannerConfig {
+  title?: string;
+  subtitle?: string;
+  desktopBgImage?: string;
+  mobileBgImage?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  badgeTextColor?: string;
+  badgeBgColor?: string;
+  overlayOpacity?: number;
+  featurePills?: string[];
+}
+
+
 // -------------------------------------------------------------
 // PHASE 10: PROMOTIONS, COUPONS & BUNDLES
 // -------------------------------------------------------------

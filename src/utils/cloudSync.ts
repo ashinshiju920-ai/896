@@ -1,4 +1,4 @@
-import { Book, ExamPath, Testimonial } from '../types';
+import { Book, ExamPath, Testimonial, CatalogBannerConfig } from '../types';
 
 const CHANNEL_NAME = 'xylem_products_realtime_sync';
 
@@ -41,13 +41,15 @@ export async function uploadImageToCloud(file: File, productId: string): Promise
 export async function saveCatalogToCloud(
   books: Book[],
   examPaths?: ExamPath[],
-  testimonials?: Testimonial[]
+  testimonials?: Testimonial[],
+  catalogBanner?: CatalogBannerConfig
 ): Promise<{
   success: boolean;
   version?: number;
   books?: Book[];
   examPaths?: ExamPath[];
   testimonials?: Testimonial[];
+  catalogBanner?: CatalogBannerConfig;
   error?: string;
 }> {
   // Persist via Cloudflare Pages edge endpoint /api/products
@@ -56,7 +58,7 @@ export async function saveCatalogToCloud(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ books, examPaths, testimonials }),
+      body: JSON.stringify({ books, examPaths, testimonials, catalogBanner }),
     });
 
     if (res.ok) {
@@ -66,9 +68,10 @@ export async function saveCatalogToCloud(
         const confirmedBooks = Array.isArray(data.books) ? data.books : books;
         const confirmedPaths = Array.isArray(data.examPaths) ? data.examPaths : examPaths;
         const confirmedTestis = Array.isArray(data.testimonials) ? data.testimonials : testimonials;
+        const confirmedBanner = data.catalogBanner !== undefined ? data.catalogBanner : catalogBanner;
 
         // ONLY cache and broadcast AFTER authoritative server write succeeds
-        broadcastLocalUpdate(confirmedBooks, confirmedVersion, confirmedPaths, confirmedTestis);
+        broadcastLocalUpdate(confirmedBooks, confirmedVersion, confirmedPaths, confirmedTestis, confirmedBanner);
 
         return {
           success: true,
@@ -76,6 +79,7 @@ export async function saveCatalogToCloud(
           books: confirmedBooks,
           examPaths: confirmedPaths,
           testimonials: confirmedTestis,
+          catalogBanner: confirmedBanner,
         };
       }
       return { success: false, error: data?.error || 'Failed to sync catalog with server' };
@@ -156,6 +160,7 @@ export async function fetchCatalogFromCloud(): Promise<{
   books: Book[];
   examPaths?: ExamPath[];
   testimonials?: Testimonial[];
+  catalogBanner?: CatalogBannerConfig;
   version?: number;
   updatedAt?: string;
 } | null> {
@@ -172,6 +177,7 @@ export async function fetchCatalogFromCloud(): Promise<{
           books: data.books,
           examPaths: Array.isArray(data.examPaths) ? data.examPaths : undefined,
           testimonials: Array.isArray(data.testimonials) ? data.testimonials : undefined,
+          catalogBanner: data.catalogBanner && typeof data.catalogBanner === 'object' ? data.catalogBanner : undefined,
           version: data.version,
           updatedAt: data.updatedAt,
         };
@@ -191,7 +197,8 @@ export function broadcastLocalUpdate(
   books: Book[],
   version: number,
   examPaths?: ExamPath[],
-  testimonials?: Testimonial[]
+  testimonials?: Testimonial[],
+  catalogBanner?: CatalogBannerConfig
 ) {
   if (typeof window === 'undefined') return;
 
@@ -204,6 +211,9 @@ export function broadcastLocalUpdate(
     if (testimonials !== undefined) {
       localStorage.setItem('xylem_testimonials_data', JSON.stringify(testimonials));
     }
+    if (catalogBanner !== undefined) {
+      localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(catalogBanner));
+    }
   } catch {}
 
   if ('BroadcastChannel' in window) {
@@ -214,6 +224,7 @@ export function broadcastLocalUpdate(
         books,
         examPaths,
         testimonials,
+        catalogBanner,
         version,
         timestamp: Date.now(),
       });
@@ -232,7 +243,8 @@ export function subscribeToRealtimeBroadcast(
     books: Book[],
     version: number,
     examPaths?: ExamPath[],
-    testimonials?: Testimonial[]
+    testimonials?: Testimonial[],
+    catalogBanner?: CatalogBannerConfig
   ) => void
 ): () => void {
   if (typeof window === 'undefined') {
@@ -251,7 +263,8 @@ export function subscribeToRealtimeBroadcast(
             event.data.books,
             event.data.version || Date.now(),
             Array.isArray(event.data.examPaths) ? event.data.examPaths : undefined,
-            Array.isArray(event.data.testimonials) ? event.data.testimonials : undefined
+            Array.isArray(event.data.testimonials) ? event.data.testimonials : undefined,
+            event.data.catalogBanner && typeof event.data.catalogBanner === 'object' ? event.data.catalogBanner : undefined
           );
         }
       };
@@ -266,7 +279,8 @@ export function subscribeToRealtimeBroadcast(
     if (
       (e.key === 'xylem_books_data' ||
         e.key === 'xylem_exam_paths_data' ||
-        e.key === 'xylem_testimonials_data') &&
+        e.key === 'xylem_testimonials_data' ||
+        e.key === 'xylem_catalog_banner_data') &&
       e.newValue
     ) {
       try {
@@ -276,14 +290,17 @@ export function subscribeToRealtimeBroadcast(
         const parsedPaths = rawPaths ? JSON.parse(rawPaths) : undefined;
         const rawTestis = localStorage.getItem('xylem_testimonials_data');
         const parsedTestis = rawTestis ? JSON.parse(rawTestis) : undefined;
+        const rawBanner = localStorage.getItem('xylem_catalog_banner_data');
+        const parsedBanner = rawBanner ? JSON.parse(rawBanner) : undefined;
 
         if (Array.isArray(parsedBooks) && parsedBooks.length > 0) {
           const v = Number(localStorage.getItem('xylem_books_version')) || Date.now();
-          onUpdate(parsedBooks, v, parsedPaths, parsedTestis);
+          onUpdate(parsedBooks, v, parsedPaths, parsedTestis, parsedBanner);
         }
       } catch {}
     }
   };
+
   window.addEventListener('storage', onStorage);
   cleanups.push(() => window.removeEventListener('storage', onStorage));
 

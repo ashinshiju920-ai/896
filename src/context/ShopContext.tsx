@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Book, BookFormat, CartItem, Order, ShippingInfo, ExamCategory, ViewType, Review, Testimonial, ExamPath, Customer } from '../types';
+import { Book, BookFormat, CartItem, Order, ShippingInfo, ExamCategory, ViewType, Review, Testimonial, ExamPath, Customer, CatalogBannerConfig } from '../types';
 import { BOOKS } from '../data/books';
+
 import { TESTIMONIALS } from '../data/testimonials';
 import { DEFAULT_EXAM_PATHS } from '../data/examPaths';
+import { DEFAULT_CATALOG_BANNER } from '../data/catalogBanner';
 import {
   saveCatalogToCloud,
   fetchCatalogFromCloud,
   checkCatalogVersion,
   subscribeToRealtimeBroadcast,
+  broadcastLocalUpdate,
 } from '../utils/cloudSync';
 import {
   getBookAddons,
@@ -59,6 +62,12 @@ interface ShopContextType {
   updateExamPath: (category: ExamCategory, updated: Partial<ExamPath>) => Promise<boolean>;
   deleteExamPath: (category: ExamCategory) => Promise<boolean>;
   resetExamPathsToDefault: () => Promise<boolean>;
+
+  // Catalog Hero Banner (Customizable Background Images & Text Colors)
+  catalogBanner: CatalogBannerConfig;
+  updateCatalogBanner: (updated: Partial<CatalogBannerConfig>) => Promise<boolean>;
+  resetCatalogBannerToDefault: () => Promise<boolean>;
+
 
   // Testimonials & Reviews (Image 2 - Learner Avatars & Quotes)
   testimonials: Testimonial[];
@@ -239,6 +248,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return TESTIMONIALS;
   });
 
+  // Persistent Catalog Hero Banner State (Fully customizable images & colors)
+  const [catalogBanner, setCatalogBanner] = useState<CatalogBannerConfig>(() => {
+    try {
+      const saved = localStorage.getItem('xylem_catalog_banner_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...DEFAULT_CATALOG_BANNER, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load catalog banner from storage:', e);
+    }
+    return DEFAULT_CATALOG_BANNER;
+  });
+
   // Real-time Cloud Synchronization State
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   // A persisted catalog is only a cache. Checkout waits for the first no-cache
@@ -262,13 +287,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const triggerCloudSync = async (
     booksToSync: Book[],
     pathsToSync?: ExamPath[],
-    testisToSync?: Testimonial[]
+    testisToSync?: Testimonial[],
+    bannerToSync?: CatalogBannerConfig
   ): Promise<{ success: boolean; version?: number; error?: string }> => {
     setIsCloudSyncing(true);
     try {
       const paths = pathsToSync !== undefined ? pathsToSync : examPaths;
       const testis = testisToSync !== undefined ? testisToSync : testimonials;
-      const res = await saveCatalogToCloud(booksToSync, paths, testis);
+      const banner = bannerToSync !== undefined ? bannerToSync : catalogBanner;
+      const res = await saveCatalogToCloud(booksToSync, paths, testis, banner);
       if (res.success) {
         if (res.version) localCatalogVersionRef.current = res.version;
         setLastCloudSync(new Date());
@@ -287,6 +314,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const syncBooksToCloud = async (customBooks?: Book[]) => {
     return triggerCloudSync(customBooks || books);
   };
+
 
   const refreshProductsFromCloud = async (force = false): Promise<Book[] | null> => {
     if (isFetchingRemoteRef.current && !force) return null;
@@ -320,6 +348,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.setItem('xylem_testimonials_data', JSON.stringify(remote.testimonials));
             } catch {}
           }
+          if (remote.catalogBanner && typeof remote.catalogBanner === 'object') {
+            const merged = { ...DEFAULT_CATALOG_BANNER, ...remote.catalogBanner };
+            setCatalogBanner(merged);
+            try {
+              localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(merged));
+            } catch {}
+          }
           setLastCloudSync(new Date());
           try {
             localStorage.setItem('xylem_books_data', JSON.stringify(remote.books));
@@ -349,7 +384,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (active) setIsCatalogReady(true);
     });
 
-    const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis) => {
+    const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis, newBanner) => {
       localCatalogVersionRef.current = version;
       setBooks(newBooks);
       if (newPaths && Array.isArray(newPaths)) {
@@ -358,8 +393,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (newTestis && Array.isArray(newTestis)) {
         setTestimonials(newTestis);
       }
+      if (newBanner && typeof newBanner === 'object') {
+        setCatalogBanner({ ...DEFAULT_CATALOG_BANNER, ...newBanner });
+      }
       setLastCloudSync(new Date());
     });
+
 
     // Fast 1.5s real-time check interval
     const interval = setInterval(() => {
@@ -1170,6 +1209,47 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Catalog Hero Banner management
+  const updateCatalogBanner = async (updated: Partial<CatalogBannerConfig>): Promise<boolean> => {
+    const nextBanner: CatalogBannerConfig = {
+      ...catalogBanner,
+      ...updated,
+    };
+    setCatalogBanner(nextBanner);
+    try {
+      localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(nextBanner));
+    } catch {}
+
+    const syncRes = await triggerCloudSync(books, examPaths, testimonials, nextBanner);
+    if (syncRes.success) {
+      const confirmedVer = syncRes.version || Math.floor(Date.now() / 1000);
+      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, nextBanner);
+      showToast('Catalog banner updated! Synced in real time.', 'success');
+      return true;
+    } else {
+      showToast(`Unable to sync banner: ${syncRes.error || 'Server error'}. Changes kept locally.`, 'warning');
+      return false;
+    }
+  };
+
+  const resetCatalogBannerToDefault = async (): Promise<boolean> => {
+    setCatalogBanner(DEFAULT_CATALOG_BANNER);
+    try {
+      localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(DEFAULT_CATALOG_BANNER));
+    } catch {}
+    const syncRes = await triggerCloudSync(books, examPaths, testimonials, DEFAULT_CATALOG_BANNER);
+    if (syncRes.success) {
+      const confirmedVer = syncRes.version || Math.floor(Date.now() / 1000);
+      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, DEFAULT_CATALOG_BANNER);
+      showToast('Reset catalog banner to defaults.', 'info');
+      return true;
+    } else {
+      showToast(`Unable to reset banner: ${syncRes.error || 'Server error'}.`, 'warning');
+      return false;
+    }
+  };
+
+
   // Testimonials management (Image 2)
   const addTestimonial = async (item: Omit<Testimonial, 'id'>): Promise<boolean> => {
     const newTestimonial: Testimonial = {
@@ -1361,6 +1441,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateExamPath,
         deleteExamPath,
         resetExamPathsToDefault,
+
+        // Catalog Hero Banner
+        catalogBanner,
+        updateCatalogBanner,
+        resetCatalogBannerToDefault,
+
 
         // Testimonials (Image 2)
         testimonials,

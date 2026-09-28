@@ -15,7 +15,9 @@ export const CatalogView: React.FC = () => {
     addToCart,
     buyNow,
     setCurrentView,
+    catalogBanner,
   } = useShop();
+
 
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category');
@@ -116,7 +118,9 @@ export const CatalogView: React.FC = () => {
     });
   }, [selectedCategory, selectedPriceRanges, selectedTypes, selectedFormat, sortBy]);
 
-  const activeCategoryTitle = selectedCategory === 'All' ? 'Complete Exam Study Materials' : `${selectedCategory} Preparation`;
+  const activeCategoryTitle = selectedCategory === 'All'
+    ? (catalogBanner?.title || 'Complete Exam Study Materials')
+    : `${selectedCategory} Preparation`;
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
@@ -135,9 +139,42 @@ export const CatalogView: React.FC = () => {
         </nav>
       </div>
 
-      {/* Category Hero Banner (Image 4 top) */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#0a2540] via-[#0d3356] to-[#081d33] p-6 sm:p-10 text-white shadow-lg">
-        <div className="max-w-3xl space-y-4">
+      {/* Category Hero Banner with Responsive Dual Images & Custom Colors */}
+      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#0a2540] via-[#0d3356] to-[#081d33] p-6 sm:p-10 shadow-lg isolation">
+        {/* Device-Responsive Dual Background Images */}
+        {(catalogBanner?.desktopBgImage || catalogBanner?.mobileBgImage) && (
+          <picture className="absolute inset-0 w-full h-full pointer-events-none -z-10">
+            {catalogBanner.mobileBgImage && (
+              <source
+                media="(max-width: 639px)"
+                srcSet={catalogBanner.mobileBgImage}
+              />
+            )}
+            {catalogBanner.desktopBgImage && (
+              <source
+                media="(min-width: 640px)"
+                srcSet={catalogBanner.desktopBgImage}
+              />
+            )}
+            <img
+              src={catalogBanner.desktopBgImage || catalogBanner.mobileBgImage}
+              alt="Catalog Banner Background"
+              className="w-full h-full object-cover object-center"
+              loading="eager"
+            />
+          </picture>
+        )}
+
+        {/* Readability Overlay Tint */}
+        <div
+          className="absolute inset-0 pointer-events-none -z-10"
+          style={{
+            backgroundColor: '#071829',
+            opacity: ((catalogBanner?.overlayOpacity ?? 50) / 100),
+          }}
+        />
+
+        <div className="relative z-10 max-w-3xl space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             {categories.map((cat) => (
               <button
@@ -154,24 +191,38 @@ export const CatalogView: React.FC = () => {
             ))}
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif] tracking-tight">
+          <h1
+            className="text-2xl sm:text-4xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif] tracking-tight"
+            style={{ color: catalogBanner?.titleColor || '#ffffff' }}
+          >
             {activeCategoryTitle}
           </h1>
-          <p className="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed font-['DM_Sans',sans-serif]">
-            Achieve your target score with expert-curated study materials, practice books, full-length mock exams, and verified strategies.
+          <p
+            className="text-sm sm:text-base max-w-2xl leading-relaxed font-['DM_Sans',sans-serif]"
+            style={{ color: catalogBanner?.subtitleColor || '#cbd5e1' }}
+          >
+            {catalogBanner?.subtitle || 'Achieve your target score with expert-curated study materials, practice books, full-length mock exams, and verified strategies.'}
           </p>
 
           {/* Feature Badges from Image 4 */}
           <div className="flex flex-wrap gap-2 pt-2">
-            {[
-              'Complete Study Guides',
-              'Practice Tests & Mock Exams',
-              'Exam Tips & Strategies',
-              'Latest Exam Format',
-            ].map((pill, idx) => (
+            {(catalogBanner?.featurePills && catalogBanner.featurePills.length > 0
+              ? catalogBanner.featurePills
+              : [
+                  'Complete Study Guides',
+                  'Practice Tests & Mock Exams',
+                  'Exam Tips & Strategies',
+                  'Latest Exam Format',
+                ]
+            ).map((pill, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center text-[11px] font-medium bg-white/10 backdrop-blur-xs border border-white/15 px-3 py-1 rounded-lg text-slate-200"
+                className="inline-flex items-center text-[11px] font-medium backdrop-blur-xs border px-3 py-1 rounded-lg"
+                style={{
+                  color: catalogBanner?.badgeTextColor || '#e2e8f0',
+                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                  backgroundColor: catalogBanner?.badgeBgColor || 'rgba(255, 255, 255, 0.1)',
+                }}
               >
                 ✓ {pill}
               </span>
@@ -179,6 +230,7 @@ export const CatalogView: React.FC = () => {
           </div>
         </div>
       </div>
+
 
       {/* Mobile filter trigger & Sort bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
