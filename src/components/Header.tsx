@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, Heart, DownloadCloud, ShieldCheck, LogIn, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, ShoppingBag, Menu, X } from 'lucide-react';
 import { XylemLogo } from './XylemLogo';
 import { useShop } from '../context/ShopContext';
 import { ExamCategory } from '../types';
@@ -13,16 +13,9 @@ export const Header: React.FC = () => {
     navigateToCatalog,
     openCart,
     cartCount,
-    setIsSearchOpen,
-    wishlist,
-    orders,
-    shippingInfo,
-    currentCustomer,
-    logoutCustomer,
   } = useShop();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const navItems: { label: string; to: string; action: () => void; isActive: boolean; isSpecial?: boolean }[] = [
     {
@@ -121,125 +114,6 @@ export const Header: React.FC = () => {
               <Search className="w-5 h-5 stroke-[2.2]" />
             </button>
 
-            {/* User Profile / Downloads menu */}
-            <div className="relative">
-              <button
-                id="user-profile-btn"
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="p-2 text-slate-700 hover:text-emerald-700 hover:bg-slate-50 rounded-full transition-colors relative cursor-pointer"
-                title="Account & Downloads"
-                aria-label="Account"
-              >
-                <User className="w-5 h-5 stroke-[2.2]" />
-                {orders.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
-                )}
-              </button>
-
-              {userMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-20"
-                    onClick={() => setUserMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-30 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-4 py-2 border-b border-slate-100">
-                      <p className="text-xs text-slate-500 font-medium">
-                        {currentCustomer ? 'Student Account' : 'Personal Study Dashboard'}
-                      </p>
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {currentCustomer ? currentCustomer.name : (shippingInfo.fullName || 'Guest Student')}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {currentCustomer ? currentCustomer.email : (shippingInfo.email || 'Sign in to sync your access')}
-                      </p>
-                    </div>
-
-                    {!currentCustomer && (
-                      <div className="p-2 border-b border-slate-100 bg-emerald-50/50">
-                        <Link
-                          to="/login"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="w-full px-3 py-2 bg-[#00875a] hover:bg-[#00734c] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-                        >
-                          <LogIn className="w-3.5 h-3.5" />
-                          <span>Sign In to Account</span>
-                        </Link>
-                      </div>
-                    )}
-
-                    <Link
-                      to="/my-materials"
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <DownloadCloud className="w-4 h-4 text-emerald-600" />
-                        My Study Materials
-                      </span>
-                      {orders.length > 0 && (
-                        <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
-                          {orders.length} orders
-                        </span>
-                      )}
-                    </Link>
-
-                    {currentCustomer && (
-                      <Link
-                        to="/account"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        <User className="w-4 h-4 text-slate-500" />
-                        Account & Security
-                      </Link>
-                    )}
-
-                    <Link
-                      to="/books"
-                      onClick={() => {
-                        navigateToCatalog('All');
-                        setUserMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                    >
-                      <Heart className="w-4 h-4 text-rose-500" />
-                      Saved to Wishlist ({wishlist.length})
-                    </Link>
-
-                    <div className="border-t border-slate-100 my-1" />
-
-                    {currentCustomer && (
-                      <button
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          logoutCustomer();
-                        }}
-                        className="w-full text-left px-4 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
-                      >
-                        <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                        Sign Out
-                      </button>
-                    )}
-
-                    <Link
-                      to="/admin"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="w-full text-left px-4 py-2 text-xs font-medium text-slate-600 hover:text-emerald-700 hover:bg-slate-50 flex items-center gap-2"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      Admin Dashboard
-                    </Link>
-
-                    <div className="px-4 py-2 text-[11px] text-slate-400">
-                      Xylem Learning Digital Store v2.5
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
 
             {/* Cart Icon with Counter */}
             <Link
