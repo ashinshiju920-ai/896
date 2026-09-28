@@ -644,19 +644,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantity = 1,
     selectedAddonIds: string[] = []
   ) => {
+    const targetBook = books.find((b) => b.id === book.id) || book;
     const safeSelectedIds = Array.from(
       new Set(Array.isArray(selectedAddonIds) ? selectedAddonIds.filter(Boolean).map(String) : [])
     );
-    trackAddToCart(book.id, safeSelectedIds);
-    const displayCalc = calculateDisplayPrice(book, format, safeSelectedIds);
+    trackAddToCart(targetBook.id, safeSelectedIds);
+    const displayCalc = calculateDisplayPrice(targetBook, format, safeSelectedIds);
     const effectiveFormat: BookFormat =
       format === 'physical' || displayCalc.selectedAddons.some((a) => a.deliveryOption === 'physical')
         ? 'physical'
         : 'digital';
 
     const cartItem: CartItem = {
-      bookId: book.id,
-      book,
+      bookId: targetBook.id,
+      book: targetBook,
       format: effectiveFormat,
       quantity,
       price: displayCalc.totalPrice,
@@ -665,7 +666,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       selectedAddons: displayCalc.selectedAddons,
     };
 
-    const targetKey = getCartLineKey(book.id, effectiveFormat, safeSelectedIds);
+    const targetKey = getCartLineKey(targetBook.id, effectiveFormat, safeSelectedIds);
 
     setCart((prev) => {
       const existingIndex = prev.findIndex((item) => {
@@ -683,7 +684,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const addOnsNote = displayCalc.selectedAddons.length > 0
       ? ` with ${displayCalc.selectedAddons.length} optional material${displayCalc.selectedAddons.length > 1 ? 's' : ''}`
       : '';
-    showToast(`Added "${book.title}"${addOnsNote} to cart!`, 'success');
+    showToast(`Added "${targetBook.title}"${addOnsNote} to cart!`, 'success');
   };
 
   const buyNow = (
@@ -692,10 +693,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantity = 1,
     selectedAddonIds: string[] = []
   ) => {
+    const targetBook = books.find((b) => b.id === book.id) || book;
     const safeSelectedIds = Array.from(
       new Set(Array.isArray(selectedAddonIds) ? selectedAddonIds.filter(Boolean).map(String) : [])
     );
-    const displayCalc = calculateDisplayPrice(book, format, safeSelectedIds);
+    const displayCalc = calculateDisplayPrice(targetBook, format, safeSelectedIds);
     const effectiveFormat: BookFormat =
       format === 'physical' || displayCalc.selectedAddons.some((a) => a.deliveryOption === 'physical')
         ? 'physical'
@@ -703,8 +705,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setCart([
       {
-        bookId: book.id,
-        book,
+        bookId: targetBook.id,
+        book: targetBook,
         format: effectiveFormat,
         quantity,
         price: displayCalc.totalPrice,

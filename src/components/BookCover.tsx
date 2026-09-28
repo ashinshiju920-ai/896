@@ -158,12 +158,12 @@ export const BookCover: React.FC<BookCoverProps> = ({
         <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none z-20" />
         <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-black/20 pointer-events-none z-20" />
 
-        {book.imageUrl || book.coverImage ? (
+        {book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) ? (
           <>
             {/* Custom Uploaded / Product Image */}
             <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-slate-900">
               <img
-                src={book.imageUrl || book.coverImage}
+                src={book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) || ''}
                 alt={book.title}
                 className="w-full h-full object-cover"
                 onError={(e) => {

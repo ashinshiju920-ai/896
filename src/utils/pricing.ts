@@ -534,6 +534,11 @@ export const validateAndReconcileCart = (
     const freshOrigPrice = displayCalc.totalOriginalPrice;
 
     const priceChanged = item.price !== freshPrice || item.originalPrice !== freshOrigPrice;
+    const metadataChanged =
+      item.book?.coverImage !== catalogBook.coverImage ||
+      item.book?.imageUrl !== catalogBook.imageUrl ||
+      item.book?.title !== catalogBook.title;
+
     if (hadInvalidAddon || priceChanged) {
       modifiedItems.push({
         id: bookId,
@@ -555,7 +560,10 @@ export const validateAndReconcileCart = (
     });
   }
 
-  const hasChanges = removedItems.length > 0 || modifiedItems.length > 0;
+  const hasChanges = removedItems.length > 0 || modifiedItems.length > 0 || reconciledCart.some((item, i) => {
+    const orig = cart[i];
+    return !orig || orig.book?.coverImage !== item.book?.coverImage || orig.book?.imageUrl !== item.book?.imageUrl;
+  });
 
   let errorMessage: string | undefined;
   if (removedItems.length > 0) {

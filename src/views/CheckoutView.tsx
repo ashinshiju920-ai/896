@@ -28,6 +28,11 @@ import { trackCheckoutStarted, resetCheckoutTracking } from '../utils/analytics'
 import { validateAndReconcileCart, getSelectableAddons, calculateDisplayPrice } from '../utils/pricing';
 import { Book } from '../types';
 
+const getProductImage = (book?: Book | null): string | null => {
+  if (!book) return null;
+  return book.coverImage || book.imageUrl || (Array.isArray(book.images) && book.images[0]) || null;
+};
+
 export const CheckoutView: React.FC = () => {
   const {
     books,
@@ -563,9 +568,11 @@ export const CheckoutView: React.FC = () => {
             {/* Products & Add-ons List Block */}
             <div className="space-y-6">
               {cart.map((item, itemIdx) => {
-                const availableAddons = getSelectableAddons(item.book);
-                const baseDigitalPrice = Number(item.book.prices?.digital?.price) || item.price;
-                const baseDigitalOriginalPrice = Number(item.book.prices?.digital?.originalPrice) || item.originalPrice || baseDigitalPrice;
+                const liveBook = books.find((b) => b.id === (item.bookId || item.book?.id)) || item.book;
+                const availableAddons = getSelectableAddons(liveBook);
+                const baseDigitalPrice = Number(liveBook.prices?.digital?.price) || item.price;
+                const baseDigitalOriginalPrice = Number(liveBook.prices?.digital?.originalPrice) || item.originalPrice || baseDigitalPrice;
+                const coverImg = getProductImage(liveBook);
 
                 return (
                   <div key={`${item.bookId}-${item.format}-${itemIdx}`} className="space-y-4">
@@ -573,14 +580,17 @@ export const CheckoutView: React.FC = () => {
                     <div className="flex items-start gap-4">
                       {/* Product Image */}
                       <div className="w-16 h-22 sm:w-20 sm:h-26 shrink-0 rounded-xl overflow-hidden shadow-xs border border-slate-100 bg-slate-50 flex items-center justify-center">
-                        {item.book.coverImage ? (
+                        {coverImg ? (
                           <img
-                            src={item.book.coverImage}
-                            alt={item.book.title}
+                            src={coverImg}
+                            alt={liveBook.title}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
                           />
                         ) : (
-                          <BookCover book={item.book} size="sm" showShadow={false} />
+                          <BookCover book={liveBook} size="sm" showShadow={false} />
                         )}
                       </div>
 
@@ -1115,6 +1125,7 @@ export const CheckoutView: React.FC = () => {
             <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
               {relatedProducts.map((product) => {
                 const isAdded = cartBookIds.has(product.id);
+                const productImg = getProductImage(product);
                 return (
                   <div
                     key={`desktop-rel-${product.id}`}
@@ -1122,36 +1133,60 @@ export const CheckoutView: React.FC = () => {
                   >
                     <div>
                       {/* Product Cover Visual */}
-                      <div className={`relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-b ${product.coverTheme?.bgGradient || 'from-slate-900 to-slate-800'} p-3.5 flex flex-col justify-between shadow-xs border border-black/10 group-hover:scale-[1.01] transition-transform`}>
-                        <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none" />
-                        <div className="flex items-center justify-between text-[9px] font-bold text-white/80 uppercase tracking-wider">
-                          <span className="flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                            XYLEM
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
+                      {productImg ? (
+                        <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80 group-hover:scale-[1.01] transition-transform">
+                          <img
+                            src={productImg}
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-black/30 via-white/10 to-transparent pointer-events-none" />
+                          <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[8px] font-extrabold text-white uppercase tracking-wider">
                             {product.category}
                           </span>
-                        </div>
-                        <div className="text-center my-auto px-1 space-y-1">
-                          <div
-                            className="text-xs sm:text-sm font-black tracking-tight uppercase leading-tight"
-                            style={{ color: product.coverTheme?.accentColor || '#ffffff' }}
-                          >
-                            {product.title}
-                          </div>
-                          {product.subtitle && (
-                            <div className="text-[9px] text-white/75 font-medium line-clamp-2 leading-tight">
-                              {product.subtitle}
+                          {product.coverTheme?.badgeText && (
+                            <div className="absolute bottom-2 inset-x-0 flex justify-center">
+                              <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-xs text-white border border-white/20 tracking-wider uppercase">
+                                {product.coverTheme.badgeText}
+                              </span>
                             </div>
                           )}
                         </div>
-                        <div className="flex justify-center">
-                          <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-xs tracking-wider uppercase">
-                            {product.coverTheme?.badgeText || 'OFFICIAL PREP'}
-                          </span>
+                      ) : (
+                        <div className={`relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-b ${product.coverTheme?.bgGradient || 'from-slate-900 to-slate-800'} p-3.5 flex flex-col justify-between shadow-xs border border-black/10 group-hover:scale-[1.01] transition-transform`}>
+                          <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none" />
+                          <div className="flex items-center justify-between text-[9px] font-bold text-white/80 uppercase tracking-wider">
+                            <span className="flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                              XYLEM
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
+                              {product.category}
+                            </span>
+                          </div>
+                          <div className="text-center my-auto px-1 space-y-1">
+                            <div
+                              className="text-xs sm:text-sm font-black tracking-tight uppercase leading-tight"
+                              style={{ color: product.coverTheme?.accentColor || '#ffffff' }}
+                            >
+                              {product.title}
+                            </div>
+                            {product.subtitle && (
+                              <div className="text-[9px] text-white/75 font-medium line-clamp-2 leading-tight">
+                                {product.subtitle}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-xs tracking-wider uppercase">
+                              {product.coverTheme?.badgeText || 'OFFICIAL PREP'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Product Name */}
                       <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-1 mt-3">
@@ -1216,6 +1251,7 @@ export const CheckoutView: React.FC = () => {
               >
                 {relatedProducts.map((product) => {
                   const isAdded = cartBookIds.has(product.id);
+                  const productImg = getProductImage(product);
                   return (
                     <div
                       key={`mobile-rel-${product.id}`}
@@ -1223,36 +1259,60 @@ export const CheckoutView: React.FC = () => {
                     >
                       <div>
                         {/* Cover */}
-                        <div className={`relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-b ${product.coverTheme?.bgGradient || 'from-slate-900 to-slate-800'} p-3 flex flex-col justify-between shadow-xs border border-black/10`}>
-                          <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none" />
-                          <div className="flex items-center justify-between text-[8px] font-bold text-white/80 uppercase tracking-wider">
-                            <span className="flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                              XYLEM
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
+                        {productImg ? (
+                          <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
+                            <img
+                              src={productImg}
+                              alt={product.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-black/30 via-white/10 to-transparent pointer-events-none" />
+                            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[8px] font-extrabold text-white uppercase tracking-wider">
                               {product.category}
                             </span>
-                          </div>
-                          <div className="text-center my-auto px-1 space-y-1">
-                            <div
-                              className="text-xs font-black tracking-tight uppercase leading-tight"
-                              style={{ color: product.coverTheme?.accentColor || '#ffffff' }}
-                            >
-                              {product.title}
-                            </div>
-                            {product.subtitle && (
-                              <div className="text-[8px] text-white/75 font-medium line-clamp-2 leading-tight">
-                                {product.subtitle}
+                            {product.coverTheme?.badgeText && (
+                              <div className="absolute bottom-2 inset-x-0 flex justify-center">
+                                <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-xs text-white border border-white/20 tracking-wider uppercase">
+                                  {product.coverTheme.badgeText}
+                                </span>
                               </div>
                             )}
                           </div>
-                          <div className="flex justify-center">
-                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-xs tracking-wider uppercase">
-                              {product.coverTheme?.badgeText || 'OFFICIAL PREP'}
-                            </span>
+                        ) : (
+                          <div className={`relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-b ${product.coverTheme?.bgGradient || 'from-slate-900 to-slate-800'} p-3 flex flex-col justify-between shadow-xs border border-black/10`}>
+                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none" />
+                            <div className="flex items-center justify-between text-[8px] font-bold text-white/80 uppercase tracking-wider">
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                XYLEM
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
+                                {product.category}
+                              </span>
+                            </div>
+                            <div className="text-center my-auto px-1 space-y-1">
+                              <div
+                                className="text-xs font-black tracking-tight uppercase leading-tight"
+                                style={{ color: product.coverTheme?.accentColor || '#ffffff' }}
+                              >
+                                {product.title}
+                              </div>
+                              {product.subtitle && (
+                                <div className="text-[8px] text-white/75 font-medium line-clamp-2 leading-tight">
+                                  {product.subtitle}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex justify-center">
+                              <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-xs tracking-wider uppercase">
+                                {product.coverTheme?.badgeText || 'OFFICIAL PREP'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Title */}
                         <h4 className="text-xs font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-1 mt-2.5">
