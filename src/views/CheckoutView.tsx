@@ -823,9 +823,9 @@ export const CheckoutView: React.FC = () => {
           {/* RIGHT COLUMN: Customer Details & Cashfree Payments Card */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-slate-200/80 text-center flex flex-col justify-between space-y-6">
             <div className="space-y-5">
-              {/* Cashfree Logo (Centered on Desktop, hidden on mobile matching reference) */}
-              <div className="hidden sm:flex justify-center pt-1">
-                <CashfreeLogo className="h-9" />
+              {/* Cashfree Logo (Centered on Desktop and Mobile) */}
+              <div className="flex justify-center pt-1">
+                <CashfreeLogo className="h-8 sm:h-9" />
               </div>
 
               {/* Customer Details Form */}
