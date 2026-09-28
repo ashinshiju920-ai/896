@@ -260,6 +260,8 @@ export interface ExamPath {
   scriptWords: string[];
   redirectTarget?: 'catalog' | 'product';
   targetProductId?: string;
+  arrowColor?: string;
+  badgeColor?: string;
 }
 
 // -------------------------------------------------------------

@@ -519,6 +519,8 @@ export async function onRequestPost(context) {
           scriptWords: Array.isArray(p.scriptWords) ? p.scriptWords.map((s) => sanitizeString(s, 50)).slice(0, 5) : [],
           redirectTarget: p.redirectTarget === 'product' ? 'product' : 'catalog',
           targetProductId: sanitizeString(p.targetProductId, 64),
+          arrowColor: sanitizeString(p.arrowColor, 50) || undefined,
+          badgeColor: sanitizeString(p.badgeColor, 50) || undefined,
         }))
       : undefined;
 

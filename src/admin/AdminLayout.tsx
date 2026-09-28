@@ -31,6 +31,7 @@ export const AdminLayout: React.FC = () => {
     reorderBooks,
     examPaths,
     updateExamPath,
+    deleteExamPath,
     resetExamPathsToDefault,
     testimonials,
     addTestimonial,
@@ -351,6 +352,7 @@ export const AdminLayout: React.FC = () => {
             <CategoriesPage
               examPaths={examPaths}
               onUpdateExamPath={(cat, updated) => updateExamPath(cat, updated)}
+              onDeleteExamPath={(cat) => deleteExamPath(cat)}
               onResetDefaults={resetExamPathsToDefault}
               showToast={showToast}
             />

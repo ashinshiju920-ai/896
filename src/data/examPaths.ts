@@ -9,6 +9,8 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     badgeText: 'GB',
     scriptWords: ['Study', 'Work', 'Settle'],
     redirectTarget: 'catalog',
+    arrowColor: '#00a375',
+    badgeColor: '#071d36',
   },
   {
     category: 'OET',
@@ -18,6 +20,8 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     isMedicalCross: true,
     scriptWords: ['Care', 'Connect', 'Grow'],
     redirectTarget: 'catalog',
+    arrowColor: '#00a375',
+    badgeColor: '#00875a',
   },
   {
     category: 'PTE',
@@ -27,6 +31,8 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     badgeText: 'PTE',
     scriptWords: ['Global', 'Career', 'Ahead'],
     redirectTarget: 'catalog',
+    arrowColor: '#00a375',
+    badgeColor: '#071d36',
   },
   {
     category: 'German',
@@ -36,5 +42,7 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     badgeText: 'DE',
     scriptWords: ['Learn', 'Explore', 'Belong'],
     redirectTarget: 'catalog',
+    arrowColor: '#00a375',
+    badgeColor: '#071d36',
   },
 ];

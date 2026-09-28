@@ -57,6 +57,7 @@ interface ShopContextType {
   // Exam Paths (Image 1 - Hero & Homepage Category Cards)
   examPaths: ExamPath[];
   updateExamPath: (category: ExamCategory, updated: Partial<ExamPath>) => Promise<boolean>;
+  deleteExamPath: (category: ExamCategory) => Promise<boolean>;
   resetExamPathsToDefault: () => Promise<boolean>;
 
   // Testimonials & Reviews (Image 2 - Learner Avatars & Quotes)
@@ -1104,7 +1105,24 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Exam Paths management (Image 1)
   const updateExamPath = async (category: ExamCategory, updated: Partial<ExamPath>): Promise<boolean> => {
-    const nextPaths = examPaths.map((p) => (p.category === category ? { ...p, ...updated } : p));
+    const exists = examPaths.some((p) => p.category === category);
+    const nextPaths = exists
+      ? examPaths.map((p) => (p.category === category ? { ...p, ...updated } : p))
+      : [
+          ...examPaths,
+          {
+            category,
+            title: updated.title || category,
+            description: updated.description || '',
+            bgImage: updated.bgImage || '/images/exams/ielts.jpg',
+            scriptWords: updated.scriptWords || ['Study', 'Prepare', 'Succeed'],
+            redirectTarget: updated.redirectTarget || 'catalog',
+            arrowColor: updated.arrowColor || '#00a375',
+            badgeColor: updated.badgeColor || '#071d36',
+            ...updated,
+          } as ExamPath,
+        ];
+
     const res = await triggerCloudSync(books, nextPaths, testimonials);
     if (res.success) {
       setExamPaths(nextPaths);
@@ -1115,6 +1133,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } else {
       showToast(`Unable to save ${category} category card: ${res.error || 'Server error'}. Please try again.`, 'warning');
+      return false;
+    }
+  };
+
+  const deleteExamPath = async (category: ExamCategory): Promise<boolean> => {
+    const nextPaths = examPaths.filter((p) => p.category !== category);
+    const res = await triggerCloudSync(books, nextPaths, testimonials);
+    if (res.success) {
+      setExamPaths(nextPaths);
+      try {
+        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(nextPaths));
+      } catch {}
+      showToast(`Removed ${category} category card! Synced to server.`, 'info');
+      return true;
+    } else {
+      showToast(`Unable to remove ${category} category card: ${res.error || 'Server error'}.`, 'warning');
       return false;
     }
   };
@@ -1323,6 +1357,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Exam Paths (Image 1)
         examPaths,
         updateExamPath,
+        deleteExamPath,
         resetExamPathsToDefault,
 
         // Testimonials (Image 2)

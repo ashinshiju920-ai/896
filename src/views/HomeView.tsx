@@ -136,11 +136,17 @@ export const HomeView: React.FC = () => {
               <div className="relative z-10 p-4 sm:p-5 flex items-start justify-between">
                 {/* Top-Left Circular Badge */}
                 {path.isMedicalCross ? (
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00875a] text-white flex items-center justify-center font-bold text-xl shadow-md border border-white/25 leading-none">
+                  <div
+                    style={path.badgeColor ? { backgroundColor: path.badgeColor } : undefined}
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00875a] text-white flex items-center justify-center font-bold text-xl shadow-md border border-white/25 leading-none transition-colors"
+                  >
                     +
                   </div>
                 ) : (
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#071d36]/90 backdrop-blur-md border border-white/20 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center shadow-md tracking-wider">
+                  <div
+                    style={path.badgeColor ? { backgroundColor: path.badgeColor } : undefined}
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#071d36]/90 backdrop-blur-md border border-white/20 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center shadow-md tracking-wider transition-colors"
+                  >
                     {path?.badgeText || ''}
                   </div>
                 )}
@@ -177,7 +183,10 @@ export const HomeView: React.FC = () => {
                 </div>
 
                 {/* Bottom-Right Teal Circular Button with Arrow */}
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#00a375] group-hover:bg-[#00875a] text-white flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:translate-x-0.5 shrink-0 mb-0.5">
+                <div
+                  style={path.arrowColor ? { backgroundColor: path.arrowColor } : undefined}
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#00a375] group-hover:brightness-110 text-white flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:translate-x-0.5 shrink-0 mb-0.5"
+                >
                   <ArrowRight className="w-4 h-4 text-white" />
                 </div>
               </div>
