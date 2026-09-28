@@ -157,6 +157,110 @@ export const DEFAULT_CATALOG = [
     ],
     buy2Get3rdFree: false,
   },
+  {
+    id: 'ielts-vocab-booster',
+    title: 'IELTS Vocabulary Booster',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'ielts-writing-task',
+    title: 'IELTS Writing Task 1 & 2',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'ielts-listening-practice',
+    title: 'IELTS Listening Practice',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'ielts-reading-strategies',
+    title: 'IELTS Reading Strategies',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'oet-vocab-booster',
+    title: 'OET Vocabulary Booster',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'oet-writing-task',
+    title: 'OET Writing Task 1 & 2',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'oet-listening-practice',
+    title: 'OET Listening Practice',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
+  {
+    id: 'oet-reading-strategies',
+    title: 'OET Reading Strategies',
+    prices: {
+      digital: { price: 99, originalPrice: 299 },
+      physical: { price: 499, originalPrice: 799 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 99, originalPrice: 299, deliveryOption: 'digital' },
+      { id: 'physical', name: 'Physical (Printed)', price: 499, originalPrice: 799, deliveryOption: 'physical' },
+    ],
+    buy2Get3rdFree: false,
+  },
 ];
 
 

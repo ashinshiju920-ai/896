@@ -58,10 +58,9 @@ function computeClientOrderPrice({ cart, couponCode }) {
 async function runParityTests() {
   console.log('=== STARTING PRICING PARITY VERIFICATION SUITE ===\n');
 
-  // TEST 1: All 11 Books exist in DEFAULT_CATALOG with identical prices
-  console.log('Test 1: Catalog Integrity & Price Matching across all 11 books');
-  assert.strictEqual(BOOKS.length, 11, 'Expected 11 books in books.ts');
-  assert.strictEqual(DEFAULT_CATALOG.length, 11, 'Expected 11 books in DEFAULT_CATALOG');
+  // TEST 1: All Books exist in DEFAULT_CATALOG with identical prices
+  console.log(`Test 1: Catalog Integrity & Price Matching across all ${BOOKS.length} books`);
+  assert.strictEqual(BOOKS.length, DEFAULT_CATALOG.length, `Expected BOOKS.length (${BOOKS.length}) to match DEFAULT_CATALOG.length (${DEFAULT_CATALOG.length})`);
 
   for (const book of BOOKS) {
     const serverBook = DEFAULT_CATALOG.find((b) => b.id === book.id);

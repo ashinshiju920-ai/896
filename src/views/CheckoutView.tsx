@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Lock,
   ShieldCheck,
@@ -12,6 +12,7 @@ import {
   User,
   ShoppingBag,
   Loader2,
+  Plus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
@@ -48,6 +49,7 @@ export const CheckoutView: React.FC = () => {
     setShippingInfo,
     showToast,
     currentCustomer,
+    addToCart,
   } = useShop();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -56,6 +58,63 @@ export const CheckoutView: React.FC = () => {
   const [inputCoupon, setInputCoupon] = useState('');
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [couponFeedback, setCouponFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [activeCarouselDot, setActiveCarouselDot] = useState(0);
+  const mobileCarouselRef = useRef<HTMLDivElement>(null);
+
+  // 1. Determine primary exam category from cart items
+  const primaryCategory = useMemo(() => {
+    return (cart[0]?.book?.category || 'IELTS') as string;
+  }, [cart]);
+
+  // 2. Fast lookup for items already in cart
+  const cartBookIds = useMemo(() => {
+    return new Set(cart.map((item) => item.bookId || item.book.id));
+  }, [cart]);
+
+  // 3. Find 4 related booster/practice products from the same category
+  const relatedProducts = useMemo(() => {
+    const sameCategory = books.filter((b) => b.category === primaryCategory);
+    const prefix = primaryCategory.toLowerCase();
+    const curatedBoosterIds = [
+      `${prefix}-vocab-booster`,
+      `${prefix}-writing-task`,
+      `${prefix}-listening-practice`,
+      `${prefix}-reading-strategies`,
+    ];
+
+    const sortedSameCategory = [...sameCategory].sort((a, b) => {
+      const aIsBooster = curatedBoosterIds.includes(a.id) ? 0 : 1;
+      const bIsBooster = curatedBoosterIds.includes(b.id) ? 0 : 1;
+      if (aIsBooster !== bIsBooster) return aIsBooster - bIsBooster;
+
+      const aInCart = cartBookIds.has(a.id) ? 1 : 0;
+      const bInCart = cartBookIds.has(b.id) ? 1 : 0;
+      return aInCart - bInCart;
+    });
+
+    let candidates = sortedSameCategory;
+    if (candidates.length < 4) {
+      const otherBooks = books.filter((b) => b.category !== primaryCategory);
+      candidates = [...candidates, ...otherBooks];
+    }
+    return candidates.slice(0, 4);
+  }, [books, primaryCategory, cartBookIds]);
+
+  const handleAddRelatedProduct = (product: Book) => {
+    addToCart(product, 'digital', 1, []);
+  };
+
+  const handleCarouselScroll = () => {
+    if (mobileCarouselRef.current) {
+      const { scrollLeft } = mobileCarouselRef.current;
+      const cardWidth = 230;
+      const index = Math.min(
+        relatedProducts.length - 1,
+        Math.max(0, Math.round(scrollLeft / cardWidth))
+      );
+      setActiveCarouselDot(index);
+    }
+  };
 
   // Auto-fill logged-in customer details
   useEffect(() => {
@@ -617,8 +676,8 @@ export const CheckoutView: React.FC = () => {
               </div>
             </div>
 
-            {/* Security Assurance Banner */}
-            <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 flex items-center gap-3.5">
+            {/* Security Assurance Banner (Visible on Desktop) */}
+            <div className="hidden lg:flex bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 items-center gap-3.5">
               <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
@@ -640,8 +699,6 @@ export const CheckoutView: React.FC = () => {
               <div className="flex justify-center pt-2">
                 <CashfreeLogo className="h-10" />
               </div>
-
-
 
               {/* Customer Details Form */}
               <div className="text-left space-y-3 pt-3 pb-2 border-t border-slate-100">
@@ -812,8 +869,6 @@ export const CheckoutView: React.FC = () => {
                   )}
                 </button>
               </div>
-
-
             </div>
 
             {/* Powered by Cashfree Footer Pill */}
@@ -822,8 +877,274 @@ export const CheckoutView: React.FC = () => {
               <span className="text-slate-300">•</span>
               <span className="text-slate-500">India's most trusted payment gateway</span>
             </div>
+
+            {/* Security Assurance Banner (Visible on Mobile / Tablet) */}
+            <div className="flex lg:hidden bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 items-center gap-3.5 text-left mt-3">
+              <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-bold text-slate-900">
+                  Your purchase is 100% secure
+                </div>
+                <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
+                  We use industry-standard encryption to protect your data and payments.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* RELATED PRODUCTS SECTION — DESKTOP + MOBILE */}
+        {relatedProducts.length > 0 && (
+          <section className="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-slate-200/80 space-y-5">
+            {/* Header: Icon + Title/Subtitle + View All */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 shadow-xs">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-blue-500">
+                    <path d="M4 6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" opacity="0.9" />
+                    <path d="M11 4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V4z" opacity="0.65" />
+                    <path d="M18 7a2 2 0 0 1 2-2h1v14h-1a2 2 0 0 1-2-2V7z" opacity="0.4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+                    More {primaryCategory} Materials
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    <span className="hidden sm:inline">More preparation materials from the same category</span>
+                    <span className="sm:hidden">Enhance your preparation with these recommended materials</span>
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to={`/books?category=${primaryCategory}`}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full border border-slate-200 hover:border-emerald-300 text-xs sm:text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-50 transition-colors"
+              >
+                <span className="hidden sm:inline">View All {primaryCategory} Materials</span>
+                <span className="sm:hidden">View All</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Desktop / Tablet Grid (screen width >= 768px) */}
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+              {relatedProducts.map((product) => {
+                const isAdded = cartBookIds.has(product.id);
+                return (
+                  <div
+                    key={`desktop-rel-${product.id}`}
+                    className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all duration-200 group"
+                  >
+                    <div>
+                      {/* Product Cover Visual */}
+                      <div className={`relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-b ${product.coverTheme?.bgGradient || 'from-slate-900 to-slate-800'} p-3.5 flex flex-col justify-between shadow-xs border border-black/10 group-hover:scale-[1.01] transition-transform`}>
+                        <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none" />
+                        <div className="flex items-center justify-between text-[9px] font-bold text-white/80 uppercase tracking-wider">
+                          <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            XYLEM
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
+                            {product.category}
+                          </span>
+                        </div>
+                        <div className="text-center my-auto px-1 space-y-1">
+                          <div
+                            className="text-xs sm:text-sm font-black tracking-tight uppercase leading-tight"
+                            style={{ color: product.coverTheme?.accentColor || '#ffffff' }}
+                          >
+                            {product.title}
+                          </div>
+                          {product.subtitle && (
+                            <div className="text-[9px] text-white/75 font-medium line-clamp-2 leading-tight">
+                              {product.subtitle}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex justify-center">
+                          <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-xs tracking-wider uppercase">
+                            {product.coverTheme?.badgeText || 'OFFICIAL PREP'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Product Name */}
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-1 mt-3">
+                        {product.title}
+                      </h4>
+
+                      {/* Instant Digital PDF Badge */}
+                      <div className="mt-1">
+                        <span className="inline-block text-[11px] font-medium text-slate-500 bg-slate-100 rounded-md px-2 py-0.5">
+                          Instant Digital PDF
+                        </span>
+                      </div>
+
+                      {/* Pricing Row */}
+                      <div className="flex items-baseline gap-1.5 mt-2">
+                        <span className="text-sm sm:text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+                          ₹{product.prices.digital.price}
+                        </span>
+                        {product.prices.digital.originalPrice > product.prices.digital.price && (
+                          <span className="text-xs text-slate-400 line-through">
+                            ₹{product.prices.digital.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Button */}
+                    <div className="pt-3">
+                      {isAdded ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-default transition-all"
+                        >
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span>Added</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAddRelatedProduct(product)}
+                          className="w-full py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 active:bg-emerald-100 border border-emerald-500/80 text-emerald-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-xs"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Mobile Carousel (screen width < 768px) */}
+            <div className="md:hidden">
+              <div
+                ref={mobileCarouselRef}
+                onScroll={handleCarouselScroll}
+                className="flex overflow-x-auto gap-3.5 pb-2 scrollbar-none snap-x snap-mandatory -mx-1 px-1"
+              >
+                {relatedProducts.map((product) => {
+                  const isAdded = cartBookIds.has(product.id);
+                  return (
+                    <div
+                      key={`mobile-rel-${product.id}`}
+                      className="w-[200px] min-w-[200px] xs:w-[220px] xs:min-w-[220px] shrink-0 snap-start bg-white rounded-2xl border border-slate-200/90 p-3 flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Cover */}
+                        <div className={`relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-b ${product.coverTheme?.bgGradient || 'from-slate-900 to-slate-800'} p-3 flex flex-col justify-between shadow-xs border border-black/10`}>
+                          <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none" />
+                          <div className="flex items-center justify-between text-[8px] font-bold text-white/80 uppercase tracking-wider">
+                            <span className="flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                              XYLEM
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
+                              {product.category}
+                            </span>
+                          </div>
+                          <div className="text-center my-auto px-1 space-y-1">
+                            <div
+                              className="text-xs font-black tracking-tight uppercase leading-tight"
+                              style={{ color: product.coverTheme?.accentColor || '#ffffff' }}
+                            >
+                              {product.title}
+                            </div>
+                            {product.subtitle && (
+                              <div className="text-[8px] text-white/75 font-medium line-clamp-2 leading-tight">
+                                {product.subtitle}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-xs tracking-wider uppercase">
+                              {product.coverTheme?.badgeText || 'OFFICIAL PREP'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Title */}
+                        <h4 className="text-xs font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-1 mt-2.5">
+                          {product.title}
+                        </h4>
+
+                        {/* Badge */}
+                        <div className="mt-1">
+                          <span className="inline-block text-[10px] font-medium text-slate-500 bg-slate-100 rounded-md px-1.5 py-0.5">
+                            Instant Digital PDF
+                          </span>
+                        </div>
+
+                        {/* Price */}
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className="text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+                            ₹{product.prices.digital.price}
+                          </span>
+                          {product.prices.digital.originalPrice > product.prices.digital.price && (
+                            <span className="text-[11px] text-slate-400 line-through">
+                              ₹{product.prices.digital.originalPrice}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="pt-2.5">
+                        {isAdded ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full py-2 px-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-bold flex items-center justify-center gap-1 cursor-default transition-all"
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Added</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAddRelatedProduct(product)}
+                            className="w-full py-2 px-2.5 rounded-xl bg-white hover:bg-emerald-50 active:bg-emerald-100 border border-emerald-500/80 text-emerald-700 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all shadow-xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Dot Indicators */}
+              <div className="flex justify-center items-center gap-2 pt-3">
+                {relatedProducts.map((_, dotIdx) => (
+                  <button
+                    key={`dot-${dotIdx}`}
+                    type="button"
+                    onClick={() => {
+                      if (mobileCarouselRef.current) {
+                        const cardWidth = 210;
+                        mobileCarouselRef.current.scrollTo({ left: dotIdx * cardWidth, behavior: 'smooth' });
+                        setActiveCarouselDot(dotIdx);
+                      }
+                    }}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      activeCarouselDot === dotIdx ? 'w-5 bg-emerald-600' : 'w-1.5 bg-slate-300'
+                    }`}
+                    aria-label={`Go to slide ${dotIdx + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 4. SHOP WITH CONFIDENCE TRUST BAR */}
         <section className="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-slate-200/80">
