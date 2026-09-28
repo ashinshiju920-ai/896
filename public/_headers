@@ -2,6 +2,47 @@
 # Cloudflare Pages Security & Cache Headers
 # ==============================================================================
 
+# ── Hashed JS/CSS/Font Assets (Vite content-hash in filename) ─────────────────
+# Safe to cache for 1 year — Vite's [hash] guarantees cache-busting on deploy.
+/assets/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.woff
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.png
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.jpg
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.webp
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.svg
+  Cache-Control: public, max-age=31536000, immutable
+
+# ── Favicons (7 day cache) ─────────────────────────────────────────────────────
+/favicon.*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# ── HTML (always revalidate to pick up new deploys immediately) ───────────────
+/
+  Cache-Control: no-cache, must-revalidate
+
+/*.html
+  Cache-Control: no-cache, must-revalidate
+
+# ── API routes (never cache) ──────────────────────────────────────────────────
 /api/*
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
   CDN-Cache-Control: no-store

@@ -8,6 +8,7 @@
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-M7NHCNHC');</script>
     <!-- End Google Tag Manager -->
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Xylem Learning - Digital Book Store</title>
@@ -15,17 +16,51 @@
     <meta property="og:title" content="Xylem Learning - Digital Book Store" />
     <meta property="og:description" content="Online digital and physical book selling e-commerce store for IELTS, OET, PTE, and German exam preparation study materials." />
     <meta property="og:type" content="website" />
+
+    <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta name="theme-color" content="#00875a" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Cashfree Payments SDK v3 -->
-    <script async defer src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+
+    <!-- DNS Prefetch for third-party origins to reduce latency -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="dns-prefetch" href="https://sdk.cashfree.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://connect.facebook.net" />
+
+    <!-- Preconnect to critical font origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!--
+      Google Fonts — loaded with display=swap for instant text render.
+      Subsetting to only the weights actually used keeps this small.
+      The media="print" onload trick is the fastest non-blocking font load pattern.
+    -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+    />
+    <!-- Noscript fallback for browsers with JS disabled -->
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
+    </noscript>
+
+    <!-- Cashfree Payments SDK v3 — deferred, only needed at checkout -->
+    <script defer src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+
     <!-- Meta Pixel Code -->
     <script>
     !function(f,b,e,v,n,t,s)
@@ -51,8 +86,11 @@
     src="https://www.facebook.com/tr?id=26348753391488430&ev=PageView&noscript=1"
     /></noscript>
     <!-- End Meta Pixel (noscript) -->
+
+    <!-- Root mounting point -->
     <div id="root"></div>
+
+    <!-- Main app bundle — type=module enables native ES module loading (modern, fast) -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
