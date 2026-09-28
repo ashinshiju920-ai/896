@@ -205,9 +205,14 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
   const [isDirty, setIsDirty] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // Feature & WhatYouGet temp inputs
+  // Feature & WhatYouGet & TOC temp inputs
   const [featureInput, setFeatureInput] = useState('');
   const [whatYouGetInput, setWhatYouGetInput] = useState('');
+  const [tocChapterInput, setTocChapterInput] = useState('');
+  const [tocPagesInput, setTocPagesInput] = useState('');
+  const [tocEditIndex, setTocEditIndex] = useState<number | null>(null);
+  const [tocEditChapter, setTocEditChapter] = useState('');
+  const [tocEditPages, setTocEditPages] = useState('');
 
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -1569,6 +1574,175 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Table of Contents (What's Included) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Table of Contents — "What's Included" Tab
+                  </label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    These chapters appear in the "What's Included" tab on the product page.
+                  </p>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {(form.tableOfContents || []).length} chapters
+                </span>
+              </div>
+
+              {/* Add new chapter row */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tocChapterInput}
+                  onChange={(e) => setTocChapterInput(e.target.value)}
+                  placeholder="e.g. Module 1: Introduction & Scoring Strategy"
+                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 bg-slate-50"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (tocChapterInput.trim()) {
+                        updateField('tableOfContents', [
+                          ...(form.tableOfContents || []),
+                          { chapter: tocChapterInput.trim(), pages: tocPagesInput.trim() },
+                        ]);
+                        setTocChapterInput('');
+                        setTocPagesInput('');
+                      }
+                    }
+                  }}
+                />
+                <input
+                  type="text"
+                  value={tocPagesInput}
+                  onChange={(e) => setTocPagesInput(e.target.value)}
+                  placeholder="pp. 1-28"
+                  className="w-24 px-3 py-2 text-xs rounded-xl border border-slate-300 bg-slate-50"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (tocChapterInput.trim()) {
+                        updateField('tableOfContents', [
+                          ...(form.tableOfContents || []),
+                          { chapter: tocChapterInput.trim(), pages: tocPagesInput.trim() },
+                        ]);
+                        setTocChapterInput('');
+                        setTocPagesInput('');
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tocChapterInput.trim()) {
+                      updateField('tableOfContents', [
+                        ...(form.tableOfContents || []),
+                        { chapter: tocChapterInput.trim(), pages: tocPagesInput.trim() },
+                      ]);
+                      setTocChapterInput('');
+                      setTocPagesInput('');
+                    }
+                  }}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shrink-0"
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Chapters list */}
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                {(form.tableOfContents || []).length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-400">
+                    No chapters yet. Add chapters above.
+                  </div>
+                ) : (
+                  (form.tableOfContents || []).map((chap, i) => (
+                    <div key={i} className="bg-white">
+                      {tocEditIndex === i ? (
+                        /* Inline edit row */
+                        <div className="flex items-center gap-2 p-2.5">
+                          <input
+                            type="text"
+                            value={tocEditChapter}
+                            onChange={(e) => setTocEditChapter(e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-emerald-400 bg-emerald-50"
+                          />
+                          <input
+                            type="text"
+                            value={tocEditPages}
+                            onChange={(e) => setTocEditPages(e.target.value)}
+                            placeholder="pp."
+                            className="w-24 px-2.5 py-1.5 text-xs rounded-lg border border-emerald-400 bg-emerald-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (tocEditChapter.trim()) {
+                                const next = [...(form.tableOfContents || [])];
+                                next[i] = { chapter: tocEditChapter.trim(), pages: tocEditPages.trim() };
+                                updateField('tableOfContents', next);
+                              }
+                              setTocEditIndex(null);
+                            }}
+                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTocEditIndex(null)}
+                            className="px-2.5 py-1.5 text-slate-500 hover:text-slate-800 text-xs rounded-lg border border-slate-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        /* Display row */
+                        <div className="flex items-center justify-between px-3.5 py-2.5 text-xs group hover:bg-slate-50">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-[10px] font-bold text-slate-400 shrink-0 w-5 text-right">{i + 1}.</span>
+                            <span className="font-medium text-slate-800 truncate">{chap.chapter}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {chap.pages && (
+                              <span className="text-slate-400 font-semibold text-[11px]">{chap.pages}</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTocEditIndex(i);
+                                setTocEditChapter(chap.chapter);
+                                setTocEditPages(chap.pages || '');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-emerald-600 transition-opacity"
+                              title="Edit chapter"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = [...(form.tableOfContents || [])];
+                                next.splice(i, 1);
+                                updateField('tableOfContents', next);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity"
+                              title="Remove chapter"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

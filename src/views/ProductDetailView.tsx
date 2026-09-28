@@ -859,18 +859,56 @@ export const ProductDetailView: React.FC = () => {
           )}
 
           {activeTab === 'included' && (
-            <div className="space-y-4 max-w-2xl">
-              <h3 className="text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                Comprehensive Syllabus Breakdown
-              </h3>
-              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden font-['DM_Sans',sans-serif]">
-                {book.tableOfContents.map((chap, i) => (
-                  <div key={i} className="flex items-center justify-between p-3.5 text-xs">
-                    <span className="font-medium text-slate-800">{chap.chapter}</span>
-                    <span className="text-slate-400 font-semibold">{chap.pages}</span>
+            <div className="space-y-6 max-w-3xl">
+
+              {/* What You'll Get — checklist */}
+              {book.whatYouGet && book.whatYouGet.length > 0 && (
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 mb-3 font-['Plus_Jakarta_Sans',sans-serif] flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    </span>
+                    What's Inside This Course
+                  </h3>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-['DM_Sans',sans-serif]">
+                    {book.whatYouGet.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700 p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Table of Contents */}
+              {book.tableOfContents && book.tableOfContents.length > 0 && (
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 mb-3 font-['Plus_Jakarta_Sans',sans-serif]">
+                    Syllabus Breakdown
+                  </h3>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden font-['DM_Sans',sans-serif]">
+                    {book.tableOfContents.map((chap, i) => (
+                      <div key={i} className="flex items-center justify-between p-3.5 text-xs hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-[10px] font-bold text-slate-400 shrink-0 w-5 text-right">{i + 1}.</span>
+                          <span className="font-medium text-slate-800">{chap.chapter}</span>
+                        </div>
+                        {chap.pages && (
+                          <span className="text-slate-400 font-semibold shrink-0 ml-3">{chap.pages}</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {(!book.whatYouGet || book.whatYouGet.length === 0) && (!book.tableOfContents || book.tableOfContents.length === 0) && (
+                <div className="py-10 text-center text-slate-400 text-sm font-['DM_Sans',sans-serif]">
+                  Course content details coming soon.
+                </div>
+              )}
             </div>
           )}
 

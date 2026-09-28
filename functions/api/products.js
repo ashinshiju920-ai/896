@@ -58,6 +58,16 @@ function sanitizeProduct(raw) {
     ? raw.whatYouGet.map((w) => sanitizeString(w, 300)).filter(Boolean).slice(0, 30)
     : [];
 
+  const tableOfContents = Array.isArray(raw.tableOfContents)
+    ? raw.tableOfContents
+        .slice(0, 50)
+        .map((c) => ({
+          chapter: sanitizeString(c?.chapter, 300),
+          pages: sanitizeString(c?.pages, 50),
+        }))
+        .filter((c) => c.chapter)
+    : [];
+
   const rawAddonsList = Array.isArray(raw.addOns)
     ? raw.addOns
     : (Array.isArray(raw.addons) ? raw.addons : []);
@@ -268,8 +278,8 @@ function sanitizeProduct(raw) {
     },
     disablePaperback: Boolean(raw.disablePaperback),
     features,
-
     whatYouGet,
+    tableOfContents,
     addons,
     addOns: addons,
     buy2Get3rdFree: Boolean(raw.buy2Get3rdFree),
