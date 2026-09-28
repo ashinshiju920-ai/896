@@ -266,7 +266,9 @@ function sanitizeProduct(raw) {
       digital: { price: digitalPrice, originalPrice: digitalOrig },
       physical: { price: physicalPrice, originalPrice: physicalOrig },
     },
+    disablePaperback: Boolean(raw.disablePaperback),
     features,
+
     whatYouGet,
     addons,
     addOns: addons,

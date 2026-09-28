@@ -112,7 +112,9 @@ export interface Book {
   addOns?: ProductAddon[];
   buy2Get3rdFree?: boolean;
   addonDealText?: string;
+  disablePaperback?: boolean;
 }
+
 
 export interface OrderItemAddonSnapshot {
   addOnId: string;

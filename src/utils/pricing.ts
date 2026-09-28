@@ -528,8 +528,15 @@ export const validateAndReconcileCart = (
       }
     }
 
+    let targetFormat = item.format || 'digital';
+    let formatSwitched = false;
+    if (targetFormat === 'physical' && catalogBook.disablePaperback) {
+      targetFormat = 'digital';
+      formatSwitched = true;
+    }
+
     // 3. Recalculate authoritative price from catalog
-    const displayCalc = calculateDisplayPrice(catalogBook, item.format || 'digital', validAddonIds);
+    const displayCalc = calculateDisplayPrice(catalogBook, targetFormat, validAddonIds);
     const freshPrice = displayCalc.totalPrice;
     const freshOrigPrice = displayCalc.totalOriginalPrice;
 
@@ -539,13 +546,15 @@ export const validateAndReconcileCart = (
       item.book?.imageUrl !== catalogBook.imageUrl ||
       item.book?.title !== catalogBook.title;
 
-    if (hadInvalidAddon || priceChanged) {
+    if (hadInvalidAddon || priceChanged || formatSwitched) {
       modifiedItems.push({
         id: bookId,
         title: catalogBook.title,
-        changes: hadInvalidAddon
-          ? 'One of the selected add-ons is no longer available and was removed.'
-          : 'Product price was updated to match current catalog.',
+        changes: formatSwitched
+          ? 'Paperback edition is no longer available and was switched to Digital (PDF).'
+          : (hadInvalidAddon
+            ? 'One of the selected add-ons is no longer available and was removed.'
+            : 'Product price was updated to match current catalog.'),
       });
     }
 
@@ -553,11 +562,13 @@ export const validateAndReconcileCart = (
       ...item,
       bookId,
       book: catalogBook,
+      format: targetFormat,
       price: freshPrice,
       originalPrice: freshOrigPrice,
       selectedAddonIds: validAddonIds,
       selectedAddons: displayCalc.selectedAddons,
     });
+
   }
 
   const hasChanges = removedItems.length > 0 || modifiedItems.length > 0 || reconciledCart.some((item, i) => {

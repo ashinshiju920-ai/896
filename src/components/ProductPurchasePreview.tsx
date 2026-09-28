@@ -33,8 +33,12 @@ export const ProductPurchasePreview: React.FC<ProductPurchasePreviewProps> = ({
 
   // Filter only active add-ons for the customer preview
   const activeAddons = useMemo(() => {
-    return rawAddons.filter((a) => a.active !== false);
-  }, [rawAddons]);
+    return rawAddons.filter((a) => {
+      if (a.active === false) return false;
+      if (book.disablePaperback && (a.id === 'physical' || a.deliveryOption === 'physical')) return false;
+      return true;
+    });
+  }, [rawAddons, book.disablePaperback]);
 
   // Local simulated selection state
   const [selectedIds, setSelectedIds] = useState<string[]>(() => {
@@ -42,6 +46,12 @@ export const ProductPurchasePreview: React.FC<ProductPurchasePreviewProps> = ({
     const first = activeAddons.find((a) => a.id === 'digital' || a.deliveryOption === 'digital');
     return first ? [first.id] : (activeAddons[0] ? [activeAddons[0].id] : []);
   });
+
+  React.useEffect(() => {
+    if (book.disablePaperback) {
+      setSelectedIds((prev) => prev.filter((id) => id !== 'physical'));
+    }
+  }, [book.disablePaperback]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>

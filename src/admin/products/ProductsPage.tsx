@@ -14,6 +14,7 @@ import {
 import { Book, ExamCategory } from '../../types';
 import { BookCover } from '../../components/BookCover';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { useShop } from '../../context/ShopContext';
 
 interface ProductsPageProps {
   books: Book[];
@@ -35,6 +36,36 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<ExamCategory | 'All'>('All');
   const [productToDelete, setProductToDelete] = useState<Book | null>(null);
+
+  const { setPaperbackGlobally } = useShop();
+  const [globalPaperbackModalOpen, setGlobalPaperbackModalOpen] = useState(false);
+  const [globalTargetEnable, setGlobalTargetEnable] = useState(false);
+  const [isApplyingGlobalPaperback, setIsApplyingGlobalPaperback] = useState(false);
+
+  const disabledPaperbackCount = books.filter((b) => Boolean(b.disablePaperback)).length;
+  const allPaperbacksDisabled = books.length > 0 && disabledPaperbackCount === books.length;
+
+  const handleConfirmGlobalPaperback = async () => {
+    setIsApplyingGlobalPaperback(true);
+    try {
+      const success = await setPaperbackGlobally(globalTargetEnable);
+      if (success) {
+        showToast(
+          globalTargetEnable
+            ? 'Paperback edition turned ON for all courses in catalog!'
+            : 'Paperback edition turned OFF for all courses in catalog!',
+          'success'
+        );
+      } else {
+        showToast('Failed to update catalog. Please try again.', 'warning');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error updating paperback settings', 'warning');
+    } finally {
+      setIsApplyingGlobalPaperback(false);
+      setGlobalPaperbackModalOpen(false);
+    }
+  };
 
   const categories: Array<ExamCategory | 'All'> = ['All', 'IELTS', 'OET', 'PTE', 'German'];
 
@@ -72,7 +103,28 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         </div>
 
         {/* Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => {
+              setGlobalTargetEnable(allPaperbacksDisabled);
+              setGlobalPaperbackModalOpen(true);
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 border rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer ${
+              disabledPaperbackCount > 0
+                ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+            }`}
+            title="Batch toggle physical paperback edition for all courses"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+            <span>
+              {allPaperbacksDisabled
+                ? 'Paperback: OFF (All Courses)'
+                : disabledPaperbackCount > 0
+                ? `Paperback: ${disabledPaperbackCount} OFF`
+                : 'Turn Off Paperback (All)'}
+            </span>
+          </button>
           <button
             onClick={onNavigateToReorder}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
@@ -138,6 +190,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                         {book.isBestSeller && (
                           <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
                             Bestseller
+                          </span>
+                        )}
+                        {book.disablePaperback && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
+                            Digital Only
                           </span>
                         )}
                       </div>
@@ -221,6 +278,28 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         isDanger={true}
         onConfirm={confirmDelete}
         onCancel={() => setProductToDelete(null)}
+      />
+
+      {/* Global Paperback Batch Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={globalPaperbackModalOpen}
+        title={globalTargetEnable ? "Turn ON Paperback for ALL Courses?" : "Turn OFF Paperback for ALL Courses?"}
+        message={
+          globalTargetEnable
+            ? "This will enable physical printed paperback editions for ALL courses in your catalog. Customers will be able to choose between Digital PDF and Paperback Edition."
+            : "This will disable physical printed paperback editions for ALL courses in your catalog. Customers will ONLY be able to purchase digital PDF eBooks. Any physical book options will be hidden immediately on the storefront."
+        }
+        confirmLabel={
+          isApplyingGlobalPaperback
+            ? "Updating Catalog..."
+            : globalTargetEnable
+            ? "Yes, Turn ON for All"
+            : "Yes, Turn OFF for All"
+        }
+        isDanger={!globalTargetEnable}
+        isLoading={isApplyingGlobalPaperback}
+        onConfirm={handleConfirmGlobalPaperback}
+        onCancel={() => setGlobalPaperbackModalOpen(false)}
       />
     </div>
   );

@@ -87,11 +87,19 @@ export const ProductDetailView: React.FC = () => {
   }
 
   // Base format state (Digital PDF vs Physical Book)
+  const isPaperbackDisabled = Boolean(book.disablePaperback);
   const [format, setFormat] = useState<BookFormat>('digital');
+
+  useEffect(() => {
+    if (isPaperbackDisabled && format === 'physical') {
+      setFormat('digital');
+    }
+  }, [isPaperbackDisabled, format]);
 
   // Customer-selectable active optional add-ons
   const selectableAddons = getSelectableAddons(book);
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
+
 
   // When book changes, reset add-on selection so it never leaks across products
   useEffect(() => {
@@ -364,36 +372,21 @@ export const ProductDetailView: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Digital Option */}
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label="Select Digital PDF edition"
-                onClick={() => setFormat('digital')}
-                onKeyDown={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    setFormat('digital');
-                  }
-                }}
-                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none ${
-                  format === 'digital'
-                    ? 'border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20'
-                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
-                }`}
-              >
+            {isPaperbackDisabled ? (
+              /* Single Digital Card when Paperback is turned off */
+              <div className="p-3.5 rounded-2xl border-2 border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20 flex items-center justify-between select-none">
                 <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                      format === 'digital' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-emerald-600 text-white">
                     <DownloadCloud className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-slate-900 truncate">Digital Edition</h4>
-                    <p className="text-[10px] text-slate-500 truncate">Instant PDF Download</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-slate-900 truncate">Digital Edition</h4>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        PDF eBook
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 truncate">Instant PDF Download • Lifetime Access</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -408,51 +401,97 @@ export const ProductDetailView: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {/* Physical Option */}
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label="Select Paperback Printed edition"
-                onClick={() => setFormat('physical')}
-                onKeyDown={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    setFormat('physical');
-                  }
-                }}
-                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none ${
-                  format === 'physical'
-                    ? 'border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20'
-                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                      format === 'physical' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    <BookOpen className="w-4 h-4" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Digital Option */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select Digital PDF edition"
+                  onClick={() => setFormat('digital')}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormat('digital');
+                    }
+                  }}
+                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none ${
+                    format === 'digital'
+                      ? 'border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        format === 'digital' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      <DownloadCloud className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 truncate">Digital Edition</h4>
+                      <p className="text-[10px] text-slate-500 truncate">Instant PDF Download</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-slate-900 truncate">Paperback Edition</h4>
-                    <p className="text-[10px] text-slate-500 truncate">Delivered in 3-5 days</p>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-extrabold text-slate-900">₹{digitalPrice}</div>
+                    {digitalOrig > digitalPrice && (
+                      <div className="flex items-center justify-end gap-1 text-[10px]">
+                        <span className="line-through text-slate-400">₹{digitalOrig}</span>
+                        {digitalDiscount > 0 && (
+                          <span className="font-bold text-emerald-700">{digitalDiscount}% OFF</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-extrabold text-slate-900">₹{physicalPrice}</div>
-                  {physicalOrig > physicalPrice && (
-                    <div className="flex items-center justify-end gap-1 text-[10px]">
-                      <span className="line-through text-slate-400">₹{physicalOrig}</span>
-                      {physicalDiscount > 0 && (
-                        <span className="font-bold text-emerald-700">{physicalDiscount}% OFF</span>
-                      )}
+
+                {/* Physical Option */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select Paperback Printed edition"
+                  onClick={() => setFormat('physical')}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormat('physical');
+                    }
+                  }}
+                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none ${
+                    format === 'physical'
+                      ? 'border-emerald-600 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        format === 'physical' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      <BookOpen className="w-4 h-4" />
                     </div>
-                  )}
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 truncate">Paperback Edition</h4>
+                      <p className="text-[10px] text-slate-500 truncate">Delivered in 3-5 days</p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-extrabold text-slate-900">₹{physicalPrice}</div>
+                    {physicalOrig > physicalPrice && (
+                      <div className="flex items-center justify-end gap-1 text-[10px]">
+                        <span className="line-through text-slate-400">₹{physicalOrig}</span>
+                        {physicalDiscount > 0 && (
+                          <span className="font-bold text-emerald-700">{physicalDiscount}% OFF</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* 2. Optional Add-ons Section: "Add Optional Materials" */}

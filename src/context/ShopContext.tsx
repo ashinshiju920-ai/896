@@ -49,6 +49,7 @@ interface ShopContextType {
   reorderBooks: (orderedBooks: Book[]) => Promise<boolean>;
   moveBookOrder: (bookId: string, direction: 'up' | 'down') => Promise<boolean>;
   setBookOrderPosition: (bookId: string, targetPosition: number) => Promise<boolean>;
+  setPaperbackGlobally: (enable: boolean) => Promise<boolean>;
 
   // Real-time Cloud Synchronization
   isCloudSyncing: boolean;
@@ -1144,7 +1145,34 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const setPaperbackGlobally = async (enable: boolean): Promise<boolean> => {
+    const updatedBooks = books.map((b) => ({
+      ...b,
+      disablePaperback: !enable,
+    }));
+    const res = await triggerCloudSync(updatedBooks);
+    if (res.success) {
+      setBooks(updatedBooks);
+      try {
+        localStorage.setItem('xylem_books_data', JSON.stringify(updatedBooks));
+      } catch {}
+      const confirmedVer = res.version || Math.floor(Date.now() / 1000);
+      broadcastLocalUpdate(updatedBooks, confirmedVer, examPaths, testimonials, catalogBanner);
+      showToast(
+        enable
+          ? 'Paperback edition re-enabled across all courses!'
+          : 'Paperback edition turned OFF for all courses (Digital PDF-only)!',
+        'success'
+      );
+      return true;
+    } else {
+      showToast(`Failed to update paperback availability: ${res.error || 'Server error'}`, 'warning');
+      return false;
+    }
+  };
+
   // Exam Paths management (Image 1)
+
   const updateExamPath = async (category: ExamCategory, updated: Partial<ExamPath>): Promise<boolean> => {
     const exists = examPaths.some((p) => p.category === category);
     const nextPaths = exists
@@ -1435,8 +1463,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reorderBooks,
         moveBookOrder,
         setBookOrderPosition,
+        setPaperbackGlobally,
 
         // Exam Paths (Image 1)
+
         examPaths,
         updateExamPath,
         deleteExamPath,
