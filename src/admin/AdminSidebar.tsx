@@ -75,21 +75,26 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-[#0a2540] text-slate-300 flex flex-col transition-transform duration-200 ease-in-out border-r border-slate-800 ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-[#0a2540] text-slate-300 flex flex-col transition-transform duration-200 ease-in-out border-r border-slate-800 overflow-hidden ${
+          isOpenMobile
+            ? 'translate-x-0 shadow-2xl pointer-events-auto'
+            : '-translate-x-full pointer-events-none lg:translate-x-0 lg:pointer-events-auto'
         }`}
+        aria-hidden={!isOpenMobile}
       >
         {/* Brand Header */}
-        <div className="h-16 px-6 flex items-center justify-between border-b border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <XylemLogo className="h-7 w-auto text-emerald-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950 border border-emerald-800/50 px-2 py-0.5 rounded-full">
+        <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800/80 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <XylemLogo size="sm" light showTagline={false} className="h-6 w-auto shrink-0" />
+            <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/90 border border-emerald-800/50 px-2 py-0.5 rounded-full">
               CMS 2.0
             </span>
           </div>
           <button
+            type="button"
             onClick={onCloseMobile}
-            className="p-1 text-slate-400 hover:text-white rounded-lg lg:hidden"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg lg:hidden cursor-pointer"
+            aria-label="Close admin menu"
           >
             <X className="w-5 h-5" />
           </button>

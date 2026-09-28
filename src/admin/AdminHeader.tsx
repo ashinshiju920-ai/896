@@ -72,7 +72,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       {/* Left: Mobile hamburger & Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
+          type="button"
+          id="admin-mobile-menu-btn"
           onClick={onOpenMobileSidebar}
+          aria-label="Open admin navigation menu"
           className="p-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 lg:hidden cursor-pointer"
         >
           <Menu className="w-5 h-5" />

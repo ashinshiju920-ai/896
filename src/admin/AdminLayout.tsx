@@ -88,6 +88,11 @@ export const AdminLayout: React.FC = () => {
 
   const currentSection = getSectionFromPath(location.pathname);
 
+  // Auto-close mobile sidebar drawer on navigation
+  useEffect(() => {
+    setIsOpenMobile(false);
+  }, [location.pathname]);
+
   // Check Admin Session on mount
   useEffect(() => {
     let isMounted = true;
