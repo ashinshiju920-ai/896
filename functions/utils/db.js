@@ -34,90 +34,102 @@ export async function saveOrder(env, order) {
 
   // 1. Primary: Cloudflare D1 Database (if bound)
   if (env && env.DB) {
+    const insertWithPromotions = () => env.DB.prepare(
+      `INSERT INTO orders (
+        id, cf_order_id, customer_id, amount_paise, currency, status,
+        customer_name, customer_email, customer_phone,
+        shipping_json, items_json, coupon_code, discount_paise, promotion_snapshot_json,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        orderRecord.id,
+        orderRecord.cf_order_id,
+        orderRecord.customer_id,
+        orderRecord.amount_paise,
+        orderRecord.currency,
+        orderRecord.status,
+        orderRecord.customer_name,
+        orderRecord.customer_email,
+        orderRecord.customer_phone,
+        orderRecord.shipping_json,
+        orderRecord.items_json,
+        orderRecord.coupon_code,
+        orderRecord.discount_paise,
+        orderRecord.promotion_snapshot_json,
+        orderRecord.created_at,
+        orderRecord.updated_at
+      )
+      .run();
+
+    const insertWithCustomerId = () => env.DB.prepare(
+      `INSERT INTO orders (
+        id, cf_order_id, customer_id, amount_paise, currency, status,
+        customer_name, customer_email, customer_phone,
+        shipping_json, items_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        orderRecord.id,
+        orderRecord.cf_order_id,
+        orderRecord.customer_id,
+        orderRecord.amount_paise,
+        orderRecord.currency,
+        orderRecord.status,
+        orderRecord.customer_name,
+        orderRecord.customer_email,
+        orderRecord.customer_phone,
+        orderRecord.shipping_json,
+        orderRecord.items_json,
+        orderRecord.created_at,
+        orderRecord.updated_at
+      )
+      .run();
+
+    const insertLegacy = () => env.DB.prepare(
+      `INSERT INTO orders (
+        id, cf_order_id, amount_paise, currency, status,
+        customer_name, customer_email, customer_phone,
+        shipping_json, items_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        orderRecord.id,
+        orderRecord.cf_order_id,
+        orderRecord.amount_paise,
+        orderRecord.currency,
+        orderRecord.status,
+        orderRecord.customer_name,
+        orderRecord.customer_email,
+        orderRecord.customer_phone,
+        orderRecord.shipping_json,
+        orderRecord.items_json,
+        orderRecord.created_at,
+        orderRecord.updated_at
+      )
+      .run();
+
+    const hasPromotionData =
+      Boolean(orderRecord.coupon_code) ||
+      Number(orderRecord.discount_paise || 0) > 0 ||
+      Boolean(orderRecord.promotion_snapshot_json);
+
     try {
-      // First attempt with coupon_code, discount_paise, promotion_snapshot_json (Phase 10 schema)
-      try {
-        await env.DB.prepare(
-          `INSERT INTO orders (
-            id, cf_order_id, customer_id, amount_paise, currency, status,
-            customer_name, customer_email, customer_phone,
-            shipping_json, items_json, coupon_code, discount_paise, promotion_snapshot_json,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-          .bind(
-            orderRecord.id,
-            orderRecord.cf_order_id,
-            orderRecord.customer_id,
-            orderRecord.amount_paise,
-            orderRecord.currency,
-            orderRecord.status,
-            orderRecord.customer_name,
-            orderRecord.customer_email,
-            orderRecord.customer_phone,
-            orderRecord.shipping_json,
-            orderRecord.items_json,
-            orderRecord.coupon_code,
-            orderRecord.discount_paise,
-            orderRecord.promotion_snapshot_json,
-            orderRecord.created_at,
-            orderRecord.updated_at
-          )
-          .run();
-      } catch (colErr10) {
-        // Fallback for Phase 7 schema with customer_id
+      if (hasPromotionData) {
         try {
-          await env.DB.prepare(
-            `INSERT INTO orders (
-              id, cf_order_id, customer_id, amount_paise, currency, status,
-              customer_name, customer_email, customer_phone,
-              shipping_json, items_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-            .bind(
-              orderRecord.id,
-              orderRecord.cf_order_id,
-              orderRecord.customer_id,
-              orderRecord.amount_paise,
-              orderRecord.currency,
-              orderRecord.status,
-              orderRecord.customer_name,
-              orderRecord.customer_email,
-              orderRecord.customer_phone,
-              orderRecord.shipping_json,
-              orderRecord.items_json,
-              orderRecord.created_at,
-              orderRecord.updated_at
-            )
-            .run();
-        } catch (colErr7) {
-          // Fallback for legacy DB without customer_id column
-          await env.DB.prepare(
-            `INSERT INTO orders (
-              id, cf_order_id, amount_paise, currency, status,
-              customer_name, customer_email, customer_phone,
-              shipping_json, items_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-            .bind(
-              orderRecord.id,
-              orderRecord.cf_order_id,
-              orderRecord.amount_paise,
-              orderRecord.currency,
-              orderRecord.status,
-              orderRecord.customer_name,
-              orderRecord.customer_email,
-              orderRecord.customer_phone,
-              orderRecord.shipping_json,
-              orderRecord.items_json,
-              orderRecord.created_at,
-              orderRecord.updated_at
-            )
-            .run();
+          await insertWithPromotions();
+        } catch (_) {
+          await insertWithCustomerId();
         }
+      } else {
+        await insertWithCustomerId();
       }
-    } catch (d1Err) {
-      console.warn('D1 insert failed, continuing to KV fallback:', d1Err.message);
+    } catch (colErr7) {
+      try {
+        await insertLegacy();
+      } catch (_) {
+        console.warn('D1 insert failed, continuing to KV fallback:', colErr7.message);
+      }
     }
   }
 

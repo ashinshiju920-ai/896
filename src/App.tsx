@@ -16,21 +16,22 @@ import { WhatsAppButton } from './components/WhatsAppButton';
 
 // Views
 import { HomeView } from './views/HomeView';
-import { CatalogView } from './views/CatalogView';
-import { ProductDetailView } from './views/ProductDetailView';
-import { CartView } from './views/CartView';
-import { CheckoutView } from './views/CheckoutView';
-import { OrderSuccessView } from './views/OrderSuccessView';
-import { OrdersHistoryView } from './views/OrdersHistoryView';
-import { MyMaterialsView } from './views/MyMaterialsView';
-import { CustomerLoginView } from './views/CustomerLoginView';
-import { CustomerAccountView } from './views/CustomerAccountView';
-import { AboutView } from './views/AboutView';
-import { PrivacyPolicyView } from './views/PrivacyPolicyView';
-import { TermsConditionsView } from './views/TermsConditionsView';
-import { ShippingReturnsRefundPolicyView } from './views/ShippingReturnsRefundPolicyView';
+const CatalogView = React.lazy(() => import('./views/CatalogView').then((m) => ({ default: m.CatalogView })));
+const ProductDetailView = React.lazy(() => import('./views/ProductDetailView').then((m) => ({ default: m.ProductDetailView })));
+const CartView = React.lazy(() => import('./views/CartView').then((m) => ({ default: m.CartView })));
+const CheckoutView = React.lazy(() => import('./views/CheckoutView').then((m) => ({ default: m.CheckoutView })));
+const OrderSuccessView = React.lazy(() => import('./views/OrderSuccessView').then((m) => ({ default: m.OrderSuccessView })));
+const MyMaterialsView = React.lazy(() => import('./views/MyMaterialsView').then((m) => ({ default: m.MyMaterialsView })));
+const CustomerLoginView = React.lazy(() => import('./views/CustomerLoginView').then((m) => ({ default: m.CustomerLoginView })));
+const CustomerAccountView = React.lazy(() => import('./views/CustomerAccountView').then((m) => ({ default: m.CustomerAccountView })));
+const AboutView = React.lazy(() => import('./views/AboutView').then((m) => ({ default: m.AboutView })));
+const PrivacyPolicyView = React.lazy(() => import('./views/PrivacyPolicyView').then((m) => ({ default: m.PrivacyPolicyView })));
+const TermsConditionsView = React.lazy(() => import('./views/TermsConditionsView').then((m) => ({ default: m.TermsConditionsView })));
+const ShippingReturnsRefundPolicyView = React.lazy(() =>
+  import('./views/ShippingReturnsRefundPolicyView').then((m) => ({ default: m.ShippingReturnsRefundPolicyView }))
+);
 const AdminView = React.lazy(() => import('./views/AdminView'));
-import { NotFoundView } from './views/NotFoundView';
+const NotFoundView = React.lazy(() => import('./views/NotFoundView').then((m) => ({ default: m.NotFoundView })));
 import { checkOrderStatus, STUDENT_PORTAL_URL } from './utils/cashfree';
 import { Order } from './types';
 import { BOOKS } from './data/books';
@@ -131,48 +132,56 @@ const ShopApp: React.FC = () => {
 
       {/* Main View Router */}
       <main className="flex-1">
-        <Routes>
-          {/* Public customer-facing routes */}
-          <Route path="/" element={<HomeView />} />
-          <Route path="/books" element={<CatalogView />} />
-          <Route path="/books/:slug" element={<ProductDetailView />} />
-          <Route path="/catalog" element={<CatalogView />} />
-          <Route path="/product" element={<ProductDetailView />} />
-          <Route path="/product/:slug" element={<ProductDetailView />} />
-          <Route path="/cart" element={<CartView />} />
-          <Route path="/checkout" element={<CheckoutView />} />
-          <Route path="/order-success" element={<OrderSuccessView />} />
-          <Route path="/my-materials" element={<MyMaterialsView initialTab="materials" />} />
-          <Route path="/orders" element={<MyMaterialsView initialTab="orders" />} />
-          <Route path="/login" element={<CustomerLoginView />} />
-          <Route path="/account" element={<CustomerAccountView />} />
-          <Route path="/about" element={<AboutView />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicyView />} />
-          <Route path="/terms-and-conditions" element={<TermsConditionsView />} />
-          <Route path="/shipping-returns-refund-policy" element={<ShippingReturnsRefundPolicyView />} />
+        <React.Suspense
+          fallback={
+            <div className="min-h-[50vh] flex items-center justify-center px-4">
+              <div className="h-10 w-10 rounded-full border-4 border-emerald-600/15 border-t-emerald-600 animate-spin" />
+            </div>
+          }
+        >
+          <Routes>
+            {/* Public customer-facing routes */}
+            <Route path="/" element={<HomeView />} />
+            <Route path="/books" element={<CatalogView />} />
+            <Route path="/books/:slug" element={<ProductDetailView />} />
+            <Route path="/catalog" element={<CatalogView />} />
+            <Route path="/product" element={<ProductDetailView />} />
+            <Route path="/product/:slug" element={<ProductDetailView />} />
+            <Route path="/cart" element={<CartView />} />
+            <Route path="/checkout" element={<CheckoutView />} />
+            <Route path="/order-success" element={<OrderSuccessView />} />
+            <Route path="/my-materials" element={<MyMaterialsView initialTab="materials" />} />
+            <Route path="/orders" element={<MyMaterialsView initialTab="orders" />} />
+            <Route path="/login" element={<CustomerLoginView />} />
+            <Route path="/account" element={<CustomerAccountView />} />
+            <Route path="/about" element={<AboutView />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyView />} />
+            <Route path="/terms-and-conditions" element={<TermsConditionsView />} />
+            <Route path="/shipping-returns-refund-policy" element={<ShippingReturnsRefundPolicyView />} />
 
-          {/* Admin routes (code-split and lazy-loaded) */}
-          <Route
-            path="/admin/*"
-            element={
-              <React.Suspense
-                fallback={
-                  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                      <p className="text-slate-400 font-mono text-xs tracking-wider uppercase">Loading Admin Console...</p>
+            {/* Admin routes (code-split and lazy-loaded) */}
+            <Route
+              path="/admin/*"
+              element={
+                <React.Suspense
+                  fallback={
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                        <p className="text-slate-400 font-mono text-xs tracking-wider uppercase">Loading Admin Console...</p>
+                      </div>
                     </div>
-                  </div>
-                }
-              >
-                <AdminView />
-              </React.Suspense>
-            }
-          />
+                  }
+                >
+                  <AdminView />
+                </React.Suspense>
+              }
+            />
 
-          {/* 404 Catch-all */}
-          <Route path="*" element={<NotFoundView />} />
-        </Routes>
+            {/* 404 Catch-all */}
+            <Route path="*" element={<NotFoundView />} />
+          </Routes>
+        </React.Suspense>
       </main>
 
       {/* Footer */}

@@ -153,13 +153,13 @@ export async function onRequestPost(context) {
     }
 
     // Currency validation: Must match expected order currency (default 'INR')
-    const paidCurrency = (
+    const paidCurrency = String(
       payload.data?.payment?.payment_currency ||
       payload.data?.order?.order_currency ||
       payload.order_currency ||
       'INR'
     ).toUpperCase();
-    const expectedCurrency = (order.currency || 'INR').toUpperCase();
+    const expectedCurrency = String(order.currency || 'INR').toUpperCase();
 
     if (paidCurrency !== expectedCurrency) {
       console.error(
