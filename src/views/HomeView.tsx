@@ -30,8 +30,8 @@ export const HomeView: React.FC = () => {
     openPdfViewer,
   } = useShop();
 
-  // Featured books dynamically respect the admin's custom arrangement
-  const featuredBooks = (books && books.length > 0 ? books.slice(0, 5) : []).filter(Boolean);
+  // Featured books dynamically respect the admin's custom arrangement (6 products for balanced 2x3 mobile grid)
+  const featuredBooks = (books && books.length > 0 ? books.slice(0, 6) : []).filter(Boolean);
 
 
   return (
@@ -222,8 +222,8 @@ export const HomeView: React.FC = () => {
           </button>
         </div>
 
-        {/* 2-Column on mobile, 5-Column on desktop for sleek catalog cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
+        {/* 2-Column on mobile (3 clean rows = 6 products), 3-Column on tablet, 6-Column on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
           {featuredBooks.map((book) => (
             <div
               key={book.id}
@@ -239,19 +239,19 @@ export const HomeView: React.FC = () => {
                 </div>
 
                 {/* Rating & Review */}
-                <div className="w-full flex items-center justify-between mt-1 text-[11px] sm:text-xs">
-                  <div className="flex items-center text-amber-500 font-semibold gap-1">
+                <div className="w-full flex items-center justify-between mt-1 text-[10px] sm:text-xs">
+                  <div className="flex items-center text-amber-500 font-semibold gap-0.5 sm:gap-1">
                     <div className="flex items-center">
-                      <Star className="w-3 h-3 fill-amber-400 mr-1" />
+                      <Star className="w-3 h-3 fill-amber-400 mr-0.5 sm:mr-1 shrink-0" />
                       <span>{book.rating}</span>
                       <span className="text-slate-400 font-normal ml-0.5">({book.reviewCount})</span>
                     </div>
                     {book.buyersCount !== undefined && book.buyersCount > 0 && (
-                      <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">• {book.buyersCount.toLocaleString()} bought</span>
+                      <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">• {book.buyersCount.toLocaleString()} bought</span>
                     )}
                   </div>
                   {book.isBestSeller && (
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                    <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
                       Best Seller
                     </span>
                   )}
@@ -267,15 +267,15 @@ export const HomeView: React.FC = () => {
               </div>
 
               {/* Price & Action */}
-              <div className="p-3 sm:p-4 pt-2 border-t border-slate-100 mt-2">
-                <div className="flex items-baseline gap-1.5 mb-2.5">
-                  <span className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+              <div className="p-2.5 sm:p-3.5 pt-2 border-t border-slate-100 mt-2">
+                <div className="flex items-baseline gap-1 sm:gap-1.5 mb-2.5 flex-wrap">
+                  <span className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
                     ₹{book.prices?.digital?.price ?? 199}
                   </span>
                   <span className="text-[10px] sm:text-xs text-slate-400 line-through font-['DM_Sans',sans-serif]">
                     ₹{book.prices?.digital?.originalPrice ?? 599}
                   </span>
-                  <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-600 ml-auto font-['DM_Sans',sans-serif]">
+                  <span className="text-[9px] sm:text-[10px] lg:text-[11px] font-semibold text-emerald-600 ml-auto font-['DM_Sans',sans-serif]">
                     {book.prices?.digital?.discountPercent ?? 67}% OFF
                   </span>
                 </div>
@@ -283,7 +283,7 @@ export const HomeView: React.FC = () => {
                 <button
                   id={`buy-now-${book.id}`}
                   onClick={() => buyNow(book, 'digital')}
-                  className="w-full py-2 sm:py-2.5 px-2.5 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif]"
+                  className="w-full py-2 sm:py-2.5 px-2 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif] whitespace-nowrap"
                 >
                   <span>Buy Now • ₹{book.prices?.digital?.price ?? 199}</span>
                 </button>
