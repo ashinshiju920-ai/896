@@ -16,7 +16,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { HeroBookShowcase } from '../components/HeroBookShowcase';
-import { TrustFeaturesBar } from '../components/TrustFeaturesBar';
+
 import { ExamCategory, Book } from '../types';
 
 
@@ -294,9 +294,6 @@ export const HomeView: React.FC = () => {
           ))}
         </div>
       </section>
-
-      {/* 4. DIGITAL PRODUCT TRUST BAR (Image 2 Redesign) */}
-      <TrustFeaturesBar />
 
 
       {/* 5. WHY XYLEM LEARNING (Image 5) */}
