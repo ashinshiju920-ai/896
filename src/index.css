@@ -87,6 +87,38 @@
   animation: pulse-subtle 2s infinite ease-in-out;
 }
 
+@keyframes whatsapp-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes whatsapp-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.75;
+  }
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.animate-whatsapp-float {
+  animation: whatsapp-float 3s ease-in-out infinite;
+}
+
+.animate-whatsapp-ring {
+  animation: whatsapp-ring 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
 /* Touch manipulation safety for mobile fast tap */
 .touch-card {
   touch-action: manipulation;
