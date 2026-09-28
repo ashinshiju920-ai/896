@@ -16,7 +16,9 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { HeroBookShowcase } from '../components/HeroBookShowcase';
+import { TrustFeaturesBar } from '../components/TrustFeaturesBar';
 import { ExamCategory, Book } from '../types';
+
 
 export const HomeView: React.FC = () => {
   const {
@@ -293,58 +295,9 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. DIGITAL PRODUCT TRUST BAR (Image 3) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 sm:p-8 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          <div className="flex items-start gap-2.5 sm:gap-3.5">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <DownloadCloud className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">100% Digital Product</h4>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed font-['DM_Sans',sans-serif]">
-                Instant download after payment. No waiting!
-              </p>
-            </div>
-          </div>
+      {/* 4. DIGITAL PRODUCT TRUST BAR (Image 2 Redesign) */}
+      <TrustFeaturesBar />
 
-          <div className="flex items-start gap-2.5 sm:gap-3.5">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
-              <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">Downloadable PDF</h4>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed font-['DM_Sans',sans-serif]">
-                Printable and works on all phones and tablets.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5 sm:gap-3.5">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-              <Award className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">Lifetime Access</h4>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed font-['DM_Sans',sans-serif]">
-                Free future updates whenever syllabus changes.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2.5 sm:gap-3.5">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">Secure Checkout</h4>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed font-['DM_Sans',sans-serif]">
-                SSL 256-bit encrypted transactions via UPI & Cards.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* 5. WHY XYLEM LEARNING (Image 5) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
