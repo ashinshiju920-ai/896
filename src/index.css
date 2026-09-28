@@ -252,3 +252,114 @@
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+   Buy Now Button Animations (CSS Only — Zero Functional / Structural Changes)
+   ========================================================================== */
+
+button[id^="buy-now"] {
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+/* Ensure button text/content remains sharp and above the pseudo-element shimmer */
+button[id^="buy-now"] > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* 2. Idle Shimmer via ::before pseudo-element */
+button[id^="buy-now"]::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -130%;
+  width: 55%;
+  height: 220%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 20%,
+    rgba(255, 255, 255, 0.26) 50%,
+    rgba(255, 255, 255, 0.03) 80%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes buynow-btn-shimmer {
+  0% {
+    transform: translateX(-130%) rotate(25deg);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(460%) rotate(25deg);
+    opacity: 1;
+  }
+  30%, 100% {
+    transform: translateX(460%) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+button[id^="buy-now"]:not(:disabled)::before {
+  animation: buynow-btn-shimmer 6s ease-in-out infinite;
+}
+
+/* 3. Subtle Breathing Effect (scale: 1 -> 1.008 -> 1) */
+@keyframes buynow-btn-breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.008);
+  }
+}
+
+button[id^="buy-now"]:not(:disabled) {
+  animation: buynow-btn-breathe 3.5s ease-in-out infinite;
+}
+
+/* 4. Desktop Hover */
+@media (hover: hover) and (pointer: fine) {
+  button[id^="buy-now"]:not(:disabled):hover {
+    transform: translateY(-1px) scale(1.008);
+    box-shadow: 0 8px 18px -3px rgba(0, 135, 90, 0.32), 0 3px 6px -2px rgba(0, 135, 90, 0.2);
+    filter: brightness(1.03);
+    animation-play-state: paused;
+  }
+}
+
+/* 5. Press / Active State */
+button[id^="buy-now"]:not(:disabled):active {
+  transform: scale(0.985) !important;
+  transition: transform 0.05s ease-out;
+}
+
+/* 12. Loading / Disabled State */
+button[id^="buy-now"]:disabled {
+  animation: none !important;
+  transform: none !important;
+}
+
+button[id^="buy-now"]:disabled::before {
+  animation: none !important;
+  display: none !important;
+}
+
+/* 7. Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  button[id^="buy-now"],
+  button[id^="buy-now"]::before {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
