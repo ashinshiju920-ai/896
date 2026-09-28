@@ -5,6 +5,7 @@ import {
   Zap,
   Star,
   Check,
+  CheckCircle2,
   ArrowRight,
   Shield,
   Headphones,
@@ -13,6 +14,8 @@ import {
   ShoppingBag,
   Loader2,
   Plus,
+  Minus,
+  Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
@@ -22,7 +25,7 @@ import { BackButton } from '../components/BackButton';
 import { BookCover } from '../components/BookCover';
 import { createCashfreeOrder, loadCashfreeSDK, CashfreeOrderPricing } from '../utils/cashfree';
 import { trackCheckoutStarted, resetCheckoutTracking } from '../utils/analytics';
-import { validateAndReconcileCart } from '../utils/pricing';
+import { validateAndReconcileCart, getSelectableAddons, calculateDisplayPrice } from '../utils/pricing';
 import { Book } from '../types';
 
 export const CheckoutView: React.FC = () => {
@@ -50,6 +53,7 @@ export const CheckoutView: React.FC = () => {
     showToast,
     currentCustomer,
     addToCart,
+    setCart,
   } = useShop();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,8 +104,48 @@ export const CheckoutView: React.FC = () => {
     return candidates.slice(0, 4);
   }, [books, primaryCategory, cartBookIds]);
 
+  // 4. Cart interaction handlers (Single shared state across desktop and mobile)
   const handleAddRelatedProduct = (product: Book) => {
     addToCart(product, 'digital', 1, []);
+    showToast(`Added "${product.title}" to your order!`, 'success');
+  };
+
+  const toggleItemAddon = (itemIndex: number, addonId: string) => {
+    setCart((prevCart) => {
+      return prevCart.map((item, idx) => {
+        if (idx !== itemIndex) return item;
+
+        const currentIds = Array.isArray(item.selectedAddonIds) ? item.selectedAddonIds : [];
+        const isSelected = currentIds.includes(addonId);
+        const newAddonIds = isSelected
+          ? currentIds.filter((id) => id !== addonId)
+          : [...currentIds, addonId];
+
+        const displayCalc = calculateDisplayPrice(item.book, item.format, newAddonIds);
+        return {
+          ...item,
+          price: displayCalc.totalPrice,
+          originalPrice: displayCalc.totalOriginalPrice,
+          selectedAddonIds: newAddonIds,
+          selectedAddons: displayCalc.selectedAddons,
+        };
+      });
+    });
+  };
+
+  const handleUpdateQuantity = (itemIndex: number, delta: number) => {
+    setCart((prevCart) => {
+      return prevCart.map((item, idx) => {
+        if (idx !== itemIndex) return item;
+        const newQty = item.quantity + delta;
+        return newQty > 0 ? { ...item, quantity: newQty } : item;
+      });
+    });
+  };
+
+  const handleRemoveProduct = (itemIndex: number) => {
+    setCart((prevCart) => prevCart.filter((_, idx) => idx !== itemIndex));
+    showToast('Product removed from order', 'info');
   };
 
   const handleCarouselScroll = () => {
@@ -507,7 +551,7 @@ export const CheckoutView: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-start">
           {/* LEFT COLUMN: Order Summary Card */}
           <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xs border border-slate-200/80 space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-150">
               <h2 className="text-xl font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
                 Order Summary
               </h2>
@@ -516,60 +560,157 @@ export const CheckoutView: React.FC = () => {
               </span>
             </div>
 
-            {/* Products List Block */}
-            <div className="space-y-4 pb-6 border-b border-slate-100 max-h-96 overflow-y-auto pr-1">
-              {cart.map((item, idx) => (
-                <div key={`${item.bookId}-${item.format}-${idx}`} className="flex items-start gap-4">
-                  <div className="w-16 h-22 shrink-0 rounded-xl overflow-hidden shadow-xs border border-slate-100 bg-slate-50 flex items-center justify-center">
-                    {item.book.coverImage ? (
-                      <img
-                        src={item.book.coverImage}
-                        alt={item.book.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <BookCover book={item.book} size="sm" showShadow={false} />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-1">
-                      {item.book.title}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                      <span className="capitalize px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium text-[11px]">
-                        {item.format === 'physical' ? 'Printed Book' : 'Instant Digital PDF'}
-                      </span>
-                      <span>Qty: {item.quantity}</span>
+            {/* Products & Add-ons List Block */}
+            <div className="space-y-6">
+              {cart.map((item, itemIdx) => {
+                const availableAddons = getSelectableAddons(item.book);
+                const baseDigitalPrice = Number(item.book.prices?.digital?.price) || item.price;
+                const baseDigitalOriginalPrice = Number(item.book.prices?.digital?.originalPrice) || item.originalPrice || baseDigitalPrice;
+
+                return (
+                  <div key={`${item.bookId}-${item.format}-${itemIdx}`} className="space-y-4">
+                    {/* Main Product Row */}
+                    <div className="flex items-start gap-4">
+                      {/* Product Image */}
+                      <div className="w-16 h-22 sm:w-20 sm:h-26 shrink-0 rounded-xl overflow-hidden shadow-xs border border-slate-100 bg-slate-50 flex items-center justify-center">
+                        {item.book.coverImage ? (
+                          <img
+                            src={item.book.coverImage}
+                            alt={item.book.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <BookCover book={item.book} size="sm" showShadow={false} />
+                        )}
+                      </div>
+
+                      {/* Product Info & Controls */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-2">
+                          {item.book.title}
+                        </h3>
+
+                        <div className="mt-1">
+                          <span className="inline-block text-[11px] font-medium text-slate-500 bg-slate-100 rounded-md px-2 py-0.5">
+                            {item.format === 'physical' ? 'Printed Book' : 'Instant Digital PDF'}
+                          </span>
+                        </div>
+
+                        {/* Quantity Controls & Remove */}
+                        <div className="flex items-center gap-3 mt-3">
+                          <div className="flex items-center bg-slate-100/90 rounded-lg p-0.5 border border-slate-200/80">
+                            <button
+                              type="button"
+                              aria-label="Decrease quantity"
+                              disabled={item.quantity <= 1}
+                              onClick={() => handleUpdateQuantity(itemIdx, -1)}
+                              className="w-7 h-7 rounded flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-white active:scale-95 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer disabled:cursor-not-allowed text-xs font-bold"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-7 text-center text-xs font-bold text-slate-900">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Increase quantity"
+                              onClick={() => handleUpdateQuantity(itemIdx, 1)}
+                              className="w-7 h-7 rounded flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-white active:scale-95 transition-all cursor-pointer text-xs font-bold"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            aria-label={`Remove ${item.book.title} from cart`}
+                            onClick={() => handleRemoveProduct(itemIdx)}
+                            className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 transition-colors cursor-pointer py-1 px-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Base Product Price */}
+                      <div className="text-right shrink-0">
+                        <div className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
+                          ₹{baseDigitalPrice * item.quantity}
+                        </div>
+                        {baseDigitalOriginalPrice > baseDigitalPrice && (
+                          <div className="text-xs text-slate-400 line-through">
+                            ₹{baseDigitalOriginalPrice * item.quantity}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Selected Add-ons Display */}
-                    {item.selectedAddons && item.selectedAddons.length > 0 && (
-                      <div className="mt-2 space-y-1 pl-2 border-l-2 border-emerald-300">
-                        {item.selectedAddons.map((addon) => (
-                          <div key={addon.id} className="flex items-center justify-between text-xs text-slate-600">
-                            <span className="truncate pr-1">+ {addon.name}</span>
-                            <span className="font-semibold text-slate-700 shrink-0">₹{addon.price}</span>
-                          </div>
-                        ))}
+                    {/* Optional Materials / Add-ons directly belonging to this product */}
+                    {availableAddons.length > 0 && (
+                      <div className="mt-3 pt-3.5 border-t border-slate-100 space-y-2.5">
+                        <div className="text-xs font-bold text-slate-700">
+                          Optional Materials (Add-ons)
+                        </div>
+                        <div className="space-y-2">
+                          {availableAddons.map((addon) => {
+                            const isChecked = item.selectedAddonIds?.includes(addon.id);
+                            return (
+                              <label
+                                key={addon.id}
+                                className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer ${
+                                  isChecked
+                                    ? 'bg-blue-50/40 border-blue-200'
+                                    : 'bg-white border-slate-200/90 hover:border-slate-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(isChecked)}
+                                    onChange={() => toggleItemAddon(itemIdx, addon.id)}
+                                    aria-label={`Select ${addon.name}`}
+                                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                                  />
+                                  <div>
+                                    <div className="text-xs sm:text-sm font-semibold text-slate-900">
+                                      {addon.name}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400">
+                                      {addon.description || addon.subtitle || 'Instant Digital PDF'}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-xs sm:text-sm font-bold text-slate-900 shrink-0 ml-2">
+                                  ₹{addon.price}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => showToast('All available optional materials for this book are shown above.', 'info')}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 pt-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add another optional material</span>
+                        </button>
                       </div>
                     )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm sm:text-base font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                      ₹{item.price * item.quantity}
-                    </div>
-                    {item.originalPrice && item.originalPrice > item.price && (
-                      <div className="text-[11px] text-slate-400 line-through">
-                        ₹{item.originalPrice * item.quantity}
-                      </div>
+
+                    {/* Divider between products (only if another product follows) */}
+                    {itemIdx < cart.length - 1 && (
+                      <div className="pt-2 border-b border-slate-200/80" />
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Promo Code Box */}
-            <div className="py-3 border-b border-slate-100">
+            {/* Promo Code Box — Placed AFTER all products and add-ons */}
+            <div className="pt-4 border-t border-slate-150">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Promo Code
@@ -611,7 +752,7 @@ export const CheckoutView: React.FC = () => {
                           handleApplyCoupon();
                         }
                       }}
-                      placeholder="e.g. XYLEM20"
+                      placeholder="E.G. XYLEM20"
                       className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold uppercase text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
                     />
                     <button
@@ -639,17 +780,19 @@ export const CheckoutView: React.FC = () => {
                 <span className="font-bold text-slate-900">₹{authoritativeSubtotal}</span>
               </div>
 
-              {authoritativeDiscount > 0 && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-700 font-medium">Coupon Discount ({appliedCoupon || 'PROMO'})</span>
-                    <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200/80 uppercase">
-                      OFFER SAVINGS
+              <div className="flex items-center justify-between text-slate-600">
+                <div className="flex items-center gap-1.5">
+                  <span>Discount</span>
+                  {authoritativeDiscount > 0 && appliedCoupon && (
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      {appliedCoupon}
                     </span>
-                  </div>
-                  <span className="font-bold text-emerald-600">- ₹{authoritativeDiscount}</span>
+                  )}
                 </div>
-              )}
+                <span className={`font-semibold ${authoritativeDiscount > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  - ₹{authoritativeDiscount}
+                </span>
+              </div>
 
               <div className="flex items-center justify-between text-slate-600">
                 <span>Delivery</span>
@@ -675,29 +818,14 @@ export const CheckoutView: React.FC = () => {
                 ₹{payableAmount}
               </div>
             </div>
-
-            {/* Security Assurance Banner (Visible on Desktop) */}
-            <div className="hidden lg:flex bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 items-center gap-3.5">
-              <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div className="text-left">
-                <div className="text-xs font-bold text-slate-900">
-                  Your purchase is 100% secure
-                </div>
-                <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
-                  We use industry-standard encryption to protect your data and payments.
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* RIGHT COLUMN: Customer Details & Cashfree Payments Card */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-slate-200/80 text-center flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              {/* Cashfree Logo */}
-              <div className="flex justify-center pt-2">
-                <CashfreeLogo className="h-10" />
+            <div className="space-y-5">
+              {/* Cashfree Logo (Centered on Desktop, hidden on mobile matching reference) */}
+              <div className="hidden sm:flex justify-center pt-1">
+                <CashfreeLogo className="h-9" />
               </div>
 
               {/* Customer Details Form */}
@@ -837,8 +965,30 @@ export const CheckoutView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Your Purchase Includes Card (Desktop view) */}
+              <div className="hidden lg:block bg-[#eef9f5] border border-emerald-100 rounded-2xl p-4 text-left space-y-2">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-xs sm:text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Your purchase includes</span>
+                </div>
+                <ul className="text-xs text-slate-600 space-y-1.5 pl-6 list-none">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Instant access after payment</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Lifetime access to study materials</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Secure and encrypted payment</span>
+                  </li>
+                </ul>
+              </div>
+
               {/* Descriptive Heading */}
-              <div className="pt-2">
+              <div className="pt-1">
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
                   Secure Payment with Cashfree
                 </h3>
@@ -848,7 +998,7 @@ export const CheckoutView: React.FC = () => {
               </div>
 
               {/* BIG EMERALD PROCEED TO PAYMENT BUTTON */}
-              <div className="pt-2">
+              <div className="pt-1">
                 <button
                   onClick={handleProceedToPayment}
                   disabled={isProcessing || !isCatalogReady || cartPreflight.hasChanges || !cartPreflight.isValid}
@@ -869,26 +1019,58 @@ export const CheckoutView: React.FC = () => {
                   )}
                 </button>
               </div>
-            </div>
 
-            {/* Powered by Cashfree Footer Pill */}
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-center justify-center gap-2 text-xs text-slate-600 mt-4">
-              <span className="font-bold text-slate-800">Powered by Cashfree Payments</span>
-              <span className="text-slate-300">•</span>
-              <span className="text-slate-500">India's most trusted payment gateway</span>
-            </div>
-
-            {/* Security Assurance Banner (Visible on Mobile / Tablet) */}
-            <div className="flex lg:hidden bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 items-center gap-3.5 text-left mt-3">
-              <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div className="text-left">
-                <div className="text-xs font-bold text-slate-900">
-                  Your purchase is 100% secure
+              {/* Payment Methods Badges Row & Powered by Cashfree */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
+                <div className="flex items-center gap-2 text-slate-700 font-bold">
+                  <span className="px-2 py-0.5 rounded bg-slate-100 text-[11px] font-black tracking-wider text-slate-800">UPI</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 text-[11px] font-black tracking-wider text-blue-800 italic">VISA</span>
+                  <span className="flex items-center -space-x-1">
+                    <span className="w-3.5 h-3.5 rounded-full bg-red-500 inline-block opacity-90"></span>
+                    <span className="w-3.5 h-3.5 rounded-full bg-amber-400 inline-block opacity-90"></span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 text-[11px] font-bold text-slate-700">RuPay</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600">NETBANKING</span>
                 </div>
-                <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
-                  We use industry-standard encryption to protect your data and payments.
+                <div className="text-[11px] text-slate-400">
+                  <span className="font-semibold text-slate-600">Powered by Cashfree Payments</span> • India's most trusted payment gateway
+                </div>
+              </div>
+
+              {/* Your Purchase Includes Card (Mobile view) */}
+              <div className="block lg:hidden bg-[#eef9f5] border border-emerald-100 rounded-2xl p-4 text-left space-y-2 mt-3">
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-xs sm:text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Your purchase includes</span>
+                </div>
+                <ul className="text-xs text-slate-600 space-y-1.5 pl-6 list-none">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Instant access after payment</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Lifetime access to study materials</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Secure and encrypted payment</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Bottom Security Card (Desktop view) */}
+              <div className="hidden lg:flex bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-3.5 items-center gap-3 text-left mt-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    Your data is 100% secure
+                  </div>
+                  <div className="text-[11px] text-slate-500 leading-tight">
+                    We use industry-standard encryption to protect your information.
+                  </div>
                 </div>
               </div>
             </div>
@@ -1002,6 +1184,7 @@ export const CheckoutView: React.FC = () => {
                         <button
                           type="button"
                           disabled
+                          aria-label={`${product.title} already added to order`}
                           className="w-full py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-default transition-all"
                         >
                           <Check className="w-4 h-4 text-emerald-600" />
@@ -1011,6 +1194,7 @@ export const CheckoutView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleAddRelatedProduct(product)}
+                          aria-label={`Add ${product.title} to cart`}
                           className="w-full py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 active:bg-emerald-100 border border-emerald-500/80 text-emerald-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-xs"
                         >
                           <Plus className="w-4 h-4" />
@@ -1101,6 +1285,7 @@ export const CheckoutView: React.FC = () => {
                           <button
                             type="button"
                             disabled
+                            aria-label={`${product.title} already added to order`}
                             className="w-full py-2 px-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-bold flex items-center justify-center gap-1 cursor-default transition-all"
                           >
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -1110,6 +1295,7 @@ export const CheckoutView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleAddRelatedProduct(product)}
+                            aria-label={`Add ${product.title} to cart`}
                             className="w-full py-2 px-2.5 rounded-xl bg-white hover:bg-emerald-50 active:bg-emerald-100 border border-emerald-500/80 text-emerald-700 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all shadow-xs"
                           >
                             <Plus className="w-3.5 h-3.5" />

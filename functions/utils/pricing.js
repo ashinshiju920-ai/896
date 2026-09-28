@@ -24,6 +24,8 @@ export const DEFAULT_CATALOG = [
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
+      { id: 'addon_mock_tests', name: 'IELTS Mock Tests (500 Questions)', price: 99, originalPrice: 199, deliveryOption: 'digital', active: true },
+      { id: 'addon_vocab_booster', name: 'IELTS Vocabulary Booster', price: 79, originalPrice: 149, deliveryOption: 'digital', active: true },
     ],
     buy2Get3rdFree: false,
   },
@@ -37,6 +39,8 @@ export const DEFAULT_CATALOG = [
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 1199, originalPrice: 1599, deliveryOption: 'physical' },
+      { id: 'addon_mock_tests', name: 'OET Mock Tests (500 Questions)', price: 99, originalPrice: 199, deliveryOption: 'digital', active: true },
+      { id: 'addon_vocab_booster', name: 'OET Vocabulary Booster', price: 79, originalPrice: 149, deliveryOption: 'digital', active: true },
     ],
     buy2Get3rdFree: false,
   },
@@ -50,6 +54,8 @@ export const DEFAULT_CATALOG = [
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 1149, originalPrice: 1499, deliveryOption: 'physical' },
+      { id: 'addon_mock_tests', name: 'German Mock Tests (500 Questions)', price: 99, originalPrice: 199, deliveryOption: 'digital', active: true },
+      { id: 'addon_vocab_booster', name: 'German Vocabulary Booster', price: 79, originalPrice: 149, deliveryOption: 'digital', active: true },
     ],
     buy2Get3rdFree: false,
   },
@@ -63,6 +69,8 @@ export const DEFAULT_CATALOG = [
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 1099, originalPrice: 1499, deliveryOption: 'physical' },
+      { id: 'addon_mock_tests', name: 'PTE Mock Tests (500 Questions)', price: 99, originalPrice: 199, deliveryOption: 'digital', active: true },
+      { id: 'addon_vocab_booster', name: 'PTE Vocabulary Booster', price: 79, originalPrice: 149, deliveryOption: 'digital', active: true },
     ],
     buy2Get3rdFree: false,
   },
@@ -76,6 +84,8 @@ export const DEFAULT_CATALOG = [
     addons: [
       { id: 'digital', name: 'Digital (PDF)', price: 499, originalPrice: 999, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 1299, originalPrice: 1599, deliveryOption: 'physical' },
+      { id: 'addon_mock_tests', name: 'IELTS Mock Tests (500 Questions)', price: 99, originalPrice: 199, deliveryOption: 'digital', active: true },
+      { id: 'addon_vocab_booster', name: 'IELTS Vocabulary Booster', price: 79, originalPrice: 149, deliveryOption: 'digital', active: true },
     ],
     buy2Get3rdFree: false,
   },
@@ -344,7 +354,7 @@ export function getBookAddons(book) {
     ? book.addOns
     : (Array.isArray(book?.addons) ? book.addons : []);
   if (rawAddons.length > 0) {
-    return rawAddons.slice(0, 4).map((a) => ({
+    return rawAddons.map((a) => ({
       ...a,
       id: a.id === 'addon_digital' ? 'digital' : (a.id === 'addon_physical' ? 'physical' : a.id),
     }));
