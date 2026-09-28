@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, User, ShoppingBag, Menu, X, Heart, DownloadCloud, ShieldCheck, LogIn, LogOut } from 'lucide-react';
 import { XylemLogo } from './XylemLogo';
 import { useShop } from '../context/ShopContext';
@@ -110,12 +110,12 @@ export const Header: React.FC = () => {
 
           {/* Right Action Icons & Button */}
           <div className="flex items-center space-x-1 sm:space-x-3">
-            {/* Search Icon */}
+            {/* Search Icon — navigates to all products */}
             <button
               id="search-btn"
-              onClick={() => setIsSearchOpen(true)}
+              onClick={() => navigateToCatalog()}
               className="p-2 text-slate-700 hover:text-emerald-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
-              title="Search books and study guides"
+              title="Browse all study materials"
               aria-label="Search"
             >
               <Search className="w-5 h-5 stroke-[2.2]" />
