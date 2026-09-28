@@ -115,3 +115,140 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ==========================================================================
+   Proceed to Payment Button Animations (CSS Only)
+   ========================================================================== */
+
+#proceed-to-payment-btn {
+  position: relative;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+  transition: transform 0.15s ease, box-shadow 0.25s ease, filter 0.2s ease;
+}
+
+/* Ensure button content sits above the shimmer pseudo-element */
+#proceed-to-payment-btn > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* 1. Shimmer sweep via ::before pseudo-element */
+#proceed-to-payment-btn::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -120%;
+  width: 50%;
+  height: 220%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 20%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.04) 80%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes payment-btn-shimmer {
+  0% {
+    transform: translateX(-120%) rotate(25deg);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(460%) rotate(25deg);
+    opacity: 1;
+  }
+  30%, 100% {
+    transform: translateX(460%) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+#proceed-to-payment-btn:not(:disabled)::before {
+  animation: payment-btn-shimmer 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* 2. Micro Pulse Animation (3.5s duration, scale 1 -> 1.005 -> 1) */
+@keyframes payment-btn-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.005);
+  }
+}
+
+#proceed-to-payment-btn:not(:disabled) {
+  animation: payment-btn-pulse 3.5s ease-in-out infinite;
+}
+
+/* 3. Arrow movement */
+@keyframes payment-arrow-gentle {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+#proceed-to-payment-btn:not(:disabled) svg:last-child {
+  transition: transform 0.25s ease;
+  animation: payment-arrow-gentle 3.5s ease-in-out infinite;
+}
+
+/* 4. Desktop Hover */
+@media (hover: hover) and (pointer: fine) {
+  #proceed-to-payment-btn:not(:disabled):hover {
+    box-shadow: 0 16px 32px -4px rgba(0, 112, 74, 0.38), 0 6px 14px -2px rgba(0, 112, 74, 0.2);
+    filter: brightness(1.03);
+    animation-play-state: paused;
+  }
+
+  #proceed-to-payment-btn:not(:disabled):hover svg:last-child {
+    transform: translateX(5px);
+    animation: none;
+  }
+}
+
+/* 5. Active / Pressed State */
+#proceed-to-payment-btn:not(:disabled):active {
+  transform: scale(0.985) !important;
+  transition: transform 0.05s ease-out;
+}
+
+/* 6. Keyboard Focus */
+#proceed-to-payment-btn:focus-visible {
+  outline: 3px solid #00704a;
+  outline-offset: 3px;
+}
+
+/* 11. Loading / Disabled State */
+#proceed-to-payment-btn:disabled {
+  animation: none !important;
+  transform: none !important;
+}
+
+#proceed-to-payment-btn:disabled::before {
+  animation: none !important;
+  display: none !important;
+}
+
+/* 7. Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  #proceed-to-payment-btn,
+  #proceed-to-payment-btn::before,
+  #proceed-to-payment-btn svg:last-child {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
