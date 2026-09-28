@@ -135,20 +135,24 @@ export const HomeView: React.FC = () => {
               {/* Top Row: Left Badge & Right Calligraphic Script */}
               <div className="relative z-10 p-4 sm:p-5 flex items-start justify-between">
                 {/* Top-Left Circular Badge */}
-                {path.isMedicalCross ? (
-                  <div
-                    style={path.badgeColor ? { backgroundColor: path.badgeColor } : undefined}
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00875a] text-white flex items-center justify-center font-bold text-xl shadow-md border border-white/25 leading-none transition-colors"
-                  >
-                    +
-                  </div>
+                {path.showBadge !== false ? (
+                  path.isMedicalCross ? (
+                    <div
+                      style={path.badgeColor ? { backgroundColor: path.badgeColor } : undefined}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00875a] text-white flex items-center justify-center font-bold text-xl shadow-md border border-white/25 leading-none transition-colors"
+                    >
+                      +
+                    </div>
+                  ) : (
+                    <div
+                      style={path.badgeColor ? { backgroundColor: path.badgeColor } : undefined}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#071d36]/90 backdrop-blur-md border border-white/20 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center shadow-md tracking-wider transition-colors"
+                    >
+                      {path?.badgeText || ''}
+                    </div>
+                  )
                 ) : (
-                  <div
-                    style={path.badgeColor ? { backgroundColor: path.badgeColor } : undefined}
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#071d36]/90 backdrop-blur-md border border-white/20 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center shadow-md tracking-wider transition-colors"
-                  >
-                    {path?.badgeText || ''}
-                  </div>
+                  <div />
                 )}
 
                 {/* Top-Right Angled Cursive Script (Caveat font) */}

@@ -262,6 +262,7 @@ export interface ExamPath {
   targetProductId?: string;
   arrowColor?: string;
   badgeColor?: string;
+  showBadge?: boolean;
 }
 
 // -------------------------------------------------------------

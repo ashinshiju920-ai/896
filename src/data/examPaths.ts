@@ -11,6 +11,7 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     redirectTarget: 'catalog',
     arrowColor: '#00a375',
     badgeColor: '#071d36',
+    showBadge: true,
   },
   {
     category: 'OET',
@@ -22,6 +23,7 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     redirectTarget: 'catalog',
     arrowColor: '#00a375',
     badgeColor: '#00875a',
+    showBadge: true,
   },
   {
     category: 'PTE',
@@ -33,6 +35,7 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     redirectTarget: 'catalog',
     arrowColor: '#00a375',
     badgeColor: '#071d36',
+    showBadge: true,
   },
   {
     category: 'German',
@@ -44,5 +47,6 @@ export const DEFAULT_EXAM_PATHS: ExamPath[] = [
     redirectTarget: 'catalog',
     arrowColor: '#00a375',
     badgeColor: '#071d36',
+    showBadge: true,
   },
 ];

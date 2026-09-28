@@ -521,6 +521,7 @@ export async function onRequestPost(context) {
           targetProductId: sanitizeString(p.targetProductId, 64),
           arrowColor: sanitizeString(p.arrowColor, 50) || undefined,
           badgeColor: sanitizeString(p.badgeColor, 50) || undefined,
+          showBadge: p.showBadge !== false,
         }))
       : undefined;
 

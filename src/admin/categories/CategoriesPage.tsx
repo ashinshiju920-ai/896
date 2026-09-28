@@ -85,6 +85,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
   const [description, setDescription] = useState('');
   const [badgeText, setBadgeText] = useState('');
   const [isMedicalCross, setIsMedicalCross] = useState(false);
+  const [showBadge, setShowBadge] = useState<boolean>(true);
   const [bgImage, setBgImage] = useState('/images/exams/ielts.jpg');
   const [arrowColor, setArrowColor] = useState('#00a375');
   const [badgeColor, setBadgeColor] = useState('#071d36');
@@ -101,6 +102,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
     setDescription(path.description);
     setBadgeText(path.badgeText || '');
     setIsMedicalCross(Boolean(path.isMedicalCross));
+    setShowBadge(path.showBadge !== false);
     setBgImage(path.bgImage || '/images/exams/ielts.jpg');
     setArrowColor(path.arrowColor || '#00a375');
     setBadgeColor(path.badgeColor || (path.isMedicalCross ? '#00875a' : '#071d36'));
@@ -116,6 +118,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
     setDescription('Build targeted skills and crack your target score.');
     setBadgeText('NEW');
     setIsMedicalCross(false);
+    setShowBadge(true);
     setBgImage('/images/exams/ielts.jpg');
     setArrowColor('#00a375');
     setBadgeColor('#071d36');
@@ -162,6 +165,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
       description: description.trim(),
       badgeText: badgeText.trim(),
       isMedicalCross,
+      showBadge,
       bgImage: bgImage.trim() || '/images/exams/ielts.jpg',
       arrowColor: arrowColor.trim() || '#00a375',
       badgeColor: badgeColor.trim() || '#071d36',
@@ -312,33 +316,77 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
                 />
               </div>
 
-              {/* Badge text & Medical cross toggle */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                    Badge Tag Text (e.g. GB, PTE, DE)
-                  </label>
-                  <input
-                    type="text"
-                    value={badgeText}
-                    onChange={(e) => setBadgeText(e.target.value)}
-                    disabled={isMedicalCross}
-                    placeholder="e.g. GB"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-slate-50 disabled:opacity-50"
-                  />
+              {/* Badge Visibility Toggle & Badge Configuration */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                      Top-Left Circular Badge Icon
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Turn on or turn off the circular badge icon (e.g. GB, +, PTE, DE)
+                    </span>
+                  </div>
+
+                  {/* Toggle Button */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] font-bold uppercase tracking-wider ${showBadge ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {showBadge ? 'Badge ON' : 'Badge OFF'}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={showBadge}
+                      onClick={() => setShowBadge((prev) => !prev)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                        showBadge ? 'bg-emerald-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          showBadge ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-6">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isMedicalCross}
-                      onChange={(e) => setIsMedicalCross(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
-                    />
-                    <span>Display Medical Cross (+) Icon</span>
-                  </label>
-                </div>
+                {showBadge ? (
+                  <div className="pt-3 border-t border-slate-200/70 space-y-3">
+                    {/* Badge text & Medical cross toggle */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                          Badge Tag Text (e.g. GB, PTE, DE)
+                        </label>
+                        <input
+                          type="text"
+                          value={badgeText}
+                          onChange={(e) => setBadgeText(e.target.value)}
+                          disabled={isMedicalCross}
+                          placeholder="e.g. GB"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white disabled:opacity-50"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-6">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isMedicalCross}
+                            onChange={(e) => setIsMedicalCross(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                          />
+                          <span>Display Medical Cross (+) Icon</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pt-2 border-t border-slate-200/60 text-xs text-slate-500 italic">
+                    Badge icon is currently turned off and will be hidden on the storefront card.
+                  </div>
+                )}
               </div>
 
               {/* COLOR SECTION 1: Arrow Action Button Color (Bottom-Right Circle) */}
@@ -548,12 +596,16 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
                   {/* Top Row: Left Badge & Right Calligraphic Script */}
                   <div className="relative z-10 p-3.5 flex items-start justify-between">
                     {/* Top-Left Circular Badge with DYNAMIC BADGE COLOR */}
-                    <div
-                      style={{ backgroundColor: badgeColor }}
-                      className="w-8 h-8 rounded-full text-white font-extrabold text-[11px] flex items-center justify-center shadow-md border border-white/20 transition-colors"
-                    >
-                      {isMedicalCross ? '+' : (badgeText || 'GB')}
-                    </div>
+                    {showBadge ? (
+                      <div
+                        style={{ backgroundColor: badgeColor }}
+                        className="w-8 h-8 rounded-full text-white font-extrabold text-[11px] flex items-center justify-center shadow-md border border-white/20 transition-colors"
+                      >
+                        {isMedicalCross ? '+' : (badgeText || 'GB')}
+                      </div>
+                    ) : (
+                      <div />
+                    )}
 
                     {/* Top-Right Script */}
                     <div className="font-script text-sm font-bold text-[#00875a] leading-tight text-right transform -rotate-3 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
@@ -638,14 +690,20 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
                       </span>
                     </div>
 
-                    {/* Circular Badge Icon displaying actual badgeColor */}
-                    <div
-                      style={{ backgroundColor: cardBadgeColor }}
-                      className="w-7 h-7 rounded-full text-white text-[10px] font-black flex items-center justify-center border border-white/25 shadow-md transition-colors"
-                      title={`Badge Color: ${cardBadgeColor}`}
-                    >
-                      {path.isMedicalCross ? '+' : (path.badgeText || path.category.slice(0, 2))}
-                    </div>
+                    {/* Circular Badge Icon displaying actual badgeColor or Badge OFF state */}
+                    {path.showBadge !== false ? (
+                      <div
+                        style={{ backgroundColor: cardBadgeColor }}
+                        className="w-7 h-7 rounded-full text-white text-[10px] font-black flex items-center justify-center border border-white/25 shadow-md transition-colors"
+                        title={`Badge Color: ${cardBadgeColor}`}
+                      >
+                        {path.isMedicalCross ? '+' : (path.badgeText || path.category.slice(0, 2))}
+                      </div>
+                    ) : (
+                      <span className="text-[9px] font-bold text-slate-300 bg-black/50 backdrop-blur-xs px-2 py-0.5 rounded-full border border-white/10">
+                        Badge OFF
+                      </span>
+                    )}
                   </div>
 
                   {/* Bottom Row displaying Title and Arrow Icon with actual arrowColor */}
@@ -668,9 +726,25 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
                 {/* Card Details & Color Swatches */}
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded inline-block border border-emerald-200">
-                      {path.badgeText || (path.isMedicalCross ? 'HEALTHCARE' : 'OFFICIAL')}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded inline-block border border-emerald-200">
+                        {path.badgeText || (path.isMedicalCross ? 'HEALTHCARE' : 'OFFICIAL')}
+                      </span>
+
+                      {/* Quick 1-click real-time badge toggle */}
+                      <button
+                        type="button"
+                        onClick={() => onUpdateExamPath(path.category, { showBadge: path.showBadge === false ? true : false })}
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                          path.showBadge !== false
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
+                        }`}
+                        title="Click to toggle badge on/off in real-time"
+                      >
+                        Badge: {path.showBadge !== false ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
 
                     {/* Color Swatch Indicators */}
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
