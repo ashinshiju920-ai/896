@@ -128,8 +128,7 @@ export const HomeView: React.FC = () => {
                 src={path.bgImage}
                 alt={path.title}
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                loading="lazy"
-                decoding="async"
+                loading="eager"
               />
 
               {/* Bottom Navy Gradient Overlay (Keeps top landmarks bright and bottom text crisp) */}
@@ -202,8 +201,8 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. FEATURED PRODUCTS */}
-      <section className="cv-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 3. FEATURED PRODUCTS (Image 5 & Image 3) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 sm:mb-8 gap-3">
           <div>
             <span className="text-xs font-semibold tracking-widest uppercase text-emerald-700 block mb-1 font-['DM_Sans',sans-serif]">
@@ -296,14 +295,12 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. DIGITAL PRODUCT TRUST BAR */}
-      <div className="cv-auto">
-        <TrustFeaturesBar />
-      </div>
+      {/* 4. DIGITAL PRODUCT TRUST BAR (Image 2 Redesign) */}
+      <TrustFeaturesBar />
 
 
-      {/* 5. WHY XYLEM LEARNING */}
-      <section className="cv-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 5. WHY XYLEM LEARNING (Image 5) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <span className="text-xs font-semibold tracking-widest uppercase text-emerald-700 block mb-1 font-['DM_Sans',sans-serif]">
             WHY XYLEM LEARNING
@@ -361,8 +358,8 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 6. WHAT OUR LEARNERS SAY */}
-      <section className="cv-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 6. WHAT OUR LEARNERS SAY (Image 5) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div>
             <span className="text-xs font-semibold tracking-widest uppercase text-emerald-700 block mb-1 font-['DM_Sans',sans-serif]">
@@ -403,8 +400,6 @@ export const HomeView: React.FC = () => {
                   src={t.avatar}
                   alt={t.name}
                   className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                  loading="lazy"
-                  decoding="async"
                   referrerPolicy="no-referrer"
                 />
                 <div>
@@ -417,8 +412,8 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 7. CALL TO ACTION BANNER */}
-      <section className="cv-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 7. CALL TO ACTION BANNER (Image 5 & Image 3) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden shadow-xl bg-gradient-to-r from-[#0a2540] via-[#0f3459] to-[#041525] p-8 sm:p-12 text-white">
           <div className="max-w-2xl space-y-4">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif] leading-tight">

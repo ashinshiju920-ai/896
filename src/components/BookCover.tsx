@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 import { Book } from '../types';
 
 interface BookCoverProps {
@@ -8,7 +8,7 @@ interface BookCoverProps {
   showShadow?: boolean;
 }
 
-export const BookCover: React.FC<BookCoverProps> = memo(({
+export const BookCover: React.FC<BookCoverProps> = ({
   book,
   size = 'md',
   className = '',
@@ -159,14 +159,12 @@ export const BookCover: React.FC<BookCoverProps> = memo(({
         <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-black/20 pointer-events-none z-20" />
 
         {book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) ? (
-        <>
+          <>
             {/* Custom Uploaded / Product Image */}
             <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-slate-900">
               <img
                 src={book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) || ''}
                 alt={book.title}
-                loading="lazy"
-                decoding="async"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
@@ -282,6 +280,4 @@ export const BookCover: React.FC<BookCoverProps> = memo(({
       </div>
     </div>
   );
-});
-
-BookCover.displayName = 'BookCover';
+};

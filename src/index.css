@@ -5,13 +5,8 @@
     /* Prevent iOS auto-text-size-adjust on orientation change */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    /* Smooth scrolling — graceful fallback (auto) for prefers-reduced-motion handled below */
+    /* Smooth scrolling */
     scroll-behavior: smooth;
-    /* Enable GPU-accelerated rendering for the entire document */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    /* Subpixel text rendering for crisp text at all sizes */
-    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -19,14 +14,10 @@
     font-weight: 400;
     /* Prevent overscroll bounce on mobile */
     overscroll-behavior: none;
-    /* Promote body to its own compositor layer for smooth scrolling */
-    transform: translateZ(0);
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    /* Prevent layout shift from font loading */
-    font-display: swap;
   }
 
   /* Better tap targets for all buttons and links */
@@ -38,18 +29,6 @@
   /* Momentum scrolling for overflow containers */
   .overflow-y-auto, .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
-  }
-
-  /* Respect users who prefer reduced motion — stop all non-essential animations */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-    html {
-      scroll-behavior: auto;
-    }
   }
 }
 
@@ -112,45 +91,6 @@
 .touch-card {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-}
-
-/* ── Performance Utilities ──────────────────────────────────────────────────── */
-
-/**
- * content-visibility: auto — skips rendering of off-screen sections entirely.
- * This is the single biggest CSS performance win for long pages.
- * Add this class to any section that is below the fold (not in first viewport).
- */
-.cv-auto {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 500px;
-}
-
-/**
- * GPU-promote — forces element to its own compositor layer.
- * Use sparingly on elements that animate (transform/opacity) to prevent
- * the main thread from being blocked during animations.
- */
-.gpu-promote {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: transform;
-}
-
-/**
- * Image rendering optimization — prevents blurry upscaled images on HDPI screens.
- */
-img {
-  image-rendering: -webkit-optimize-contrast;
-}
-
-/**
- * Prevent width/height-less images from causing CLS.
- * Works with modern browsers' aspect-ratio intrinsic sizing.
- */
-img:not([width]):not([height]) {
-  max-width: 100%;
-  height: auto;
 }
 
 /* Glassmorphic card styling */
