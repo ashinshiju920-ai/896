@@ -22,6 +22,7 @@ import {
   validateAndReconcileCart,
 } from '../utils/pricing';
 import { trackAddToCart } from '../utils/analytics';
+import { STUDENT_PORTAL_URL } from '../utils/cashfree';
 
 interface Toast {
   id: string;
@@ -1374,72 +1375,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('Review submitted and verified!', 'success');
   };
 
-  const downloadBookPdf = async (book: Book, orderId?: string) => {
-    const cleanOrderId = orderId || (currentOrder?.status === 'PAID' ? currentOrder.id : undefined);
-
-    if (cleanOrderId) {
-      showToast(`Preparing download for "${book.title}"...`, 'info');
-      try {
-        // Request fresh server status to obtain active signed token
-        let downloadUrl = '';
-        const orderRes = await fetch(`/api/order-status?order_id=${encodeURIComponent(cleanOrderId)}`);
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
-          if (orderData.status === 'PAID') {
-            const mat = orderData.materials?.find(
-              (m: any) => m.productId === book.id || m.name?.includes(book.title)
-            );
-            if (mat?.downloadUrl) {
-              downloadUrl = mat.downloadUrl;
-            } else if (orderData.fulfillment?.downloads) {
-              const dl = orderData.fulfillment.downloads.find((d: any) => d.bookId === book.id);
-              if (dl?.downloadUrl) downloadUrl = dl.downloadUrl;
-            }
-          }
-        }
-
-        if (!downloadUrl) {
-          showToast('Material temporarily unavailable. Please try again later.', 'warning');
-          return;
-        }
-
-        const res = await fetch(downloadUrl);
-
-        if (res.ok) {
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.includes('application/pdf')) {
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = book.samplePdfName || `${book.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            showToast(`Downloaded "${book.title}" PDF! Check your downloads folder.`, 'success');
-            return;
-          }
-        }
-
-        let errMsg = 'Material temporarily unavailable. Please try again later.';
-        if (res.status === 403) {
-          errMsg = 'Your access could not be verified. Please refresh and try again.';
-        } else {
-          try {
-            const data = await res.json();
-            if (data?.error) errMsg = data.error;
-          } catch {}
-        }
-        showToast(errMsg, 'warning');
-        return;
-      } catch {
-        showToast('Material temporarily unavailable. Please try again later.', 'warning');
-        return;
-      }
-    }
-
-    showToast('Payment required. Please complete purchase to access this study guide.', 'warning');
+  const downloadBookPdf = async (_book: Book, _orderId?: string) => {
+    showToast('Please access your purchased study materials in the Aylem student portal.', 'info');
+    window.location.assign(STUDENT_PORTAL_URL);
   };
 
   return (

@@ -54,7 +54,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: '500+ MOCK TESTS',
     },
-    samplePdfName: 'Xylem-IELTS-Full-Preparation-Guide.pdf',
+    samplePdfName: 'Aylem-IELTS-Full-Preparation-Guide.pdf',
     addOns: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 999, originalPrice: 1299, deliveryOption: 'physical' },
@@ -130,7 +130,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: '500+ CLINICAL',
     },
-    samplePdfName: 'Xylem-OET-Preparation-Guide.pdf',
+    samplePdfName: 'Aylem-OET-Preparation-Guide.pdf',
     addOns: [
       { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 1199, originalPrice: 1599, deliveryOption: 'physical' },
@@ -206,7 +206,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'A1 - B2 MOCK TESTS',
     },
-    samplePdfName: 'Xylem-German-Preparation-Guide.pdf',
+    samplePdfName: 'Aylem-German-Preparation-Guide.pdf',
   },
   {
     id: 'pte-full-prep',
@@ -258,7 +258,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: '500+ PTE DRILLS',
     },
-    samplePdfName: 'Xylem-PTE-Preparation-Guide.pdf',
+    samplePdfName: 'Aylem-PTE-Preparation-Guide.pdf',
   },
   {
     id: 'ielts-complete-guide',
@@ -311,7 +311,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'BAND 8+ MASTER',
     },
-    samplePdfName: 'Xylem-IELTS-Complete-Study-Guide.pdf',
+    samplePdfName: 'Aylem-IELTS-Complete-Study-Guide.pdf',
     addOns: [
       { id: 'digital', name: 'Digital (PDF)', price: 499, originalPrice: 999, deliveryOption: 'digital' },
       { id: 'physical', name: 'Physical (Printed)', price: 1299, originalPrice: 1599, deliveryOption: 'physical' },
@@ -387,7 +387,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: '10 FULL MOCKS',
     },
-    samplePdfName: 'Xylem-IELTS-Practice-Tests-10-Mocks.pdf',
+    samplePdfName: 'Aylem-IELTS-Practice-Tests-10-Mocks.pdf',
   },
   {
     id: 'ielts-vocabulary',
@@ -439,7 +439,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: '3000+ WORDS',
     },
-    samplePdfName: 'Xylem-IELTS-Vocabulary-Word-Power.pdf',
+    samplePdfName: 'Aylem-IELTS-Vocabulary-Word-Power.pdf',
   },
   {
     id: 'ielts-grammar',
@@ -491,7 +491,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'BAND 8 GRAMMAR',
     },
-    samplePdfName: 'Xylem-IELTS-Grammar-Higher-Band.pdf',
+    samplePdfName: 'Aylem-IELTS-Grammar-Higher-Band.pdf',
   },
   {
     id: 'ielts-writing-master',
@@ -543,7 +543,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'WRITING TASK 1 & 2',
     },
-    samplePdfName: 'Xylem-IELTS-Writing-Masterclass.pdf',
+    samplePdfName: 'Aylem-IELTS-Writing-Masterclass.pdf',
   },
   {
     id: 'ielts-speaking-master',
@@ -596,7 +596,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'SPEAKING MASTER',
     },
-    samplePdfName: 'Xylem-IELTS-Speaking-Masterclass.pdf',
+    samplePdfName: 'Aylem-IELTS-Speaking-Masterclass.pdf',
   },
   {
     id: 'academic-study-planner',
@@ -648,7 +648,7 @@ export const BOOKS: Book[] = [
       textColor: '#0f172a',
       badgeText: 'PRINTABLE PLANNER',
     },
-    samplePdfName: 'Xylem-Academic-Study-Planner.pdf',
+    samplePdfName: 'Aylem-Academic-Study-Planner.pdf',
   },
   {
     id: 'ielts-vocab-booster',
@@ -679,7 +679,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: '5000+ WORDS',
     },
-    samplePdfName: 'Xylem-IELTS-Vocabulary-Booster.pdf',
+    samplePdfName: 'Aylem-IELTS-Vocabulary-Booster.pdf',
   },
   {
     id: 'ielts-writing-task',
@@ -710,7 +710,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'MODEL ESSAYS',
     },
-    samplePdfName: 'Xylem-IELTS-Writing-Task-1-and-2.pdf',
+    samplePdfName: 'Aylem-IELTS-Writing-Task-1-and-2.pdf',
   },
   {
     id: 'ielts-listening-practice',
@@ -742,7 +742,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'AUDIO SCRIPTS',
     },
-    samplePdfName: 'Xylem-IELTS-Listening-Practice.pdf',
+    samplePdfName: 'Aylem-IELTS-Listening-Practice.pdf',
   },
   {
     id: 'ielts-reading-strategies',
@@ -773,7 +773,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'TIMED STRATEGIES',
     },
-    samplePdfName: 'Xylem-IELTS-Reading-Strategies.pdf',
+    samplePdfName: 'Aylem-IELTS-Reading-Strategies.pdf',
   },
   {
     id: 'oet-vocab-booster',
@@ -804,7 +804,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'CLINICAL VOCAB',
     },
-    samplePdfName: 'Xylem-OET-Vocabulary-Booster.pdf',
+    samplePdfName: 'Aylem-OET-Vocabulary-Booster.pdf',
   },
   {
     id: 'oet-writing-task',
@@ -835,7 +835,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'LETTERS & SAMPLES',
     },
-    samplePdfName: 'Xylem-OET-Writing-Task.pdf',
+    samplePdfName: 'Aylem-OET-Writing-Task.pdf',
   },
   {
     id: 'oet-listening-practice',
@@ -866,7 +866,7 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'CONSULTATION AUDIO',
     },
-    samplePdfName: 'Xylem-OET-Listening-Practice.pdf',
+    samplePdfName: 'Aylem-OET-Listening-Practice.pdf',
   },
   {
     id: 'oet-reading-strategies',
@@ -897,6 +897,6 @@ export const BOOKS: Book[] = [
       textColor: '#ffffff',
       badgeText: 'PARTS A, B & C',
     },
-    samplePdfName: 'Xylem-OET-Reading-Strategies.pdf',
+    samplePdfName: 'Aylem-OET-Reading-Strategies.pdf',
   },
 ];

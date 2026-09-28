@@ -17,7 +17,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { BackButton } from '../components/BackButton';
-import { checkOrderStatus } from '../utils/cashfree';
+import { checkOrderStatus, STUDENT_PORTAL_URL } from '../utils/cashfree';
 
 interface MyMaterialsViewProps {
   initialTab?: 'materials' | 'orders';
@@ -57,6 +57,11 @@ export const MyMaterialsView: React.FC<MyMaterialsViewProps> = ({ initialTab = '
   const [serverMaterials, setServerMaterials] = useState<MaterialCardItem[]>([]);
   const [serverOrders, setServerOrders] = useState<any[]>([]);
   const [isLoadingServerMaterials, setIsLoadingServerMaterials] = useState<boolean>(false);
+
+  useEffect(() => {
+    showToast('Opening the Aylem student portal for your study materials.', 'info');
+    window.location.assign(STUDENT_PORTAL_URL);
+  }, [showToast]);
 
   useEffect(() => {
     if (!currentCustomer) {

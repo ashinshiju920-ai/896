@@ -7,7 +7,7 @@ interface WhatsAppButtonProps {
 
 export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
   phoneNumber = '916282377918',
-  defaultMessage = 'Hi! I have an enquiry regarding Xylem study materials.',
+  defaultMessage = 'Hi! I have an enquiry regarding Aylem study materials.',
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 

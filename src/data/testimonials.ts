@@ -6,7 +6,7 @@ export const TESTIMONIALS: Testimonial[] = [
     name: 'Anjana Suresh',
     role: 'IELTS | 7.5 Bands',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    quote: 'The IELTS study material from Xylem Learning is very well structured and easy to follow. It really helped me achieve a 7.5 band!',
+    quote: 'The IELTS study material from Aylem Learning is very well structured and easy to follow. It really helped me achieve a 7.5 band!',
     rating: 5,
   },
   {

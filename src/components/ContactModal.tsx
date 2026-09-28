@@ -113,9 +113,9 @@ export const ContactModal: React.FC = () => {
                   <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span>+91 6282377918</span>
                 </a>
-                <a href="mailto:xylembookstore@gmail.com" className="flex items-center gap-1.5 hover:text-emerald-700 transition-colors">
+                <a href="mailto:aylembookstore@gmail.com" className="flex items-center gap-1.5 hover:text-emerald-700 transition-colors">
                   <Mail className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>xylembookstore@gmail.com</span>
+                  <span>aylembookstore@gmail.com</span>
                 </a>
               </div>
               <div className="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500 leading-relaxed flex items-start gap-1.5">

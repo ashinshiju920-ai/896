@@ -19,6 +19,8 @@ export const GOOGLE_SHEET_COPY_URL =
 export const CASHFREE_PAYMENT_FORM_URL =
   'https://payments.cashfree.com/forms/study-portal-buy';
 
+export const STUDENT_PORTAL_URL = 'https://portal.aylemlearning.online/';
+
 /**
  * Ensures Cashfree v3 JS SDK is injected into the DOM and initialized with correct mode (production vs sandbox).
  */
@@ -200,6 +202,7 @@ export interface OrderStatusResponse {
   customerName?: string;
   customerEmail?: string;
   date?: string;
+  portalUrl?: string;
   error?: string;
   message?: string;
 }

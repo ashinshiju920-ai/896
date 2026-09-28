@@ -59,11 +59,11 @@ export const ProductDetailView: React.FC = () => {
   // Page title for SEO & Analytics view tracking
   useEffect(() => {
     if (book) {
-      document.title = `${book.title} | Xylem Learning`;
+      document.title = `${book.title} | Aylem Learning`;
       trackProductView(book.id);
     }
     return () => {
-      document.title = 'Xylem Learning — Exam Preparation Books & Study Materials';
+      document.title = 'Aylem Learning - Exam Preparation Books & Study Materials';
     };
   }, [book]);
 

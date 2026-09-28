@@ -81,7 +81,7 @@ export default function CheckoutPage({ productsFromAdmin = [] }) {
       }
 
       // 3. Launch Checkout Drop-in
-      // Cashfree will redirect directly to https://portal.xylemlearning.online/
+      // Cashfree will redirect directly to https://portal.aylemlearning.online/
       cashfree.checkout({
         paymentSessionId: data.paymentSessionId,
         redirectTarget: "_self"

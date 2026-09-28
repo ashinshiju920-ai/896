@@ -415,7 +415,7 @@ export const HomeView: React.FC = () => {
           <div className="max-w-2xl space-y-4">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif] leading-tight">
               Prepare smarter. <br />
-              Learn with Xylem.
+              Learn with Aylem.
             </h2>
             <p className="text-sm sm:text-base text-slate-300 font-['DM_Sans',sans-serif]">
               Your goals. Our materials. A brighter future.

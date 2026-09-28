@@ -25,7 +25,7 @@ export const AboutView: React.FC = () => {
           Empowering Learners Across Global Milestones
         </h1>
         <p className="text-base text-slate-600 leading-relaxed">
-          Xylem Learning is India's leading specialized academic and test-preparation publishing house, dedicated to helping students and professionals conquer IELTS, OET, PTE, and German language certifications.
+          Aylem Learning is India's leading specialized academic and test-preparation publishing house, dedicated to helping students and professionals conquer IELTS, OET, PTE, and German language certifications.
         </p>
       </div>
 
@@ -98,11 +98,11 @@ export const AboutView: React.FC = () => {
 
         <div className="space-y-2.5 text-xs text-slate-700 w-full md:w-auto">
           <a
-            href="mailto:xylembookstore@gmail.com"
+            href="mailto:aylembookstore@gmail.com"
             className="flex items-center gap-2 hover:text-emerald-700 transition-colors"
           >
             <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="font-medium">xylembookstore@gmail.com</span>
+            <span className="font-medium">aylembookstore@gmail.com</span>
           </a>
           <a
             href="tel:+916282377918"
@@ -124,7 +124,7 @@ export const AboutView: React.FC = () => {
           Ready to achieve your target band?
         </h2>
         <p className="text-sm text-slate-300 max-w-xl mx-auto">
-          Explore our complete study guides and start your preparation with Xylem Learning today.
+          Explore our complete study guides and start your preparation with Aylem Learning today.
         </p>
         <button
           onClick={() => setCurrentView('catalog')}

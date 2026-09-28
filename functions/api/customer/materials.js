@@ -2,13 +2,10 @@
 // Authenticated Customer Study Materials & Orders API
 // Single-query JOIN execution optimized for Cloudflare Free plan
 
-import { parseCookies, sha256Hex, createSessionToken } from '../../utils/auth.js';
+import { parseCookies, sha256Hex } from '../../utils/auth.js';
 import {
   getCustomerSessionByTokenHash,
-  getCustomerEntitlements,
   getCustomerPaidOrders,
-  getActiveFileVersion,
-  GOOGLE_SHEET_COPY_URL,
 } from '../../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../../utils/cors.js';
 
@@ -44,74 +41,11 @@ export async function onRequestGet(context) {
 
     const customer = sessionData.customer;
 
-    // 2. Fetch all active entitlements belonging to this customer's PAID orders (single prepared JOIN query)
-    const entitlements = await getCustomerEntitlements(env, customer.id);
+    // 2. Fetch paid orders. Digital content is accessed only through the external student portal.
     const paidOrders = await getCustomerPaidOrders(env, customer.id);
-
-    const secret =
-      env?.DOWNLOAD_SIGNING_KEY ||
-      env?.ADMIN_SESSION_SECRET ||
-      env?.CASHFREE_SECRET_KEY ||
-      'xylem_secure_download_signing_key';
-
-    // 3. Issue fresh 24h signed download tokens for each entitled study material
-    const materials = await Promise.all(
-      entitlements.map(async (ent) => {
-        let token = '';
-        if (secret) {
-          try {
-            token = await createSessionToken(
-              {
-                orderId: ent.orderId,
-                entitlementId: ent.id,
-                bookId: ent.productId,
-                productId: ent.productId,
-                addOnId: ent.addOnId || null,
-                customerId: customer.id,
-                exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours
-              },
-              secret
-            );
-          } catch (tokenErr) {
-            console.warn('Could not generate download token for customer material:', tokenErr.message);
-          }
-        }
-
-        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
-        const entParam = `&entitlement_id=${encodeURIComponent(ent.id)}`;
-        const bookParam = `&book_id=${encodeURIComponent(ent.productId)}`;
-        const downloadUrl = `/api/download?order_id=${encodeURIComponent(ent.orderId)}${entParam}${bookParam}${tokenParam}`;
-
-        let activeVer = null;
-        try {
-          activeVer = await getActiveFileVersion(env, ent.productId, ent.addOnId);
-        } catch {}
-
-        const fileRef = ent.fileReference || {};
-        const hasFile = Boolean(
-          activeVer?.storageReference ||
-          fileRef.fileUrl ||
-          fileRef.pdfUrl ||
-          fileRef.filename ||
-          fileRef.samplePdfName
-        );
-
-        return {
-          entitlementId: ent.id,
-          orderId: ent.orderId,
-          name: ent.title,
-          type: ent.addOnId ? 'addon' : 'product',
-          available: hasFile,
-          version: activeVer?.versionLabel || fileRef.version || undefined,
-          updatedAt: activeVer?.createdAt || undefined,
-          productId: ent.productId,
-          addOnId: ent.addOnId || null,
-          purchasedAt: ent.grantedAt || ent.orderCreatedAt || '',
-          status: ent.status,
-          downloadUrl: hasFile ? downloadUrl : null,
-        };
-      })
-    );
+    const studentPortalUrl = (env && env.STUDENT_PORTAL_URL)
+      ? String(env.STUDENT_PORTAL_URL).trim()
+      : 'https://portal.aylemlearning.online/';
 
     // Format safe orders list
     const safeOrders = paidOrders.map((o) => ({
@@ -130,9 +64,10 @@ export async function onRequestGet(context) {
           name: customer.name,
           email: customer.email,
         },
-        materials,
+        materials: [],
         orders: safeOrders,
-        googleSheetUrl: GOOGLE_SHEET_COPY_URL,
+        googleSheetUrl: null,
+        portalUrl: studentPortalUrl,
       }),
       {
         status: 200,

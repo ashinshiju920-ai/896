@@ -26,9 +26,11 @@ import { MyMaterialsView } from './views/MyMaterialsView';
 import { CustomerLoginView } from './views/CustomerLoginView';
 import { CustomerAccountView } from './views/CustomerAccountView';
 import { AboutView } from './views/AboutView';
+import { PrivacyPolicyView } from './views/PrivacyPolicyView';
+import { TermsConditionsView } from './views/TermsConditionsView';
 const AdminView = React.lazy(() => import('./views/AdminView'));
 import { NotFoundView } from './views/NotFoundView';
-import { checkOrderStatus } from './utils/cashfree';
+import { checkOrderStatus, STUDENT_PORTAL_URL } from './utils/cashfree';
 import { Order } from './types';
 import { BOOKS } from './data/books';
 
@@ -95,14 +97,11 @@ const ShopApp: React.FC = () => {
               total: res.total || 199,
               paymentMethod: 'upi',
               status: 'PAID',
-              fulfillment: res.fulfillment ? {
-                ...res.fulfillment,
-                materials: res.materials || res.fulfillment.materials,
-              } : null,
+              fulfillment: null,
             };
             setCurrentOrder(verifiedOrder);
-            navigate('/order-success', { replace: true });
-            showToast('Payment confirmed! Your study materials are unlocked.', 'success');
+            showToast('Payment confirmed! Redirecting to the student portal.', 'success');
+            window.location.assign(res.portalUrl || STUDENT_PORTAL_URL);
           } else {
             showToast('Payment verification pending or order unpaid.', 'warning');
           }
@@ -147,6 +146,8 @@ const ShopApp: React.FC = () => {
           <Route path="/login" element={<CustomerLoginView />} />
           <Route path="/account" element={<CustomerAccountView />} />
           <Route path="/about" element={<AboutView />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyView />} />
+          <Route path="/terms-and-conditions" element={<TermsConditionsView />} />
 
           {/* Admin routes (code-split and lazy-loaded) */}
           <Route

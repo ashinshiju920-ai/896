@@ -3,6 +3,7 @@
 // Replaces wildcard '*' with strict origin matching and credentials support.
 
 const PRODUCTION_ORIGINS = [
+  'https://portal.aylemlearning.online',
   'https://portal.xylemlearning.online',
   'https://xylemlearning.online',
 ];
@@ -45,7 +46,7 @@ export function getCorsHeaders(request, env) {
 
   if (!origin) {
     return {
-      'Access-Control-Allow-Origin': 'https://portal.xylemlearning.online',
+      'Access-Control-Allow-Origin': 'https://portal.aylemlearning.online',
       'Vary': 'Origin',
     };
   }

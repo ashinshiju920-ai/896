@@ -118,7 +118,7 @@ export const CatalogBannerEditor: React.FC<CatalogBannerEditorProps> = ({
 
     try {
       setIsUploadingDesktop(true);
-      const url = await uploadImageToCloud(file);
+      const url = await uploadImageToCloud(file, 'catalog_banner_desktop');
       setDesktopBgImage(url);
       showToast('Desktop background image uploaded successfully!', 'success');
     } catch (err: any) {
@@ -140,7 +140,7 @@ export const CatalogBannerEditor: React.FC<CatalogBannerEditorProps> = ({
 
     try {
       setIsUploadingMobile(true);
-      const url = await uploadImageToCloud(file);
+      const url = await uploadImageToCloud(file, 'catalog_banner_mobile');
       setMobileBgImage(url);
       showToast('Mobile-optimized background image uploaded successfully!', 'success');
     } catch (err: any) {

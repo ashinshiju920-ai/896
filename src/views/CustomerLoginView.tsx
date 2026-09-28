@@ -85,7 +85,7 @@ export const CustomerLoginView: React.FC = () => {
             <Lock className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
-            Sign In to Xylem
+            Sign In to Aylem
           </h1>
           <p className="text-xs text-slate-500">
             Access your purchased study guides and lifetime digital materials.

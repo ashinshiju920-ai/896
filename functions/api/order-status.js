@@ -1,7 +1,7 @@
 // functions/api/order-status.js
 // Server-Side Cashfree Order Verification & Fulfillment Gate
 
-import { getOrder, updateOrderStatus, issuePaidFulfillmentLinks } from '../utils/db.js';
+import { getOrder, updateOrderStatus } from '../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
 
 export async function onRequestOptions(context) {
@@ -78,16 +78,21 @@ export async function onRequestGet(context) {
       }
     }
 
-    // 3. Return ONLY verified, non-internal fields
+    const studentPortalUrl = (env && env.STUDENT_PORTAL_URL)
+      ? String(env.STUDENT_PORTAL_URL).trim()
+      : 'https://portal.aylemlearning.online/';
+
+    // 3. Return ONLY verified, non-internal fields.
+    // Digital content is now accessed exclusively through the external student portal.
     if (order.status === 'PAID') {
-      const fulfillment = await issuePaidFulfillmentLinks(order, env);
       return new Response(
         JSON.stringify({
           status: 'PAID',
           orderId: order.id,
           items: order.items || [],
-          materials: fulfillment?.materials || [],
-          fulfillment, // Server-issued download links & copy URL
+          materials: [],
+          fulfillment: null,
+          portalUrl: studentPortalUrl,
           customerName: order.customer_name,
           customerEmail: order.customer_email,
           isClaimed: Boolean(order.customer_id),

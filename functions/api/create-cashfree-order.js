@@ -255,9 +255,10 @@ export async function onRequestPost(context) {
       purpose: 'POST_PAYMENT_ACCOUNT_CLAIM',
     });
 
-    // Build return URL
-    const requestOrigin = new URL(request.url).origin;
-    const returnUrl = `${requestOrigin}/?order_id={order_id}&cf_status={order_status}`;
+    // Send paid customers to the external student portal after Cashfree completes.
+    const returnUrl = (env && env.STUDENT_PORTAL_URL)
+      ? String(env.STUDENT_PORTAL_URL).trim()
+      : 'https://portal.aylemlearning.online/';
 
     const cashfreePayload = {
       order_id: orderId,

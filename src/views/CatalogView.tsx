@@ -140,7 +140,7 @@ export const CatalogView: React.FC = () => {
       </div>
 
       {/* Category Hero Banner with Responsive Dual Images & Custom Colors */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#0a2540] via-[#0d3356] to-[#081d33] p-6 sm:p-10 shadow-lg isolation">
+      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-r from-[#0a2540] via-[#0d3356] to-[#081d33] px-4 py-5 sm:p-10 shadow-lg isolation min-h-[330px] sm:min-h-[320px] flex items-end sm:items-center">
         {/* Device-Responsive Dual Background Images */}
         {(catalogBanner?.desktopBgImage || catalogBanner?.mobileBgImage) && (
           <picture className="absolute inset-0 w-full h-full pointer-events-none -z-10">
@@ -174,13 +174,13 @@ export const CatalogView: React.FC = () => {
           }}
         />
 
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="relative z-10 w-full max-w-3xl space-y-3.5 sm:space-y-4">
+          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => handleCategorySelect(cat)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-emerald-500 text-white shadow-xs'
                     : 'bg-white/15 text-slate-200 hover:bg-white/25'
@@ -192,20 +192,20 @@ export const CatalogView: React.FC = () => {
           </div>
 
           <h1
-            className="text-2xl sm:text-4xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif] tracking-tight"
+            className="text-[1.7rem] leading-tight sm:text-4xl font-extrabold font-['Plus_Jakarta_Sans',sans-serif] tracking-tight break-words"
             style={{ color: catalogBanner?.titleColor || '#ffffff' }}
           >
             {activeCategoryTitle}
           </h1>
           <p
-            className="text-sm sm:text-base max-w-2xl leading-relaxed font-['DM_Sans',sans-serif]"
+            className="text-[13px] sm:text-base max-w-2xl leading-relaxed font-['DM_Sans',sans-serif]"
             style={{ color: catalogBanner?.subtitleColor || '#cbd5e1' }}
           >
             {catalogBanner?.subtitle || 'Achieve your target score with expert-curated study materials, practice books, full-length mock exams, and verified strategies.'}
           </p>
 
           {/* Feature Badges from Image 4 */}
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-1 sm:pt-2">
             {(catalogBanner?.featurePills && catalogBanner.featurePills.length > 0
               ? catalogBanner.featurePills
               : [
@@ -217,7 +217,7 @@ export const CatalogView: React.FC = () => {
             ).map((pill, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center text-[11px] font-medium backdrop-blur-xs border px-3 py-1 rounded-lg"
+                className="inline-flex max-w-full items-center text-[11px] font-medium backdrop-blur-xs border px-3 py-1 rounded-lg"
                 style={{
                   color: catalogBanner?.badgeTextColor || '#e2e8f0',
                   borderColor: 'rgba(255, 255, 255, 0.15)',

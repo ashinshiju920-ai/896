@@ -1,5 +1,5 @@
 # ==============================================================================
-# Robots.txt for Xylem Learning (https://xylemlearning.online)
+# Robots.txt for Aylem Learning (https://aylemlearning.online)
 # Explicitly allows verified search engines while disallowing AI scrapers,
 # LLM training bots, and aggressive content harvesters.
 # ==============================================================================

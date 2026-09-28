@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
-import { checkOrderStatus, OrderStatusResponse } from '../utils/cashfree';
+import { checkOrderStatus, OrderStatusResponse, STUDENT_PORTAL_URL } from '../utils/cashfree';
 import { Order } from '../types';
 import { BOOKS } from '../data/books';
 
@@ -167,16 +167,12 @@ export const OrderSuccessView: React.FC = () => {
             total: res.total || 199,
             paymentMethod: 'upi',
             status: 'PAID',
-            fulfillment: res.fulfillment ? {
-              ...res.fulfillment,
-              materials: res.materials || res.fulfillment.materials,
-            } : null,
+            fulfillment: null,
           };
 
           setCurrentOrder(reconstructedOrder);
-          if (isManual) {
-            showToast('Payment verified successfully! Your materials are ready.', 'success');
-          }
+          showToast('Payment verified. Redirecting to the student portal.', 'success');
+          window.location.assign(res.portalUrl || STUDENT_PORTAL_URL);
         } else if (res.status === 'PENDING') {
           setOrderStatus('PENDING');
           if (isManual) {
@@ -534,7 +530,7 @@ export const OrderSuccessView: React.FC = () => {
               </span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-              Your purchase has been added to your Xylem Learning account.
+              Your purchase has been added to your Aylem Learning account.
             </h3>
             <p className="text-xs text-slate-600">
               Linked to {currentCustomer?.email || currentOrder.shipping.email}. Access this study material anytime from any device.
@@ -857,7 +853,7 @@ export const OrderSuccessView: React.FC = () => {
       <div className="border border-slate-200 bg-white rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
         <div>
           <span className="font-bold text-slate-900 block text-sm">Need help with your order?</span>
-          <span>Reference Order ID <strong className="font-mono text-slate-900">#{currentOrder.id}</strong> when contacting our support team at <a href="mailto:xylembookstore@gmail.com" className="text-emerald-700 underline font-semibold">xylembookstore@gmail.com</a> or call <a href="tel:+916282377918" className="text-emerald-700 underline font-semibold">+91 6282377918</a>.</span>
+          <span>Reference Order ID <strong className="font-mono text-slate-900">#{currentOrder.id}</strong> when contacting our support team at <a href="mailto:aylembookstore@gmail.com" className="text-emerald-700 underline font-semibold">aylembookstore@gmail.com</a> or call <a href="tel:+916282377918" className="text-emerald-700 underline font-semibold">+91 6282377918</a>.</span>
         </div>
 
         <button

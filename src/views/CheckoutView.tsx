@@ -545,7 +545,7 @@ export const CheckoutView: React.FC = () => {
             </h1>
 
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-xl">
-              Complete your payment securely with Cashfree and get instant access to your study materials.
+              Complete your payment securely with Cashfree. After payment, you will be redirected to the Aylem student portal to access your study materials.
             </p>
           </div>
         </div>
@@ -807,7 +807,7 @@ export const CheckoutView: React.FC = () => {
               <div className="flex items-center justify-between text-slate-600">
                 <span>Delivery</span>
                 <span className="font-semibold text-emerald-600">
-                  {hasPhysical ? (authoritativeDeliveryFee > 0 ? `₹${authoritativeDeliveryFee}` : 'FREE') : 'FREE (Instant Download)'}
+                  {hasPhysical ? (authoritativeDeliveryFee > 0 ? `₹${authoritativeDeliveryFee}` : 'FREE') : 'Portal Access'}
                 </span>
               </div>
             </div>
@@ -984,11 +984,11 @@ export const CheckoutView: React.FC = () => {
                 <ul className="text-xs text-slate-600 space-y-1.5 pl-6 list-none">
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Instant access after payment</span>
+                    <span>Redirects to student portal after payment</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Lifetime access to study materials</span>
+                    <span>Access materials inside the student portal</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -1056,11 +1056,11 @@ export const CheckoutView: React.FC = () => {
                 <ul className="text-xs text-slate-600 space-y-1.5 pl-6 list-none">
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Instant access after payment</span>
+                    <span>Redirects to student portal after payment</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Lifetime access to study materials</span>
+                    <span>Access materials inside the student portal</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -1417,8 +1417,8 @@ export const CheckoutView: React.FC = () => {
               </div>
               <div className="flex flex-col items-center">
                 <Zap className="w-4 h-4 text-emerald-600 mb-1" />
-                <span className="text-xs font-bold text-slate-800">Instant Access</span>
-                <span className="text-[10px] text-slate-500">Direct Download</span>
+                <span className="text-xs font-bold text-slate-800">Portal Access</span>
+                <span className="text-[10px] text-slate-500">Student portal</span>
               </div>
               <div className="flex flex-col items-center">
                 <Shield className="w-4 h-4 text-emerald-600 mb-1" />
@@ -1438,7 +1438,7 @@ export const CheckoutView: React.FC = () => {
       {/* 5. FOOTER */}
       <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>© 2025 Xylem Learning. All rights reserved.</div>
+          <div>© 2025 Aylem Learning. All rights reserved.</div>
           <div className="flex items-center gap-6">
             <button
               onClick={() => showToast('All customer information is encrypted & never shared.')}
@@ -1447,7 +1447,7 @@ export const CheckoutView: React.FC = () => {
               Privacy Policy
             </button>
             <button
-              onClick={() => showToast('Terms: Instant digital delivery upon payment confirmation.')}
+              onClick={() => showToast('Terms: After payment, access your materials through the student portal.')}
               className="hover:text-emerald-700 transition-colors cursor-pointer"
             >
               Terms of Service

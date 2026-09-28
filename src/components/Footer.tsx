@@ -6,7 +6,7 @@ import { useShop } from '../context/ShopContext';
 import { ExamCategory } from '../types';
 
 export const Footer: React.FC = () => {
-  const { setCurrentView, navigateToCatalog, setIsContactModalOpen, showToast } = useShop();
+  const { setIsContactModalOpen, showToast } = useShop();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
     if (!val) return;
 
     setSubscribed(true);
-    showToast('Thank you for subscribing to Xylem Learning updates!');
+    showToast('Thank you for subscribing to Aylem Learning updates!');
     setEmail('');
   };
 
@@ -30,7 +30,7 @@ export const Footer: React.FC = () => {
               <XylemLogo size="md" showTagline={true} />
             </Link>
             <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-              Xylem Learning is your dedicated preparation partner for global language and professional licensing examinations. Trusted by over 50,000+ learners across India and abroad.
+              Aylem Learning is your dedicated preparation partner for global language and professional licensing examinations. Trusted by over 50,000+ learners across India and abroad.
             </p>
             <div className="pt-2 space-y-2">
               <div className="text-xs text-emerald-400 font-semibold tracking-wider uppercase">
@@ -38,10 +38,10 @@ export const Footer: React.FC = () => {
               </div>
               <div className="space-y-0.5">
                 <a
-                  href="mailto:xylembookstore@gmail.com"
+                  href="mailto:aylembookstore@gmail.com"
                   className="text-sm text-slate-300 hover:text-emerald-400 font-medium transition-colors block"
                 >
-                  xylembookstore@gmail.com
+                  aylembookstore@gmail.com
                 </a>
                 <a
                   href="tel:+916282377918"
@@ -137,7 +137,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link to="/about" className="hover:text-emerald-400 transition-colors">
-                  Why Xylem
+                  Why Aylem
                 </Link>
               </li>
               <li>
@@ -218,21 +218,21 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & policies bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
           <div>
-            © 2025 Xylem Learning. All rights reserved.
+            © 2025 Aylem Learning. All rights reserved.
           </div>
-          <div className="flex items-center space-x-6">
-            <button
-              onClick={() => showToast('Privacy Policy: All customer information is encrypted & never shared.')}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+            <Link
+              to="/privacy-policy"
               className="hover:text-emerald-400 transition-colors cursor-pointer"
             >
               Privacy Policy
-            </button>
-            <button
-              onClick={() => showToast('Terms: Instant digital delivery upon payment confirmation.')}
+            </Link>
+            <Link
+              to="/terms-and-conditions"
               className="hover:text-emerald-400 transition-colors cursor-pointer"
             >
               Terms & Conditions
-            </button>
+            </Link>
             <button
               onClick={() => showToast('Shipping: Digital items arrive instantly. Physical books ship in 3-5 days.')}
               className="hover:text-emerald-400 transition-colors cursor-pointer"
