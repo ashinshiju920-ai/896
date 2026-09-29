@@ -16,6 +16,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { HeroBookShowcase } from '../components/HeroBookShowcase';
+import { getExamImagePreloadUrl, getExamImageSrcSet, getImageOrigin } from '../utils/imageOptimization';
 
 import { ExamCategory, Book } from '../types';
 
@@ -34,6 +35,48 @@ export const HomeView: React.FC = () => {
 
   // Featured books dynamically respect the admin's custom arrangement (6 products for balanced 2x3 mobile grid)
   const featuredBooks = (books && books.length > 0 ? books.slice(0, 6) : []).filter(Boolean);
+  const priorityExamPaths = React.useMemo(() => examPaths.slice(0, 4), [examPaths]);
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const createdLinks: HTMLLinkElement[] = [];
+    const seenOrigins = new Set<string>();
+
+    priorityExamPaths.forEach((path) => {
+      if (!path?.bgImage) return;
+
+      const origin = getImageOrigin(path.bgImage);
+      if (origin && !seenOrigins.has(origin) && !document.querySelector(`link[data-exam-card-preconnect="${origin}"]`)) {
+        seenOrigins.add(origin);
+        const preconnect = document.createElement('link');
+        preconnect.rel = 'preconnect';
+        preconnect.href = origin;
+        preconnect.dataset.examCardPreconnect = origin;
+        document.head.appendChild(preconnect);
+        createdLinks.push(preconnect);
+      }
+
+      const preloadUrl = getExamImagePreloadUrl(path.bgImage);
+      if (!preloadUrl || document.querySelector(`link[data-exam-card-preload="${path.category}"]`)) return;
+
+      const preload = document.createElement('link');
+      preload.rel = 'preload';
+      preload.as = 'image';
+      preload.href = preloadUrl;
+      preload.setAttribute('fetchpriority', 'high');
+      preload.setAttribute('imagesizes', '(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw');
+      const srcSet = getExamImageSrcSet(path.bgImage);
+      if (srcSet) preload.setAttribute('imagesrcset', srcSet);
+      preload.dataset.examCardPreload = path.category;
+      document.head.appendChild(preload);
+      createdLinks.push(preload);
+    });
+
+    return () => {
+      createdLinks.forEach((link) => link.remove());
+    };
+  }, [priorityExamPaths]);
 
 
   return (
@@ -111,7 +154,7 @@ export const HomeView: React.FC = () => {
 
         {/* 4 Cards Grid matching Reference Mockup */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
-          {examPaths.map((path) => (
+          {examPaths.map((path, index) => (
             <div
               key={path.category}
               onClick={() => {
@@ -125,10 +168,16 @@ export const HomeView: React.FC = () => {
             >
               {/* High-Resolution Background Image */}
               <img
-                src={path.bgImage}
+                src={getExamImagePreloadUrl(path.bgImage)}
+                srcSet={getExamImageSrcSet(path.bgImage)}
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                 alt={path.title}
+                width={720}
+                height={806}
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                loading="eager"
+                loading={index < 4 ? 'eager' : 'lazy'}
+                fetchPriority={index < 4 ? 'high' : 'auto'}
+                decoding="async"
               />
 
               {/* Bottom Navy Gradient Overlay (Keeps top landmarks bright and bottom text crisp) */}

@@ -65,12 +65,19 @@ export async function onRequestGet(context) {
 
         if (cfRes.ok) {
           const cfData = await cfRes.json();
-          if (cfData && cfData.order_status === 'PAID') {
+          const cfOrderStatus = String(cfData?.order_status || '').toUpperCase();
+          if (cfData && cfOrderStatus === 'PAID') {
             const paidPaise = Math.round(Number(cfData.order_amount) * 100);
             if (Math.abs(order.amount_paise - paidPaise) <= 1) {
               await updateOrderStatus(env, order.id, 'PAID');
               order.status = 'PAID';
             }
+          } else if (['FAILED', 'EXPIRED', 'TERMINATED', 'CANCELLED', 'CANCELED'].includes(cfOrderStatus)) {
+            await updateOrderStatus(env, order.id, 'FAILED');
+            order.status = 'FAILED';
+          } else if (['USER_DROPPED', 'DROPPED'].includes(cfOrderStatus)) {
+            await updateOrderStatus(env, order.id, 'USER_DROPPED');
+            order.status = 'USER_DROPPED';
           }
         }
       } catch (cfFetchErr) {

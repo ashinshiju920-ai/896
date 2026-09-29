@@ -70,6 +70,19 @@ export const CheckoutView: React.FC = () => {
   const [activeCarouselDot, setActiveCarouselDot] = useState(0);
   const mobileCarouselRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const paymentState = params.get('payment');
+    if (paymentState === 'failed') {
+      showToast('Payment failed. Your selected items are still here so you can try again.', 'warning');
+      window.history.replaceState({}, '', '/checkout');
+    } else if (paymentState === 'cancelled') {
+      showToast('Payment was not completed. Your selected items are still here so you can try again.', 'warning');
+      window.history.replaceState({}, '', '/checkout');
+    }
+  }, [showToast]);
+
   // 1. Determine primary exam category from cart items
   const primaryCategory = useMemo(() => {
     return (cart[0]?.book?.category || 'IELTS') as string;

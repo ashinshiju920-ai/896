@@ -52,6 +52,7 @@ const ShopApp: React.FC = () => {
   // Handle Cashfree return: verify payment server-side before unlocking order
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (location.pathname.startsWith('/order-success')) return;
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id') || params.get('orderId');
     const cfStatus = params.get('cf_status') || params.get('status');

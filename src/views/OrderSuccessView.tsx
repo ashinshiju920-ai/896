@@ -180,8 +180,12 @@ export const OrderSuccessView: React.FC = () => {
           }
         } else if (res.status === 'FAILED') {
           setOrderStatus('FAILED');
+          showToast('Payment failed. Please try again from checkout.', 'warning');
+          navigate(`/checkout?payment=failed&order_id=${encodeURIComponent(orderIdToVerify)}`, { replace: true });
         } else if (res.status === 'USER_DROPPED') {
           setOrderStatus('USER_DROPPED');
+          showToast('Payment was not completed. Please try again from checkout.', 'warning');
+          navigate(`/checkout?payment=cancelled&order_id=${encodeURIComponent(orderIdToVerify)}`, { replace: true });
         } else {
           setOrderStatus('NOT_FOUND');
         }
@@ -191,7 +195,7 @@ export const OrderSuccessView: React.FC = () => {
         if (isManual) setIsManualChecking(false);
       }
     },
-    [books, setCurrentOrder, shippingInfo, showToast]
+    [books, navigate, setCurrentOrder, shippingInfo, showToast]
   );
 
   // Initialize verification on mount or URL change

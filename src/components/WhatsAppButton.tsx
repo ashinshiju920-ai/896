@@ -49,7 +49,7 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
           {/* Main 3D Glossy WhatsApp Icon */}
           <div className="relative w-13 h-13 sm:w-15 sm:h-15 drop-shadow-[0_8px_18px_rgba(18,140,126,0.38)] group-hover:drop-shadow-[0_12px_24px_rgba(37,211,102,0.55)] transition-all duration-300">
             <img
-              src="/whatsapp-icon.png"
+              src="/whatsapp-icon.svg"
               alt="WhatsApp"
               width="60"
               height="60"

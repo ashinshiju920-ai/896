@@ -255,10 +255,10 @@ export async function onRequestPost(context) {
       purpose: 'POST_PAYMENT_ACCOUNT_CLAIM',
     });
 
-    // Send paid customers to the external student portal after Cashfree completes.
-    const returnUrl = (env && env.STUDENT_PORTAL_URL)
-      ? String(env.STUDENT_PORTAL_URL).trim()
-      : 'https://portal.aylemlearning.online/';
+    // Cashfree must return to our verifier first. The student portal is opened
+    // only after /api/order-status confirms this order is PAID server-side.
+    const requestUrl = new URL(request.url);
+    const returnUrl = `${requestUrl.origin}/order-success?order_id=${encodeURIComponent(orderId)}`;
 
     const cashfreePayload = {
       order_id: orderId,
