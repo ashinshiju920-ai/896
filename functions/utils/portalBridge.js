@@ -239,7 +239,12 @@ export async function provisionPortalAccessForPaidOrder(env, order, options = {}
       orderId: externalReference,
       mainSiteOrderId: orderId,
       email,
+      customerEmail: email,
+      customerName: order.customer_name || 'Valued Customer',
       productKey: course.productKey,
+      courseKey: course.productKey,
+      courseSlug: course.productKey,
+      courseCategory: course.category,
       paymentStatus: 'PAID',
       source: 'MAIN_SITE_PURCHASE',
     };
