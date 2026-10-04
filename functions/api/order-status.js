@@ -182,12 +182,10 @@ export async function onRequestGet(context) {
     // 3. Return ONLY verified, non-internal fields.
     // Digital content is now accessed exclusively through the external student portal.
     if (order.status === 'PAID') {
-      if (paidConfirmedByCashfree) {
-        try {
-          await provisionPortalAccessForPaidOrder(env, order, { source: 'ORDER_STATUS_CASHFREE_RETRY' });
-        } catch (bridgeErr) {
-          console.warn('Portal bridge retry failed after order-status verification:', bridgeErr?.message);
-        }
+      try {
+        await provisionPortalAccessForPaidOrder(env, order, { source: 'ORDER_STATUS_PAID_VERIFY' });
+      } catch (bridgeErr) {
+        console.warn('Portal bridge invocation error in order-status:', bridgeErr?.message);
       }
 
       return new Response(
