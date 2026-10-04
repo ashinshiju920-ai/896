@@ -283,6 +283,7 @@ export async function provisionPortalAccessForPaidOrder(env, order, options = {}
       });
 
       const ok = res.ok;
+      const responseText = ok ? null : await res.text();
       if (ok) successCount += 1;
       else failureCount += 1;
 
@@ -292,6 +293,7 @@ export async function provisionPortalAccessForPaidOrder(env, order, options = {}
         externalReference,
         success: ok,
         status: res.status,
+        error: responseText,
       };
       results.push(result);
 
@@ -301,6 +303,7 @@ export async function provisionPortalAccessForPaidOrder(env, order, options = {}
         productKey: course.productKey,
         externalReference,
         httpStatus: res.status,
+        responseBody: responseText ? responseText.slice(0, 300) : null,
         success: ok,
       });
     } catch (err) {
