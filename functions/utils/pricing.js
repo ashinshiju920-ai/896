@@ -17,6 +17,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-full-prep',
     title: 'IELTS Full Preparation with Mock Tests',
+    category: 'IELTS',
     prices: {
       digital: { price: 199, originalPrice: 599 },
       physical: { price: 999, originalPrice: 1299 },
@@ -32,6 +33,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'oet-full-prep',
     title: 'OET Full Preparation with Mock Tests',
+    category: 'OET',
     prices: {
       digital: { price: 199, originalPrice: 599 },
       physical: { price: 1199, originalPrice: 1599 },
@@ -47,6 +49,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'german-full-prep',
     title: 'German Full Preparation with Mock Tests',
+    category: 'German',
     prices: {
       digital: { price: 199, originalPrice: 599 },
       physical: { price: 1149, originalPrice: 1499 },
@@ -62,6 +65,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'pte-full-prep',
     title: 'PTE Full Preparation with Mock Tests',
+    category: 'PTE',
     prices: {
       digital: { price: 199, originalPrice: 599 },
       physical: { price: 1099, originalPrice: 1499 },
@@ -77,6 +81,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-complete-guide',
     title: 'IELTS Preparation Complete Study Guide',
+    category: 'IELTS',
     prices: {
       digital: { price: 499, originalPrice: 999 },
       physical: { price: 1299, originalPrice: 1599 },
@@ -92,6 +97,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-practice-tests',
     title: 'IELTS Practice Tests 10 Full-Length Mock Tests',
+    category: 'IELTS',
     prices: {
       digital: { price: 599, originalPrice: 1199 },
       physical: { price: 1499, originalPrice: 1899 },
@@ -105,6 +111,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-vocabulary',
     title: 'IELTS Vocabulary Build Your Word Power',
+    category: 'IELTS',
     prices: {
       digital: { price: 299, originalPrice: 699 },
       physical: { price: 999, originalPrice: 1299 },
@@ -118,6 +125,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-grammar',
     title: 'IELTS Grammar for Higher Band',
+    category: 'IELTS',
     prices: {
       digital: { price: 349, originalPrice: 799 },
       physical: { price: 1099, originalPrice: 1399 },
@@ -131,6 +139,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-writing-master',
     title: 'IELTS Writing Task 1 & 2 Masterclass',
+    category: 'IELTS',
     prices: {
       digital: { price: 399, originalPrice: 899 },
       physical: { price: 1199, originalPrice: 1599 },
@@ -144,6 +153,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-speaking-master',
     title: 'IELTS Speaking Masterclass',
+    category: 'IELTS',
     prices: {
       digital: { price: 349, originalPrice: 799 },
       physical: { price: 1099, originalPrice: 1499 },
@@ -157,6 +167,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'academic-study-planner',
     title: 'Academic Study Planner & Progress Tracker',
+    category: 'All',
     prices: {
       digital: { price: 49, originalPrice: 199 },
       physical: { price: 499, originalPrice: 799 },
@@ -170,6 +181,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-vocab-booster',
     title: 'IELTS Vocabulary Booster',
+    category: 'IELTS',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -183,6 +195,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-writing-task',
     title: 'IELTS Writing Task 1 & 2',
+    category: 'IELTS',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -196,6 +209,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-listening-practice',
     title: 'IELTS Listening Practice',
+    category: 'IELTS',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -209,6 +223,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'ielts-reading-strategies',
     title: 'IELTS Reading Strategies',
+    category: 'IELTS',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -222,6 +237,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'oet-vocab-booster',
     title: 'OET Vocabulary Booster',
+    category: 'OET',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -235,6 +251,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'oet-writing-task',
     title: 'OET Writing Task 1 & 2',
+    category: 'OET',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -248,6 +265,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'oet-listening-practice',
     title: 'OET Listening Practice',
+    category: 'OET',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -261,6 +279,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'oet-reading-strategies',
     title: 'OET Reading Strategies',
+    category: 'OET',
     prices: {
       digital: { price: 99, originalPrice: 299 },
       physical: { price: 499, originalPrice: 799 },
@@ -1178,4 +1197,3 @@ export function validateShippingInfo(shippingInfo = {}, requiresPhysical = false
     },
   };
 }
-

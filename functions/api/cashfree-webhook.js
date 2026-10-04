@@ -10,6 +10,7 @@ import {
   recordPromotionRedemption,
   recordAnalyticsEvent,
 } from '../utils/db.js';
+import { provisionPortalAccessForPaidOrder } from '../utils/portalBridge.js';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
@@ -146,6 +147,11 @@ export async function onRequestPost(context) {
   if (isPaymentSuccess) {
     // Idempotency: if already PAID, do not double-process
     if (order.status === 'PAID') {
+      try {
+        await provisionPortalAccessForPaidOrder(env, order, { source: 'CASHFREE_WEBHOOK_DUPLICATE_PAID' });
+      } catch (bridgeErr) {
+        console.warn('Portal bridge retry failed for already-paid webhook:', bridgeErr?.message);
+      }
       return new Response(JSON.stringify({ status: 'ok', alreadyProcessed: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -255,6 +261,17 @@ export async function onRequestPost(context) {
       eventType: 'PAYMENT_SUCCESS_CONFIRMED',
       rawPayload: rawBody,
     });
+
+    try {
+      await provisionPortalAccessForPaidOrder(env, order, { source: 'CASHFREE_WEBHOOK' });
+    } catch (bridgeErr) {
+      console.warn('Portal bridge failed after verified PAID webhook:', bridgeErr?.message);
+      await recordOrderEvent(env, {
+        orderId: order.id,
+        eventType: 'PORTAL_BRIDGE_UNHANDLED_ERROR',
+        rawPayload: JSON.stringify({ source: 'CASHFREE_WEBHOOK', error: bridgeErr?.message || 'Unknown error' }),
+      });
+    }
 
       // Phase 10: Record promotional coupon redemption if order had coupon applied
       const couponCode = order.coupon_code || order.couponCode;

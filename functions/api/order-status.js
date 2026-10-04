@@ -3,6 +3,7 @@
 
 import { getOrder, updateOrderStatus } from '../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
+import { provisionPortalAccessForPaidOrder } from '../utils/portalBridge.js';
 
 export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
@@ -43,6 +44,7 @@ export async function onRequestGet(context) {
     // 2. If status is not yet PAID, query Cashfree Get Order API server-side
     const secretKey = env && env.CASHFREE_SECRET_KEY ? String(env.CASHFREE_SECRET_KEY).trim() : '';
     const appId = env && env.CASHFREE_APP_ID ? String(env.CASHFREE_APP_ID).trim() : '';
+    let paidConfirmedByCashfree = false;
 
     if (order.status !== 'PAID' && secretKey && appId) {
       try {
@@ -71,6 +73,7 @@ export async function onRequestGet(context) {
             if (Math.abs(order.amount_paise - paidPaise) <= 1) {
               await updateOrderStatus(env, order.id, 'PAID');
               order.status = 'PAID';
+              paidConfirmedByCashfree = true;
             }
           } else if (['FAILED', 'EXPIRED', 'TERMINATED', 'CANCELLED', 'CANCELED'].includes(cfOrderStatus)) {
             await updateOrderStatus(env, order.id, 'FAILED');
@@ -92,6 +95,14 @@ export async function onRequestGet(context) {
     // 3. Return ONLY verified, non-internal fields.
     // Digital content is now accessed exclusively through the external student portal.
     if (order.status === 'PAID') {
+      if (paidConfirmedByCashfree) {
+        try {
+          await provisionPortalAccessForPaidOrder(env, order, { source: 'ORDER_STATUS_CASHFREE_RETRY' });
+        } catch (bridgeErr) {
+          console.warn('Portal bridge retry failed after order-status verification:', bridgeErr?.message);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           status: 'PAID',
