@@ -3,6 +3,7 @@
 
 import {
   getOrder,
+  saveOrder,
   updateOrderStatus,
   recordOrderEvent,
   createEntitlementsForPaidOrder,
@@ -10,7 +11,7 @@ import {
   recordPromotionRedemption,
   recordAnalyticsEvent,
 } from '../utils/db.js';
-import { provisionPortalAccessForPaidOrder } from '../utils/portalBridge.js';
+import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
@@ -113,21 +114,6 @@ export async function onRequestPost(context) {
     });
   }
 
-  // Look up order in D1 / KV
-  const order = await getOrder(env, orderId);
-  if (!order) {
-    await recordOrderEvent(env, {
-      orderId,
-      eventType: `WEBHOOK_UNKNOWN_ORDER_${eventType}`,
-      rawPayload: rawBody,
-    });
-    // Return 200 to acknowledge receipt and stop retries
-    return new Response(JSON.stringify({ status: 'ok', warning: 'Order not found' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   // 6. Idempotent Payment Success Handling
   const isPaymentSuccess =
     eventType === 'PAYMENT_SUCCESS_WEBHOOK' ||
@@ -143,6 +129,69 @@ export async function onRequestPost(context) {
     eventType === 'PAYMENT_USER_DROPPED_WEBHOOK' ||
     eventType === 'USER_DROPPED' ||
     payload.data?.payment?.payment_status === 'USER_DROPPED';
+
+  // Look up order in D1 / KV
+  let order = await getOrder(env, orderId);
+
+  // If order is not found locally, but webhook is a verified payment success, attempt safe authoritative recovery
+  if (!order && isPaymentSuccess) {
+    const cfOrder = payload.data?.order || {};
+    const recoveredItem = await recoverProductFromCashfreeOrder(cfOrder, env);
+
+    if (recoveredItem) {
+      const customerDetails = payload.data?.customer_details || {};
+      const paymentAmount = payload.data?.payment?.payment_amount || cfOrder.order_amount;
+      const paidPaise = Math.round(Number(paymentAmount) * 100);
+      const recoveredOrder = {
+        id: orderId,
+        cf_order_id: orderId,
+        customer_id: customerDetails.customer_id || null,
+        amount_paise: paidPaise,
+        currency: cfOrder.order_currency || 'INR',
+        status: 'PAID',
+        customer_name: customerDetails.customer_name || 'Valued Customer',
+        customer_email: customerDetails.customer_email || '',
+        customer_phone: customerDetails.customer_phone || '',
+        shipping: {
+          fullName: customerDetails.customer_name || 'Valued Customer',
+          email: customerDetails.customer_email || '',
+          phone: customerDetails.customer_phone || '',
+          deliveryOption: recoveredItem.format || 'digital',
+        },
+        items: [recoveredItem],
+        coupon_code: null,
+        discount_paise: 0,
+        subtotal_paise: paidPaise,
+        shipping_paise: 0,
+        total_paise: paidPaise,
+      };
+
+      try {
+        await saveOrder(env, recoveredOrder);
+        await recordOrderEvent(env, {
+          orderId,
+          eventType: 'ORDER_RECOVERED_FROM_WEBHOOK',
+          rawPayload: rawBody,
+        });
+        order = recoveredOrder;
+      } catch (persistErr) {
+        console.error('Failed to persist recovered order in webhook:', persistErr?.message);
+      }
+    }
+  }
+
+  if (!order) {
+    await recordOrderEvent(env, {
+      orderId,
+      eventType: `WEBHOOK_UNKNOWN_ORDER_${eventType}`,
+      rawPayload: rawBody,
+    });
+    // Return 200 to acknowledge receipt and stop retries
+    return new Response(JSON.stringify({ status: 'ok', warning: 'Order not found or product unrecoverable' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   if (isPaymentSuccess) {
     // Idempotency: if already PAID, do not double-process

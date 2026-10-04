@@ -14,6 +14,71 @@ export const PORTAL_COURSE_MAP = {
   GERMAN: 'german',
 };
 
+export async function recoverProductFromCashfreeOrder(cfData, env) {
+  if (!cfData || typeof cfData !== 'object') return null;
+
+  const note = String(cfData.order_note || '').trim();
+  const catalog = await loadCatalogue(env);
+
+  // Check if order_tags has an explicit product ID
+  if (cfData.order_tags && typeof cfData.order_tags === 'object') {
+    const tagProductId = cfData.order_tags.product_id || cfData.order_tags.productId;
+    if (tagProductId) {
+      const match = catalog.find((p) => p.id === tagProductId);
+      if (match) {
+        const deliveryOption = cfData.order_tags?.delivery_option === 'physical' ? 'physical' : 'digital';
+        return {
+          productId: match.id,
+          bookId: match.id,
+          id: match.id,
+          title: match.title,
+          category: match.category,
+          format: deliveryOption,
+        };
+      }
+    }
+  }
+
+  // Check order_note: formatted like "Xylem Learning - {product title prefix}"
+  let candidatePrefix = '';
+  if (note.startsWith('Xylem Learning - ')) {
+    candidatePrefix = note.slice('Xylem Learning - '.length).trim().toLowerCase();
+  } else if (note.startsWith('Aylem Learning - ')) {
+    candidatePrefix = note.slice('Aylem Learning - '.length).trim().toLowerCase();
+  } else if (note) {
+    candidatePrefix = note.toLowerCase();
+  }
+
+  if (!candidatePrefix || candidatePrefix === 'exam study guide') {
+    // Generic fallback note; cannot determine course authoritatively without guessing
+    return null;
+  }
+
+  // Match against catalog products
+  const matches = catalog.filter((product) => {
+    const titleLower = String(product.title || '').toLowerCase();
+    const titlePrefix = titleLower.slice(0, candidatePrefix.length);
+    return titlePrefix === candidatePrefix || titleLower.includes(candidatePrefix);
+  });
+
+  if (matches.length !== 1) {
+    // Ambiguous (multiple matches) or not found: DO NOT GUESS
+    return null;
+  }
+
+  const matchedProduct = matches[0];
+  const deliveryOption = cfData.order_tags?.delivery_option === 'physical' ? 'physical' : 'digital';
+
+  return {
+    productId: matchedProduct.id,
+    bookId: matchedProduct.id,
+    id: matchedProduct.id,
+    title: matchedProduct.title,
+    category: matchedProduct.category,
+    format: deliveryOption,
+  };
+}
+
 function normalizeCategory(category) {
   const clean = String(category || '').trim().toUpperCase();
   if (clean === 'GERMAN') return 'GERMAN';

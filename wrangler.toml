@@ -1,0 +1,8 @@
+name = "896"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-26"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "xylem"
+database_id = "b1f4869c-f143-46cf-8a5e-2d617b96645d"

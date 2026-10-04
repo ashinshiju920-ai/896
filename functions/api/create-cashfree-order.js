@@ -3,7 +3,7 @@
 // Hardened with strict CORS, KV rate limiting, and sanitized error responses
 
 import { computeOrderPrice, validateShippingInfo } from '../utils/pricing.js';
-import { saveOrder, updateOrderStatus, saveOrderClaim, getCustomerSessionByTokenHash, recordAnalyticsEvent } from '../utils/db.js';
+import { saveOrder, getOrder, updateOrderStatus, saveOrderClaim, getCustomerSessionByTokenHash, recordAnalyticsEvent } from '../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
 import { checkRateLimit } from '../utils/rateLimit.js';
 import { parseCookies, generateRandomToken, sha256Hex } from '../utils/auth.js';
@@ -223,37 +223,63 @@ export async function onRequestPost(context) {
     const orderId = `order_${timestamp}_${Math.floor(1000 + Math.random() * 9000)}`;
     const customerId = authenticatedCustomerId || `cust_${cleanShipping.phone}_${timestamp % 10000}`;
 
-    // 4. Write PENDING order row to D1 / KV BEFORE calling Cashfree
-    await saveOrder(env, {
-      id: orderId,
-      cf_order_id: orderId,
-      customer_id: authenticatedCustomerId,
-      amount_paise: pricing.totalPaise,
-      currency: 'INR',
-      status: 'PENDING',
-      customer_name: cleanShipping.fullName,
-      customer_email: cleanShipping.email,
-      customer_phone: cleanShipping.phone,
-      shipping: cleanShipping,
-      items: pricing.items,
-      coupon_code: pricing.couponCode || null,
-      discount_paise: pricing.couponDiscountPaise || 0,
-      promotion_snapshot_json: pricing.promotionSnapshot ? JSON.stringify(pricing.promotionSnapshot) : null,
-      subtotal_paise: pricing.subtotalPaise,
-      shipping_paise: pricing.deliveryFeePaise,
-      total_paise: pricing.totalPaise,
-    });
+    // 4. Authoritative order persistence: write PENDING order row to D1 / KV BEFORE calling Cashfree
+    try {
+      await saveOrder(env, {
+        id: orderId,
+        cf_order_id: orderId,
+        customer_id: authenticatedCustomerId,
+        amount_paise: pricing.totalPaise,
+        currency: 'INR',
+        status: 'PENDING',
+        customer_name: cleanShipping.fullName,
+        customer_email: cleanShipping.email,
+        customer_phone: cleanShipping.phone,
+        shipping: cleanShipping,
+        items: pricing.items,
+        coupon_code: pricing.couponCode || null,
+        discount_paise: pricing.couponDiscountPaise || 0,
+        promotion_snapshot_json: pricing.promotionSnapshot ? JSON.stringify(pricing.promotionSnapshot) : null,
+        subtotal_paise: pricing.subtotalPaise,
+        shipping_paise: pricing.deliveryFeePaise,
+        total_paise: pricing.totalPaise,
+      });
+    } catch (persistErr) {
+      console.error('Critical: Authoritative order persistence failed:', persistErr?.message);
+      return new Response(
+        JSON.stringify({
+          error: 'Order could not be saved to database. Payment cannot be initiated.',
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // Read-after-write verification: ensure order exists in storage before proceeding to gateway
+    const verifiedSavedOrder = await getOrder(env, orderId);
+    if (!verifiedSavedOrder) {
+      console.error(`Critical: Order persistence verification failed for order ${orderId}`);
+      return new Response(
+        JSON.stringify({
+          error: 'Order persistence verification failed. Payment cannot be initiated.',
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
 
     // Generate post-payment claim secret for secure post-payment account activation
     const claimSecret = generateRandomToken(32);
     const claimHash = await sha256Hex(claimSecret);
     const claimExpiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
-    await saveOrderClaim(env, {
-      orderId,
-      claimHash,
-      expiresAt: claimExpiresAt,
-      purpose: 'POST_PAYMENT_ACCOUNT_CLAIM',
-    });
+    try {
+      await saveOrderClaim(env, {
+        orderId,
+        claimHash,
+        expiresAt: claimExpiresAt,
+        purpose: 'POST_PAYMENT_ACCOUNT_CLAIM',
+      });
+    } catch (claimErr) {
+      console.warn('Could not persist claim secret (non-fatal):', claimErr?.message);
+    }
 
     // Cashfree must return to our verifier first. The student portal is opened
     // only after /api/order-status confirms this order is PAID server-side.

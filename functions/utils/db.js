@@ -32,8 +32,10 @@ export async function saveOrder(env, order) {
     updated_at: order.updated_at || now,
   };
 
-  // 1. Primary: Cloudflare D1 Database (if bound)
-  if (env && env.DB) {
+  let persisted = false;
+
+  // 1. Primary: Cloudflare D1 Database (if valid binding)
+  if (env && env.DB && typeof env.DB.prepare === 'function') {
     const insertWithPromotions = () => env.DB.prepare(
       `INSERT INTO orders (
         id, cf_order_id, customer_id, amount_paise, currency, status,
@@ -124,26 +126,35 @@ export async function saveOrder(env, order) {
       } else {
         await insertWithCustomerId();
       }
+      persisted = true;
     } catch (colErr7) {
       try {
         await insertLegacy();
-      } catch (_) {
-        console.warn('D1 insert failed, continuing to KV fallback:', colErr7.message);
+        persisted = true;
+      } catch (legacyErr) {
+        console.warn('D1 insert failed, continuing to KV fallback:', legacyErr.message);
       }
     }
+  } else if (env && env.DB && typeof env.DB.prepare !== 'function') {
+    console.error('Invalid DB binding in environment: env.DB is not a valid D1Database instance');
   }
 
   // 2. Secondary & Local Fallback: Cloudflare KV
-  if (env && env.PRODUCTS_KV) {
+  if (env && env.PRODUCTS_KV && typeof env.PRODUCTS_KV.put === 'function') {
     try {
       const ttl = 86400 * 30; // 30 days retention
       await env.PRODUCTS_KV.put(`order:${orderRecord.id}`, JSON.stringify(orderRecord), { expirationTtl: ttl });
       if (orderRecord.cf_order_id && orderRecord.cf_order_id !== orderRecord.id) {
         await env.PRODUCTS_KV.put(`order_cf:${orderRecord.cf_order_id}`, orderRecord.id, { expirationTtl: ttl });
       }
+      persisted = true;
     } catch (kvErr) {
       console.warn('KV order persistence error:', kvErr.message);
     }
+  }
+
+  if (!persisted) {
+    throw new Error('ORDER_PERSISTENCE_FAILED: Unable to persist order. Neither D1 database nor KV storage was successfully written.');
   }
 
   return {
@@ -161,7 +172,7 @@ export async function getOrder(env, orderId) {
   const cleanId = String(orderId).trim();
 
   // 1. Try D1
-  if (env && env.DB) {
+  if (env && env.DB && typeof env.DB.prepare === 'function') {
     try {
       const row = await env.DB.prepare(
         `SELECT * FROM orders WHERE id = ? OR cf_order_id = ? LIMIT 1`
@@ -186,7 +197,7 @@ export async function getOrder(env, orderId) {
   }
 
   // 2. Try KV
-  if (env && env.PRODUCTS_KV) {
+  if (env && env.PRODUCTS_KV && typeof env.PRODUCTS_KV.get === 'function') {
     try {
       let data = await env.PRODUCTS_KV.get(`order:${cleanId}`, { type: 'json' });
       if (!data) {
@@ -231,7 +242,7 @@ export async function updateOrderStatus(env, orderId, newStatus) {
   }
 
   // 1. Update D1
-  if (env && env.DB) {
+  if (env && env.DB && typeof env.DB.prepare === 'function') {
     try {
       await env.DB.prepare(
         `UPDATE orders SET status = ?, updated_at = ? WHERE (id = ? OR cf_order_id = ?) AND (status != 'PAID' OR ? = 'PAID')`
@@ -244,7 +255,7 @@ export async function updateOrderStatus(env, orderId, newStatus) {
   }
 
   // 2. Update KV
-  if (env && env.PRODUCTS_KV) {
+  if (env && env.PRODUCTS_KV && typeof env.PRODUCTS_KV.put === 'function') {
     try {
       if (existing) {
         const updated = {
@@ -267,7 +278,7 @@ export async function recordOrderEvent(env, { orderId, eventType, rawPayload }) 
   const eventId = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const now = new Date().toISOString();
 
-  if (env && env.DB) {
+  if (env && env.DB && typeof env.DB.prepare === 'function') {
     try {
       await env.DB.prepare(
         `INSERT INTO order_events (id, order_id, event_type, raw_payload, created_at)
