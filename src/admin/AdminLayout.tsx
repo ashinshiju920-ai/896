@@ -273,14 +273,18 @@ export const AdminLayout: React.FC = () => {
             activeEditingBook ? (
               <ProductEditor
                 initialBook={activeEditingBook === 'new' ? null : activeEditingBook}
-                onSave={(bookData, id) => {
+                onSave={async (bookData, id) => {
+                  let saved = false;
                   if (id) {
-                    updateBook(id, bookData);
+                    saved = await updateBook(id, bookData);
                   } else {
                     const newId = `book_${Date.now()}`;
-                    addBook({ id: newId, ...bookData });
+                    saved = await addBook({ id: newId, ...bookData });
                   }
-                  setActiveEditingBook(null);
+                  if (saved) {
+                    setActiveEditingBook(null);
+                  }
+                  return saved;
                 }}
                 onCancel={() => setActiveEditingBook(null)}
                 showToast={showToast}

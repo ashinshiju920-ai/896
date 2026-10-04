@@ -160,7 +160,7 @@ export const CatalogBannerEditor: React.FC<CatalogBannerEditorProps> = ({
     if (e) e.preventDefault();
     setIsSaving(true);
     try {
-      await onUpdateCatalogBanner({
+      const saved = await onUpdateCatalogBanner({
         title: title.trim() || 'Complete Exam Study Materials',
         subtitle: subtitle.trim(),
         desktopBgImage: desktopBgImage.trim(),
@@ -171,6 +171,7 @@ export const CatalogBannerEditor: React.FC<CatalogBannerEditorProps> = ({
         overlayOpacity,
         featurePills: parsedPills.length > 0 ? parsedPills : DEFAULT_CATALOG_BANNER.featurePills,
       });
+      if (!saved) return;
       showToast('Catalog hero banner settings saved and synchronized!', 'success');
     } catch (err: any) {
       showToast(`Save failed: ${err?.message || 'Error'}`, 'warning');
@@ -181,7 +182,8 @@ export const CatalogBannerEditor: React.FC<CatalogBannerEditorProps> = ({
 
   const handleReset = async () => {
     if (onResetCatalogBanner) {
-      await onResetCatalogBanner();
+      const reset = await onResetCatalogBanner();
+      if (!reset) return;
     }
     setTitle(DEFAULT_CATALOG_BANNER.title || 'Complete Exam Study Materials');
     setSubtitle(DEFAULT_CATALOG_BANNER.subtitle || '');

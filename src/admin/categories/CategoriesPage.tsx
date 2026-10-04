@@ -66,9 +66,9 @@ const EXAM_IMAGE_PRESETS: { [key: string]: { label: string; url: string }[] } = 
 
 interface CategoriesPageProps {
   examPaths: ExamPath[];
-  onUpdateExamPath: (category: ExamCategory, updated: Partial<ExamPath>) => void;
-  onDeleteExamPath?: (category: ExamCategory) => void;
-  onResetDefaults: () => void;
+  onUpdateExamPath: (category: ExamCategory, updated: Partial<ExamPath>) => boolean | Promise<boolean>;
+  onDeleteExamPath?: (category: ExamCategory) => boolean | Promise<boolean>;
+  onResetDefaults: () => boolean | Promise<boolean>;
   catalogBanner?: CatalogBannerConfig;
   onUpdateCatalogBanner?: (updated: Partial<CatalogBannerConfig>) => Promise<boolean> | void;
   onResetCatalogBanner?: () => Promise<boolean> | void;
@@ -175,7 +175,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
       .map((w) => w.trim())
       .filter(Boolean);
 
-    await onUpdateExamPath(targetCategory, {
+    const saved = await onUpdateExamPath(targetCategory, {
       title: title.trim(),
       description: description.trim(),
       badgeText: badgeText.trim(),
@@ -188,8 +188,10 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
       redirectTarget: 'catalog',
     });
 
-    setEditingCategory(null);
-    setIsAddingNew(false);
+    if (saved) {
+      setEditingCategory(null);
+      setIsAddingNew(false);
+    }
   };
 
   return (
@@ -867,10 +869,9 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
         confirmLabel="Reset to Defaults"
         cancelLabel="Cancel"
         isDanger={false}
-        onConfirm={() => {
-          onResetDefaults();
-          setShowResetModal(false);
-          showToast('Reset homepage exam path cards to default.', 'info');
+        onConfirm={async () => {
+          const reset = await onResetDefaults();
+          if (reset) setShowResetModal(false);
         }}
         onCancel={() => setShowResetModal(false)}
       />
@@ -883,9 +884,10 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
         confirmLabel="Remove Card"
         cancelLabel="Cancel"
         isDanger={true}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deleteTarget && onDeleteExamPath) {
-            onDeleteExamPath(deleteTarget);
+            const deleted = await onDeleteExamPath(deleteTarget);
+            if (!deleted) return;
           }
           setDeleteTarget(null);
         }}

@@ -15,6 +15,7 @@ export async function uploadImageToCloud(file: File, productId: string): Promise
   const res = await fetch('/api/upload', {
     method: 'POST',
     body: formData,
+    credentials: 'include',
   });
 
   if (!res.ok) {
@@ -107,6 +108,7 @@ export async function updateProductImageLive(
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
         action: 'update-product-image',
         productId,

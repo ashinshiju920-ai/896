@@ -77,7 +77,7 @@ interface ShopContextType {
   updateTestimonial: (id: string, updated: Partial<Testimonial>) => Promise<boolean>;
   deleteTestimonial: (id: string) => Promise<boolean>;
   resetTestimonialsToDefault: () => Promise<boolean>;
-  addReview: (bookId: string, review: Omit<Review, 'id' | 'date'>) => void;
+  addReview: (bookId: string, review: Omit<Review, 'id' | 'date'>) => Promise<boolean>;
 
   // Cart
   cart: CartItem[];
@@ -291,7 +291,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pathsToSync?: ExamPath[],
     testisToSync?: Testimonial[],
     bannerToSync?: CatalogBannerConfig
-  ): Promise<{ success: boolean; version?: number; error?: string }> => {
+  ): Promise<{
+    success: boolean;
+    version?: number;
+    books?: Book[];
+    examPaths?: ExamPath[];
+    testimonials?: Testimonial[];
+    catalogBanner?: CatalogBannerConfig;
+    error?: string;
+  }> => {
     setIsCloudSyncing(true);
     try {
       const paths = pathsToSync !== undefined ? pathsToSync : examPaths;
@@ -301,7 +309,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.success) {
         if (res.version) localCatalogVersionRef.current = res.version;
         setLastCloudSync(new Date());
-        return { success: true, version: res.version };
+        return {
+          success: true,
+          version: res.version,
+          books: res.books,
+          examPaths: res.examPaths,
+          testimonials: res.testimonials,
+          catalogBanner: res.catalogBanner,
+        };
       } else {
         return { success: false, error: res.error };
       }
@@ -1016,9 +1031,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = [newBook, ...books];
     const res = await triggerCloudSync(updated);
     if (res.success) {
-      setBooks(updated);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : updated;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(updated));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       showToast(`Book "${newBook.title}" published & synced live to server!`, 'success');
       return true;
@@ -1032,9 +1048,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const next = books.map((b) => (b.id === id ? { ...b, ...updated } : b));
     const res = await triggerCloudSync(next);
     if (res.success) {
-      setBooks(next);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : next;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(next));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       showToast('Product updated & synced live to server!', 'success');
       return true;
@@ -1048,9 +1065,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const next = books.filter((b) => b.id !== id);
     const res = await triggerCloudSync(next);
     if (res.success) {
-      setBooks(next);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : next;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(next));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       showToast('Book removed & synced live to server', 'info');
       return true;
@@ -1063,13 +1081,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetBooksToDefault = async (): Promise<boolean> => {
     const res = await triggerCloudSync(BOOKS, DEFAULT_EXAM_PATHS, TESTIMONIALS);
     if (res.success) {
-      setBooks(BOOKS);
-      setTestimonials(TESTIMONIALS);
-      setExamPaths(DEFAULT_EXAM_PATHS);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : BOOKS;
+      const confirmedTestimonials = Array.isArray(res.testimonials) ? res.testimonials : TESTIMONIALS;
+      const confirmedExamPaths = Array.isArray(res.examPaths) ? res.examPaths : DEFAULT_EXAM_PATHS;
+      setBooks(confirmedBooks);
+      setTestimonials(confirmedTestimonials);
+      setExamPaths(confirmedExamPaths);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(BOOKS));
-        localStorage.setItem('xylem_testimonials_data', JSON.stringify(TESTIMONIALS));
-        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(DEFAULT_EXAM_PATHS));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
+        localStorage.setItem('xylem_testimonials_data', JSON.stringify(confirmedTestimonials));
+        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(confirmedExamPaths));
       } catch {}
       showToast('Catalog restored to default books & synced to server', 'info');
       return true;
@@ -1083,9 +1104,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const withOrder = orderedBooks.map((b, i) => ({ ...b, order: i + 1 }));
     const res = await triggerCloudSync(withOrder);
     if (res.success) {
-      setBooks(withOrder);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : withOrder;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(withOrder));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       showToast('Product arrangement updated & synced live to server!', 'success');
       return true;
@@ -1109,9 +1131,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const withOrder = next.map((b, i) => ({ ...b, order: i + 1 }));
     const res = await triggerCloudSync(withOrder);
     if (res.success) {
-      setBooks(withOrder);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : withOrder;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(withOrder));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       showToast('Homepage product position updated & synced to server!', 'success');
       return true;
@@ -1134,9 +1157,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const withOrder = next.map((b, i) => ({ ...b, order: i + 1 }));
     const res = await triggerCloudSync(withOrder);
     if (res.success) {
-      setBooks(withOrder);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : withOrder;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(withOrder));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       showToast(`Product moved to position #${targetPosition} & synced live to server!`, 'success');
       return true;
@@ -1153,12 +1177,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
     const res = await triggerCloudSync(updatedBooks);
     if (res.success) {
-      setBooks(updatedBooks);
+      const confirmedBooks = Array.isArray(res.books) ? res.books : updatedBooks;
+      setBooks(confirmedBooks);
       try {
-        localStorage.setItem('xylem_books_data', JSON.stringify(updatedBooks));
+        localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
       } catch {}
       const confirmedVer = res.version || Math.floor(Date.now() / 1000);
-      broadcastLocalUpdate(updatedBooks, confirmedVer, examPaths, testimonials, catalogBanner);
+      broadcastLocalUpdate(confirmedBooks, confirmedVer, examPaths, testimonials, catalogBanner);
       showToast(
         enable
           ? 'Paperback edition re-enabled across all courses!'
@@ -1195,9 +1220,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const res = await triggerCloudSync(books, nextPaths, testimonials);
     if (res.success) {
-      setExamPaths(nextPaths);
+      const confirmedPaths = Array.isArray(res.examPaths) ? res.examPaths : nextPaths;
+      setExamPaths(confirmedPaths);
       try {
-        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(nextPaths));
+        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(confirmedPaths));
       } catch {}
       showToast(`Updated ${category} category card! Synced to server.`, 'success');
       return true;
@@ -1211,9 +1237,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nextPaths = examPaths.filter((p) => p.category !== category);
     const res = await triggerCloudSync(books, nextPaths, testimonials);
     if (res.success) {
-      setExamPaths(nextPaths);
+      const confirmedPaths = Array.isArray(res.examPaths) ? res.examPaths : nextPaths;
+      setExamPaths(confirmedPaths);
       try {
-        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(nextPaths));
+        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(confirmedPaths));
       } catch {}
       showToast(`Removed ${category} category card! Synced to server.`, 'info');
       return true;
@@ -1226,9 +1253,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetExamPathsToDefault = async (): Promise<boolean> => {
     const res = await triggerCloudSync(books, DEFAULT_EXAM_PATHS, testimonials);
     if (res.success) {
-      setExamPaths(DEFAULT_EXAM_PATHS);
+      const confirmedPaths = Array.isArray(res.examPaths) ? res.examPaths : DEFAULT_EXAM_PATHS;
+      setExamPaths(confirmedPaths);
       try {
-        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(DEFAULT_EXAM_PATHS));
+        localStorage.setItem('xylem_exam_paths_data', JSON.stringify(confirmedPaths));
       } catch {}
       showToast('Reset homepage exam path cards to default.', 'info');
       return true;
@@ -1251,8 +1279,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const syncRes = await triggerCloudSync(books, examPaths, testimonials, nextBanner);
     if (syncRes.success) {
+      const confirmedBanner = syncRes.catalogBanner || nextBanner;
+      setCatalogBanner(confirmedBanner);
+      try {
+        localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(confirmedBanner));
+      } catch {}
       const confirmedVer = syncRes.version || Math.floor(Date.now() / 1000);
-      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, nextBanner);
+      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, confirmedBanner);
       showToast('Catalog banner updated! Synced in real time.', 'success');
       return true;
     } else {
@@ -1268,8 +1301,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
     const syncRes = await triggerCloudSync(books, examPaths, testimonials, DEFAULT_CATALOG_BANNER);
     if (syncRes.success) {
+      const confirmedBanner = syncRes.catalogBanner || DEFAULT_CATALOG_BANNER;
+      setCatalogBanner(confirmedBanner);
+      try {
+        localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(confirmedBanner));
+      } catch {}
       const confirmedVer = syncRes.version || Math.floor(Date.now() / 1000);
-      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, DEFAULT_CATALOG_BANNER);
+      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, confirmedBanner);
       showToast('Reset catalog banner to defaults.', 'info');
       return true;
     } else {
@@ -1288,9 +1326,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nextTestis = [newTestimonial, ...testimonials];
     const res = await triggerCloudSync(books, examPaths, nextTestis);
     if (res.success) {
-      setTestimonials(nextTestis);
+      const confirmedTestimonials = Array.isArray(res.testimonials) ? res.testimonials : nextTestis;
+      setTestimonials(confirmedTestimonials);
       try {
-        localStorage.setItem('xylem_testimonials_data', JSON.stringify(nextTestis));
+        localStorage.setItem('xylem_testimonials_data', JSON.stringify(confirmedTestimonials));
       } catch {}
       showToast('Student testimonial published & synced to server!', 'success');
       return true;
@@ -1304,9 +1343,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nextTestis = testimonials.map((t) => (t.id === id ? { ...t, ...updated } : t));
     const res = await triggerCloudSync(books, examPaths, nextTestis);
     if (res.success) {
-      setTestimonials(nextTestis);
+      const confirmedTestimonials = Array.isArray(res.testimonials) ? res.testimonials : nextTestis;
+      setTestimonials(confirmedTestimonials);
       try {
-        localStorage.setItem('xylem_testimonials_data', JSON.stringify(nextTestis));
+        localStorage.setItem('xylem_testimonials_data', JSON.stringify(confirmedTestimonials));
       } catch {}
       showToast('Student testimonial updated & synced to server!', 'success');
       return true;
@@ -1320,9 +1360,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nextTestis = testimonials.filter((t) => t.id !== id);
     const res = await triggerCloudSync(books, examPaths, nextTestis);
     if (res.success) {
-      setTestimonials(nextTestis);
+      const confirmedTestimonials = Array.isArray(res.testimonials) ? res.testimonials : nextTestis;
+      setTestimonials(confirmedTestimonials);
       try {
-        localStorage.setItem('xylem_testimonials_data', JSON.stringify(nextTestis));
+        localStorage.setItem('xylem_testimonials_data', JSON.stringify(confirmedTestimonials));
       } catch {}
       showToast('Testimonial removed & synced to server', 'info');
       return true;
@@ -1335,9 +1376,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetTestimonialsToDefault = async (): Promise<boolean> => {
     const res = await triggerCloudSync(books, examPaths, TESTIMONIALS);
     if (res.success) {
-      setTestimonials(TESTIMONIALS);
+      const confirmedTestimonials = Array.isArray(res.testimonials) ? res.testimonials : TESTIMONIALS;
+      setTestimonials(confirmedTestimonials);
       try {
-        localStorage.setItem('xylem_testimonials_data', JSON.stringify(TESTIMONIALS));
+        localStorage.setItem('xylem_testimonials_data', JSON.stringify(confirmedTestimonials));
       } catch {}
       showToast('Reset student testimonials to default.', 'info');
       return true;
@@ -1347,32 +1389,33 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addReview = (bookId: string, reviewData: Omit<Review, 'id' | 'date'>) => {
+  const addReview = async (bookId: string, reviewData: Omit<Review, 'id' | 'date'>): Promise<boolean> => {
+    const targetBook = books.find((b) => b.id === bookId);
+    if (!targetBook) {
+      showToast('Unable to add review: product not found.', 'warning');
+      return false;
+    }
+
     const newReview: Review = {
       ...reviewData,
       id: `rev-${Date.now()}`,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     };
 
-    setBooks((prev) =>
-      prev.map((b) => {
-        if (b.id === bookId) {
-          const currentReviews = b.reviews || [];
-          const updatedReviews = [newReview, ...currentReviews];
-          const newCount = (b.reviewCount || 0) + 1;
-          const totalRatingSum = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
-          const newAvgRating = Number((totalRatingSum / updatedReviews.length).toFixed(1));
-          return {
-            ...b,
-            reviews: updatedReviews,
-            reviewCount: newCount,
-            rating: newAvgRating,
-          };
-        }
-        return b;
-      })
-    );
-    showToast('Review submitted and verified!', 'success');
+    const currentReviews = targetBook.reviews || [];
+    const updatedReviews = [newReview, ...currentReviews];
+    const totalRatingSum = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+    const newAvgRating = Number((totalRatingSum / updatedReviews.length).toFixed(1));
+
+    const saved = await updateBook(bookId, {
+      reviews: updatedReviews,
+      reviewCount: updatedReviews.length,
+      rating: newAvgRating,
+    });
+    if (saved) {
+      showToast('Review submitted, verified, and synced!', 'success');
+    }
+    return saved;
   };
 
   const downloadBookPdf = async (_book: Book, _orderId?: string) => {

@@ -14,6 +14,9 @@ export async function onRequestGet(context) {
 
   const hasDb = Boolean(env && env.DB);
   const hasKv = Boolean(env && env.PRODUCTS_KV);
+  const hasCloudinaryCloudName = Boolean(env?.CLOUDINARY_CLOUD_NAME);
+  const hasCloudinaryApiKey = Boolean(env?.CLOUDINARY_API_KEY);
+  const hasCloudinaryApiSecret = Boolean(env?.CLOUDINARY_API_SECRET);
 
   return new Response(
     JSON.stringify({
@@ -23,6 +26,10 @@ export async function onRequestGet(context) {
       storage: {
         databaseConfigured: hasDb,
         kvConfigured: hasKv,
+        cloudinaryConfigured: hasCloudinaryCloudName && hasCloudinaryApiKey && hasCloudinaryApiSecret,
+        cloudinaryCloudNameConfigured: hasCloudinaryCloudName,
+        cloudinaryApiKeyConfigured: hasCloudinaryApiKey,
+        cloudinaryApiSecretConfigured: hasCloudinaryApiSecret,
       },
     }),
     {

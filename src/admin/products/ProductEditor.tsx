@@ -33,7 +33,7 @@ import { useShop } from '../../context/ShopContext';
 
 interface ProductEditorProps {
   initialBook?: Book | null;
-  onSave: (bookData: Omit<Book, 'id'>, id?: string) => void;
+  onSave: (bookData: Omit<Book, 'id'>, id?: string) => boolean | Promise<boolean>;
   onCancel: () => void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
   openPdfViewer?: (book: Book) => void;
@@ -610,7 +610,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) {
       showToast('Please enter a product title', 'warning');
@@ -660,9 +660,11 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
 
     setIsSaving(true);
     try {
-      onSave(submissionPayload, initialBook?.id);
-      setIsDirty(false);
-      showToast(isEditing ? 'Product updated successfully!' : 'New product published to catalog!', 'success');
+      const saved = await onSave(submissionPayload, initialBook?.id);
+      if (saved) {
+        setIsDirty(false);
+        showToast(isEditing ? 'Product updated successfully!' : 'New product published to catalog!', 'success');
+      }
     } catch (err: any) {
       showToast(err.message || 'Failed to save product', 'warning');
     } finally {
@@ -948,7 +950,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         setForm((prev) => {
                           const currentAddons = prev.addOns || prev.addons || [];
                           const updatedAddons = currentAddons.map((a) =>
-                            a.id === 'digital' || a.deliveryOption === 'digital'
+                            a.id === 'digital'
                               ? { ...a, price, pricePaise: price * 100, originalPrice: orig }
                               : a
                           );
@@ -981,7 +983,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         setForm((prev) => {
                           const currentAddons = prev.addOns || prev.addons || [];
                           const updatedAddons = currentAddons.map((a) =>
-                            a.id === 'digital' || a.deliveryOption === 'digital'
+                            a.id === 'digital'
                               ? { ...a, originalPrice: orig }
                               : a
                           );
@@ -1076,7 +1078,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         setForm((prev) => {
                           const currentAddons = prev.addOns || prev.addons || [];
                           const updatedAddons = currentAddons.map((a) =>
-                            a.id === 'physical' || a.deliveryOption === 'physical'
+                            a.id === 'physical'
                               ? { ...a, price, pricePaise: price * 100, originalPrice: orig }
                               : a
                           );
@@ -1109,7 +1111,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                         setForm((prev) => {
                           const currentAddons = prev.addOns || prev.addons || [];
                           const updatedAddons = currentAddons.map((a) =>
-                            a.id === 'physical' || a.deliveryOption === 'physical'
+                            a.id === 'physical'
                               ? { ...a, originalPrice: orig }
                               : a
                           );

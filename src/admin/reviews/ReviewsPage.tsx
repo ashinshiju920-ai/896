@@ -13,8 +13,8 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 
 interface ReviewsPageProps {
   books: Book[];
-  onAddReview: (bookId: string, review: Omit<Review, 'id' | 'date'>) => void;
-  onUpdateBook: (bookId: string, updated: Partial<Book>) => void;
+  onAddReview: (bookId: string, review: Omit<Review, 'id' | 'date'>) => boolean | Promise<boolean>;
+  onUpdateBook: (bookId: string, updated: Partial<Book>) => boolean | Promise<boolean>;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
 
@@ -34,35 +34,36 @@ export const ReviewsPage: React.FC<ReviewsPageProps> = ({
   const targetBook = books.find((b) => b.id === selectedBookId) || books[0];
   const reviews = targetBook?.reviews || [];
 
-  const handleCreateReview = (e: React.FormEvent) => {
+  const handleCreateReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!author.trim() || !comment.trim()) {
       showToast('Please enter both author and review comment', 'warning');
       return;
     }
 
-    onAddReview(targetBook.id, {
+    const saved = await onAddReview(targetBook.id, {
       author: author.trim(),
       rating,
       comment: comment.trim(),
       verified: true,
       bandOrScore: bandOrScore.trim(),
     });
+    if (!saved) return;
 
     setAuthor('');
     setComment('');
-    showToast(`Review added to "${targetBook.title}"!`, 'success');
   };
 
-  const confirmDeleteReview = () => {
+  const confirmDeleteReview = async () => {
     if (!reviewToDelete) return;
     const currentBook = books.find((b) => b.id === reviewToDelete.bookId);
     if (currentBook) {
       const updatedReviews = (currentBook.reviews || []).filter((r) => r.id !== reviewToDelete.reviewId);
-      onUpdateBook(currentBook.id, {
+      const saved = await onUpdateBook(currentBook.id, {
         reviews: updatedReviews,
         reviewCount: updatedReviews.length,
       });
+      if (!saved) return;
       showToast('Review removed from product', 'info');
     }
     setReviewToDelete(null);

@@ -23,10 +23,10 @@ const AVATAR_PRESETS = [
 
 interface TestimonialsPageProps {
   testimonials: Testimonial[];
-  onAddTestimonial: (t: Omit<Testimonial, 'id'>) => void;
-  onUpdateTestimonial: (id: string, updated: Partial<Testimonial>) => void;
-  onDeleteTestimonial: (id: string) => void;
-  onResetDefaults: () => void;
+  onAddTestimonial: (t: Omit<Testimonial, 'id'>) => boolean | Promise<boolean>;
+  onUpdateTestimonial: (id: string, updated: Partial<Testimonial>) => boolean | Promise<boolean>;
+  onDeleteTestimonial: (id: string) => boolean | Promise<boolean>;
+  onResetDefaults: () => boolean | Promise<boolean>;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
 
@@ -72,17 +72,17 @@ export const TestimonialsPage: React.FC<TestimonialsPageProps> = ({
       return;
     }
 
+    let saved = false;
     if (editingId) {
-      await onUpdateTestimonial(editingId, {
+      saved = await onUpdateTestimonial(editingId, {
         name: name.trim(),
         role: role.trim() || 'Verified Learner',
         quote: quote.trim(),
         rating,
         avatar: avatarUrl,
       });
-      setEditingId(null);
     } else {
-      await onAddTestimonial({
+      saved = await onAddTestimonial({
         name: name.trim(),
         role: role.trim() || 'Verified Learner',
         quote: quote.trim(),
@@ -91,6 +91,8 @@ export const TestimonialsPage: React.FC<TestimonialsPageProps> = ({
       });
     }
 
+    if (!saved) return;
+    setEditingId(null);
     setName('');
     setRole('');
     setQuote('');
@@ -305,11 +307,10 @@ export const TestimonialsPage: React.FC<TestimonialsPageProps> = ({
         confirmLabel="Yes, Delete"
         cancelLabel="Keep"
         isDanger={true}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (testimonialToDelete) {
-            onDeleteTestimonial(testimonialToDelete.id);
-            showToast('Testimonial removed', 'info');
-            setTestimonialToDelete(null);
+            const deleted = await onDeleteTestimonial(testimonialToDelete.id);
+            if (deleted) setTestimonialToDelete(null);
           }
         }}
         onCancel={() => setTestimonialToDelete(null)}
@@ -323,10 +324,9 @@ export const TestimonialsPage: React.FC<TestimonialsPageProps> = ({
         confirmLabel="Reset to Defaults"
         cancelLabel="Cancel"
         isDanger={false}
-        onConfirm={() => {
-          onResetDefaults();
-          setShowResetModal(false);
-          showToast('Reset student testimonials to default.', 'info');
+        onConfirm={async () => {
+          const reset = await onResetDefaults();
+          if (reset) setShowResetModal(false);
         }}
         onCancel={() => setShowResetModal(false)}
       />
