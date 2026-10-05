@@ -175,9 +175,7 @@ export async function onRequestGet(context) {
       }
     }
 
-    const studentPortalUrl = (env && env.STUDENT_PORTAL_URL)
-      ? String(env.STUDENT_PORTAL_URL).trim()
-      : 'https://portal.aylemlearning.online/';
+    const studentPortalUrl = 'https://portal.aylemlearning.online/';
 
     // 3. Return ONLY verified, non-internal fields.
     // Digital content is now accessed exclusively through the external student portal.

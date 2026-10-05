@@ -38,6 +38,13 @@ export const OrderSuccessView: React.FC = () => {
   } = useShop();
 
   const urlOrderId = (searchParams.get('order_id') || searchParams.get('orderId') || '').trim();
+  const gatewayReturnStatus = (
+    searchParams.get('order_status') ||
+    searchParams.get('payment_status') ||
+    searchParams.get('cf_status') ||
+    searchParams.get('status') ||
+    ''
+  ).toUpperCase();
 
   // Local verification states
   const [orderStatus, setOrderStatus] = useState<'IDLE' | 'LOADING' | 'PENDING' | 'PAID' | 'FAILED' | 'USER_DROPPED' | 'NOT_FOUND'>('IDLE');
@@ -172,7 +179,7 @@ export const OrderSuccessView: React.FC = () => {
 
           setCurrentOrder(reconstructedOrder);
           showToast('Payment verified. Redirecting to the student portal.', 'success');
-          window.location.assign(res.portalUrl || STUDENT_PORTAL_URL);
+          window.location.replace(STUDENT_PORTAL_URL);
         } else if (res.status === 'PENDING') {
           setOrderStatus('PENDING');
           if (isManual) {
@@ -202,6 +209,12 @@ export const OrderSuccessView: React.FC = () => {
   useEffect(() => {
     const targetId = urlOrderId || currentOrder?.id;
 
+    if (['FAILED', 'CANCELLED', 'CANCELED', 'USER_DROPPED', 'DROPPED'].includes(gatewayReturnStatus)) {
+      showToast('Payment was not completed. Please try again from checkout.', 'warning');
+      navigate(`/checkout?payment=failed${targetId ? `&order_id=${encodeURIComponent(targetId)}` : ''}`, { replace: true });
+      return;
+    }
+
     if (!targetId) {
       if (!currentOrder || currentOrder.status !== 'PAID') {
         setOrderStatus('NOT_FOUND');
@@ -213,7 +226,7 @@ export const OrderSuccessView: React.FC = () => {
 
     setOrderStatus('LOADING');
     verifyOrder(targetId);
-  }, [urlOrderId, currentOrder?.id, verifyOrder]);
+  }, [urlOrderId, currentOrder?.id, verifyOrder, gatewayReturnStatus, navigate, showToast]);
 
   // Controlled polling with backoff for PENDING status (max 5 attempts, ~15 seconds total)
   useEffect(() => {

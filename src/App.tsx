@@ -56,7 +56,7 @@ const ShopApp: React.FC = () => {
     if (location.pathname.startsWith('/order-success')) return;
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id') || params.get('orderId');
-    const cfStatus = params.get('cf_status') || params.get('status');
+    const cfStatus = (params.get('cf_status') || params.get('status') || params.get('order_status') || '').toUpperCase();
 
     if (orderId) {
       checkOrderStatus(orderId)
@@ -105,7 +105,10 @@ const ShopApp: React.FC = () => {
             };
             setCurrentOrder(verifiedOrder);
             showToast('Payment confirmed! Redirecting to the student portal.', 'success');
-            window.location.assign(res.portalUrl || STUDENT_PORTAL_URL);
+            window.location.replace(STUDENT_PORTAL_URL);
+          } else if (res && (res.status === 'FAILED' || res.status === 'USER_DROPPED')) {
+            showToast('Payment was not completed. Please try again from checkout.', 'warning');
+            navigate(`/checkout?payment=${res.status === 'FAILED' ? 'failed' : 'cancelled'}&order_id=${encodeURIComponent(orderId)}`, { replace: true });
           } else {
             showToast('Payment verification pending or order unpaid.', 'warning');
           }
@@ -113,6 +116,9 @@ const ShopApp: React.FC = () => {
         .catch(() => {
           showToast('Could not verify payment status with server.', 'warning');
         });
+    } else if (['FAILED', 'CANCELLED', 'CANCELED', 'USER_DROPPED', 'DROPPED'].includes(cfStatus)) {
+      showToast('Payment was not completed. Please try again from checkout.', 'warning');
+      navigate('/checkout?payment=failed', { replace: true });
     } else if (cfStatus) {
       // Visiting /?cf_status=success without real payment unlocks nothing!
       showToast('No verified order found. Payment verification required.', 'warning');
