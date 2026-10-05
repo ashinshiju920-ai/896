@@ -13,6 +13,7 @@ import { SearchModal } from './components/SearchModal';
 import { PdfViewerModal } from './components/PdfViewerModal';
 import { ContactModal } from './components/ContactModal';
 import { WhatsAppButton } from './components/WhatsAppButton';
+import { ProgressiveLoader } from './components/ProgressiveLoader';
 
 // Views
 import { HomeView } from './views/HomeView';
@@ -134,11 +135,7 @@ const ShopApp: React.FC = () => {
       {/* Main View Router */}
       <main className="flex-1">
         <React.Suspense
-          fallback={
-            <div className="min-h-[50vh] flex items-center justify-center px-4">
-              <div className="h-10 w-10 rounded-full border-4 border-emerald-600/15 border-t-emerald-600 animate-spin" />
-            </div>
-          }
+          fallback={<ProgressiveLoader label="Loading page" />}
         >
           <Routes>
             {/* Public customer-facing routes */}
@@ -165,14 +162,7 @@ const ShopApp: React.FC = () => {
               path="/admin/*"
               element={
                 <React.Suspense
-                  fallback={
-                    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                        <p className="text-slate-400 font-mono text-xs tracking-wider uppercase">Loading Admin Console...</p>
-                      </div>
-                    </div>
-                  }
+                  fallback={<ProgressiveLoader label="Loading admin console" fullscreen dark />}
                 >
                   <AdminView />
                 </React.Suspense>
