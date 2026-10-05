@@ -6,6 +6,28 @@
 
 import { AnalyticsEventType } from '../types';
 
+declare global {
+  interface Window {
+    fbq?: (...args: any[]) => void;
+  }
+}
+
+const ATTRIBUTION_STORAGE_KEY = 'aylem_marketing_attribution';
+const PURCHASE_DEDUP_PREFIX = 'aylem_meta_purchase_';
+
+type MarketingAttribution = {
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  fbclid?: string;
+  landingPage?: string;
+  referrer?: string;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+};
+
 // Anonymous client session ID (separate from customer authentication)
 export function getAnalyticsSessionId(): string {
   try {
@@ -19,6 +41,124 @@ export function getAnalyticsSessionId(): string {
   } catch {
     return 'asess_fallback';
   }
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name.replace(/[.$?*|{}()[\]\\/+^]/g, '\\$&')}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+export function captureMarketingAttribution(): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const trackedKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid'];
+    const hasTrackedParam = trackedKeys.some((key) => params.has(key));
+
+    if (!hasTrackedParam) return;
+
+    const existingRaw = localStorage.getItem(ATTRIBUTION_STORAGE_KEY);
+    const existing = existingRaw ? JSON.parse(existingRaw) : {};
+    const now = new Date().toISOString();
+    const next: MarketingAttribution = {
+      ...existing,
+      landingPage: existing.landingPage || window.location.href,
+      referrer: existing.referrer || document.referrer || '',
+      firstSeenAt: existing.firstSeenAt || now,
+      lastSeenAt: now,
+    };
+
+    trackedKeys.forEach((key) => {
+      const value = params.get(key);
+      if (value) {
+        (next as Record<string, string>)[key] = value;
+      }
+    });
+
+    localStorage.setItem(ATTRIBUTION_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Non-fatal attribution capture.
+  }
+}
+
+export function getMarketingAttribution(): MarketingAttribution {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(ATTRIBUTION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function getMetaClickData(): Record<string, string> {
+  const data: Record<string, string> = {};
+  const fbp = readCookie('_fbp');
+  const fbc = readCookie('_fbc');
+  if (fbp) data.fbp = fbp;
+  if (fbc) data.fbc = fbc;
+  return data;
+}
+
+export function trackMetaPurchase(order: {
+  orderId?: string;
+  total?: number;
+  currency?: string;
+  items?: any[];
+}): void {
+  if (typeof window === 'undefined' || typeof window.fbq !== 'function') return;
+
+  const orderId = order.orderId || '';
+  if (!orderId) return;
+
+  try {
+    const dedupKey = `${PURCHASE_DEDUP_PREFIX}${orderId}`;
+    if (localStorage.getItem(dedupKey)) return;
+    localStorage.setItem(dedupKey, '1');
+
+    const items = Array.isArray(order.items) ? order.items : [];
+    const contentIds = items
+      .map((item) => item.productId || item.bookId || item.id)
+      .filter(Boolean);
+    const contents = items.map((item) => ({
+      id: item.productId || item.bookId || item.id || orderId,
+      quantity: Math.max(1, Number(item.quantity || 1)),
+      item_price: Number(item.unitPrice || item.price || 0),
+    }));
+    const attribution = getMarketingAttribution();
+    const eventId = `purchase_${orderId}`;
+
+    window.fbq(
+      'track',
+      'Purchase',
+      {
+        value: Number(order.total || 0),
+        currency: order.currency || 'INR',
+        content_type: 'product',
+        content_ids: contentIds,
+        contents,
+        num_items: items.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0) || 1,
+        order_id: orderId,
+        ...attribution,
+        ...getMetaClickData(),
+      },
+      { eventID: eventId }
+    );
+  } catch {
+    // Meta tracking must never block successful payment handling.
+  }
+}
+
+export async function trackMetaPurchaseBeforeRedirect(order: {
+  orderId?: string;
+  total?: number;
+  currency?: string;
+  items?: any[];
+}): Promise<void> {
+  trackMetaPurchase(order);
+  await new Promise((resolve) => window.setTimeout(resolve, 450));
 }
 
 // In-memory deduplication caches to prevent duplicate events on React component re-renders

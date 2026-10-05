@@ -34,6 +34,7 @@ const ShippingReturnsRefundPolicyView = React.lazy(() =>
 const AdminView = React.lazy(() => import('./views/AdminView'));
 const NotFoundView = React.lazy(() => import('./views/NotFoundView').then((m) => ({ default: m.NotFoundView })));
 import { checkOrderStatus, STUDENT_PORTAL_URL } from './utils/cashfree';
+import { captureMarketingAttribution, trackMetaPurchaseBeforeRedirect } from './utils/analytics';
 import { Order } from './types';
 import { BOOKS } from './data/books';
 
@@ -50,6 +51,10 @@ const ShopApp: React.FC = () => {
     toasts,
   } = useShop();
 
+  useEffect(() => {
+    captureMarketingAttribution();
+  }, [location.search]);
+
   // Handle Cashfree return: verify payment server-side before unlocking order
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -60,7 +65,7 @@ const ShopApp: React.FC = () => {
 
     if (orderId) {
       checkOrderStatus(orderId)
-        .then((res) => {
+        .then(async (res) => {
           if (res && res.status === 'PAID') {
             clearCart();
             const verifiedOrder: Order = {
@@ -105,6 +110,12 @@ const ShopApp: React.FC = () => {
             };
             setCurrentOrder(verifiedOrder);
             showToast('Payment confirmed! Redirecting to the student portal.', 'success');
+            await trackMetaPurchaseBeforeRedirect({
+              orderId: res.orderId || orderId,
+              total: res.total,
+              currency: res.currency || 'INR',
+              items: res.items || [],
+            });
             window.location.replace(STUDENT_PORTAL_URL);
           } else if (res && (res.status === 'FAILED' || res.status === 'USER_DROPPED')) {
             showToast('Payment was not completed. Please try again from checkout.', 'warning');
