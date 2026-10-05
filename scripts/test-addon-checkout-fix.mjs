@@ -12,6 +12,34 @@ import {
   issuePaidFulfillmentLinks,
 } from '../functions/utils/db.js';
 
+class MockD1 {
+  constructor(catalog) {
+    this.catalog = catalog;
+  }
+
+  prepare(sql) {
+    const db = this;
+    return {
+      bind(...args) {
+        return {
+          async first() {
+            if (/SELECT value FROM app_kv_store/i.test(sql) && args[0] === 'xylem_products') {
+              return { value: JSON.stringify(db.catalog) };
+            }
+            return null;
+          },
+          async run() {
+            return { success: true };
+          },
+        };
+      },
+      async run() {
+        return { success: true };
+      },
+    };
+  }
+}
+
 async function runTests() {
   console.log('==================================================');
   console.log('TESTING ADD-ON CHECKOUT & FULFILLMENT FIX');
@@ -135,9 +163,49 @@ async function runTests() {
     console.log('  PASS: Unknown add-on correctly rejected!');
 
     // -------------------------------------------------------------------------
-    // TEST 4: Post-payment entitlement generation for product + add-on
+    // TEST 4: D1-only live catalog add-on validates and adds amount
     // -------------------------------------------------------------------------
-    console.log('\nTEST 4: Post-payment digital entitlements granted for both product & add-on');
+    console.log('\nTEST 4: D1 live catalog add-on validates and adds amount');
+    const d1Catalog = {
+      version: 2000000001,
+      books: [
+        {
+          id: 'd1-addon-product',
+          title: 'D1 Add-on Product',
+          prices: {
+            digital: { price: 1, originalPrice: 99 },
+            physical: { price: 999, originalPrice: 1299 },
+          },
+          addOns: [
+            {
+              id: 'd1-addon-99',
+              name: 'D1 Optional Material',
+              price: 99,
+              pricePaise: 9900,
+              originalPrice: 199,
+              active: true,
+              deliveryOption: 'digital',
+            },
+          ],
+        },
+      ],
+    };
+    const d1Env = { DB: new MockD1(d1Catalog) };
+    const d1Pricing = await computeOrderPrice(
+      [{ bookId: 'd1-addon-product', addonIds: ['d1-addon-99'], format: 'digital', quantity: 1 }],
+      'digital',
+      null,
+      d1Env
+    );
+    assert.strictEqual(d1Pricing.total, 100, 'Total must equal ₹1 base + ₹99 add-on = ₹100');
+    assert.strictEqual(d1Pricing.totalPaise, 10000, 'Total paise must equal 10000');
+    assert.strictEqual(d1Pricing.items[0].addOns[0].addOnId, 'd1-addon-99');
+    console.log('  PASS: D1-backed checkout includes the selected add-on amount.');
+
+    // -------------------------------------------------------------------------
+    // TEST 5: Post-payment entitlement generation for product + add-on
+    // -------------------------------------------------------------------------
+    console.log('\nTEST 5: Post-payment digital entitlements granted for both product & add-on');
     const mockOrder = {
       id: 'order_test_123',
       status: 'PAID',
@@ -171,9 +239,9 @@ async function runTests() {
     console.log('  PASS: Both product and add-on entitlements created with correct IDs!');
 
     // -------------------------------------------------------------------------
-    // TEST 5: Fulfillment links generation for product + add-on
+    // TEST 6: Fulfillment links generation for product + add-on
     // -------------------------------------------------------------------------
-    console.log('\nTEST 5: Fulfillment download links issued for both product & add-on');
+    console.log('\nTEST 6: Fulfillment download links issued for both product & add-on');
     const fulfillment = await issuePaidFulfillmentLinks(mockOrder, mockD1Env);
     assert.ok(fulfillment && Array.isArray(fulfillment.materials), 'Fulfillment materials must be returned');
     assert.strictEqual(fulfillment.materials.length, 2, 'Must have 2 downloadable materials');

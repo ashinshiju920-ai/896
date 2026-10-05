@@ -302,6 +302,32 @@ export const DEFAULT_CATALOG = [
 let memoryCatalogCache = null;
 let memoryCatalogCacheTimestamp = 0;
 const CACHE_TTL_MS = 30000; // 30-second in-memory worker isolate cache
+const D1_CATALOG_KEY = 'xylem_products';
+
+async function ensureCatalogTable(env) {
+  if (!env?.DB || typeof env.DB.prepare !== 'function') return false;
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_kv_store (
+      storage_key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `).run();
+  return true;
+}
+
+async function getCatalogFromD1(env) {
+  if (!(await ensureCatalogTable(env))) return null;
+  const row = await env.DB.prepare('SELECT value FROM app_kv_store WHERE storage_key = ?')
+    .bind(D1_CATALOG_KEY)
+    .first();
+  if (!row?.value) return null;
+  try {
+    return JSON.parse(row.value);
+  } catch {
+    return null;
+  }
+}
 
 export async function loadCatalogue(env) {
   let kvBooks = [];
@@ -318,7 +344,21 @@ export async function loadCatalogue(env) {
     }
   }
 
-  // 2. Authoritative Fallback: Cloudinary raw storage (exact parity with functions/api/products.js)
+  // 2. D1 catalog storage fallback/primary for Pages projects without KV
+  if (kvBooks.length === 0) {
+    try {
+      const data = await getCatalogFromD1(env);
+      if (data && Array.isArray(data.books) && data.books.length > 0) {
+        kvBooks = data.books;
+        memoryCatalogCache = data.books;
+        memoryCatalogCacheTimestamp = Date.now();
+      }
+    } catch (e) {
+      console.warn('D1 catalog read failed in loadCatalogue:', e?.message);
+    }
+  }
+
+  // 3. Authoritative Fallback: Cloudinary raw storage (exact parity with functions/api/products.js)
   if (kvBooks.length === 0) {
     const cloudName = env && env.CLOUDINARY_CLOUD_NAME ? String(env.CLOUDINARY_CLOUD_NAME).trim() : '';
     const now = Date.now();
@@ -922,9 +962,17 @@ export async function computeOrderPrice(orderIntent, env) {
     const isBookInactive = (b) => b && (b.active === false || b.isActive === false);
 
     if ((!book || isBookInactive(book)) && !isBundle) {
-      // Fallback check to Cloudinary if not in catalog
+      // Fallback check to the latest authoritative catalog if not in initial catalog
+      try {
+        const freshCatalog = await loadCatalogue(targetEnv);
+        const freshBook = freshCatalog.find((b) => b.id === bookId);
+        if (freshBook && !isBookInactive(freshBook)) {
+          book = freshBook;
+        }
+      } catch {}
+
       const cloudName = targetEnv && targetEnv.CLOUDINARY_CLOUD_NAME ? String(targetEnv.CLOUDINARY_CLOUD_NAME).trim() : '';
-      if (cloudName) {
+      if ((!book || isBookInactive(book)) && cloudName) {
         try {
           const rawUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`;
           const fetchSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
@@ -998,33 +1046,19 @@ export async function computeOrderPrice(orderIntent, env) {
     // Server-side validation: reject unknown or inactive add-ons
     let addOnValidation = validateSelectedAddOns(book, selectedAddonIds);
     if (!addOnValidation.isValid) {
-      // If validation failed, check if Cloudinary has updated product add-on definitions
-      const cloudName = targetEnv && targetEnv.CLOUDINARY_CLOUD_NAME ? String(targetEnv.CLOUDINARY_CLOUD_NAME).trim() : '';
-      if (cloudName) {
-        try {
-          const rawUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`;
-          const fetchSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-            ? AbortSignal.timeout(3000)
-            : undefined;
-          const freshRes = await fetch(rawUrl, { cache: 'no-store', signal: fetchSignal });
-          if (freshRes.ok) {
-            const freshData = await freshRes.json();
-            if (freshData && Array.isArray(freshData.books) && freshData.books.length > 0) {
-              memoryCatalogCache = freshData.books;
-              memoryCatalogCacheTimestamp = Date.now();
-              const freshBook = freshData.books.find((b) => b.id === bookId);
-              if (freshBook) {
-                const retryValidation = validateSelectedAddOns(freshBook, selectedAddonIds);
-                if (retryValidation.isValid) {
-                  book = freshBook;
-                  addOnValidation = retryValidation;
-                }
-              }
-            }
+      // If validation failed, refresh from latest authoritative catalog in case admin just saved D1.
+      try {
+        const freshCatalog = await loadCatalogue(targetEnv);
+        const freshBook = freshCatalog.find((b) => b.id === bookId);
+        if (freshBook) {
+          const retryValidation = validateSelectedAddOns(freshBook, selectedAddonIds);
+          if (retryValidation.isValid) {
+            book = freshBook;
+            addOnValidation = retryValidation;
           }
-        } catch (retryErr) {
-          console.warn('Could not refresh catalog during add-on validation:', retryErr?.message);
         }
+      } catch (retryErr) {
+        console.warn('Could not refresh catalog during add-on validation:', retryErr?.message);
       }
 
       if (!addOnValidation.isValid) {
