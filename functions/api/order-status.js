@@ -4,6 +4,7 @@
 import { getOrder, updateOrderStatus, saveOrder, recordOrderEvent } from '../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
+import { sendMetaPurchaseEvent } from '../utils/metaCapi.js';
 
 export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
@@ -184,6 +185,25 @@ export async function onRequestGet(context) {
         await provisionPortalAccessForPaidOrder(env, order, { source: 'ORDER_STATUS_PAID_VERIFY' });
       } catch (bridgeErr) {
         console.warn('Portal bridge invocation error in order-status:', bridgeErr?.message);
+      }
+
+      try {
+        const metaResult = await sendMetaPurchaseEvent(env, order, { request });
+        if (metaResult.attempted) {
+          await recordOrderEvent(env, {
+            orderId: order.id,
+            eventType: metaResult.success ? 'META_CAPI_PURCHASE_SENT' : 'META_CAPI_PURCHASE_FAILED',
+            rawPayload: JSON.stringify({
+              source: 'ORDER_STATUS_PAID_VERIFY',
+              eventId: metaResult.eventId || `purchase_${order.id}`,
+              eventsReceived: metaResult.eventsReceived,
+              status: metaResult.status,
+              error: metaResult.error || null,
+            }),
+          });
+        }
+      } catch (metaErr) {
+        console.warn('Meta CAPI purchase event failed in order-status:', metaErr?.message);
       }
 
       return new Response(

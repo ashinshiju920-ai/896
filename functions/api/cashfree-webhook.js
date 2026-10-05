@@ -12,6 +12,7 @@ import {
   recordAnalyticsEvent,
 } from '../utils/db.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
+import { sendMetaPurchaseEvent } from '../utils/metaCapi.js';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
@@ -201,6 +202,24 @@ export async function onRequestPost(context) {
       } catch (bridgeErr) {
         console.warn('Portal bridge retry failed for already-paid webhook:', bridgeErr?.message);
       }
+      try {
+        const metaResult = await sendMetaPurchaseEvent(env, order);
+        if (metaResult.attempted) {
+          await recordOrderEvent(env, {
+            orderId: order.id,
+            eventType: metaResult.success ? 'META_CAPI_PURCHASE_SENT' : 'META_CAPI_PURCHASE_FAILED',
+            rawPayload: JSON.stringify({
+              source: 'CASHFREE_WEBHOOK_DUPLICATE_PAID',
+              eventId: metaResult.eventId || `purchase_${order.id}`,
+              eventsReceived: metaResult.eventsReceived,
+              status: metaResult.status,
+              error: metaResult.error || null,
+            }),
+          });
+        }
+      } catch (metaErr) {
+        console.warn('Meta CAPI retry failed for already-paid webhook:', metaErr?.message);
+      }
       return new Response(JSON.stringify({ status: 'ok', alreadyProcessed: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -320,6 +339,25 @@ export async function onRequestPost(context) {
         eventType: 'PORTAL_BRIDGE_UNHANDLED_ERROR',
         rawPayload: JSON.stringify({ source: 'CASHFREE_WEBHOOK', error: bridgeErr?.message || 'Unknown error' }),
       });
+    }
+
+    try {
+      const metaResult = await sendMetaPurchaseEvent(env, order);
+      if (metaResult.attempted) {
+        await recordOrderEvent(env, {
+          orderId: order.id,
+          eventType: metaResult.success ? 'META_CAPI_PURCHASE_SENT' : 'META_CAPI_PURCHASE_FAILED',
+          rawPayload: JSON.stringify({
+            source: 'CASHFREE_WEBHOOK',
+            eventId: metaResult.eventId || `purchase_${order.id}`,
+            eventsReceived: metaResult.eventsReceived,
+            status: metaResult.status,
+            error: metaResult.error || null,
+          }),
+        });
+      }
+    } catch (metaErr) {
+      console.warn('Meta CAPI purchase event failed in webhook:', metaErr?.message);
     }
 
       // Phase 10: Record promotional coupon redemption if order had coupon applied
