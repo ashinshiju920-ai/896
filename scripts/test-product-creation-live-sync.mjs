@@ -19,6 +19,37 @@ class MockKV {
   }
 }
 
+class MockD1 {
+  constructor() {
+    this.rows = new Map();
+  }
+
+  prepare(sql) {
+    const db = this;
+    return {
+      bind(...args) {
+        return {
+          async run() {
+            if (/INSERT INTO app_kv_store/i.test(sql)) {
+              db.rows.set(args[0], { value: args[1], updated_at: args[2] });
+            }
+            return { success: true };
+          },
+          async first() {
+            if (/SELECT value FROM app_kv_store/i.test(sql)) {
+              return db.rows.get(args[0]) || null;
+            }
+            return null;
+          },
+        };
+      },
+      async run() {
+        return { success: true };
+      },
+    };
+  }
+}
+
 const ADMIN_SECRET = 'product_creation_live_sync_secret';
 const env = {
   PRODUCTS_KV: new MockKV(),
@@ -49,6 +80,12 @@ globalThis.fetch = async (url, options = {}) => {
     }
 
     if (urlStr.includes('/raw/upload')) {
+      if (globalThis.__FAIL_RAW_CLOUDINARY__) {
+        return Response.json(
+          { error: { message: 'Simulated Cloudinary raw catalog failure' } },
+          { status: 500 }
+        );
+      }
       return Response.json({
         secure_url: 'https://res.cloudinary.com/creation_test_cloud/raw/upload/xylem_products_live.json',
       });
@@ -187,7 +224,41 @@ try {
   assert.strictEqual(publicProduct.addOns.find((a) => a.id === 'addon_custom_module').pricePaise, 7700);
   console.log('  PASS: Live catalog read returns custom prices and Cloudinary image.');
 
+  console.log('TEST: Product save succeeds through D1 when Cloudinary raw catalog mirror fails');
+  globalThis.__FAIL_RAW_CLOUDINARY__ = true;
+  const d1OnlyEnv = {
+    DB: new MockD1(),
+    ADMIN_SESSION_SECRET: ADMIN_SECRET,
+    CLOUDINARY_CLOUD_NAME: 'creation_test_cloud',
+    CLOUDINARY_API_KEY: 'creation_test_key',
+    CLOUDINARY_API_SECRET: 'creation_test_secret',
+  };
+
+  const d1SaveRes = await handleProductsPost({
+    env: d1OnlyEnv,
+    request: new Request('https://shop.example/api/products', {
+      method: 'POST',
+      headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ books: [{ ...newProduct, id: 'book_d1_fallback' }] }),
+    }),
+  });
+  assert.strictEqual(d1SaveRes.status, 200);
+  const d1SaveData = await d1SaveRes.json();
+  assert.strictEqual(d1SaveData.success, true);
+  assert.strictEqual(d1SaveData.storage.d1, true);
+  assert.strictEqual(d1SaveData.storage.cloudinary, false);
+
+  const d1GetRes = await handleProductsGet({
+    env: d1OnlyEnv,
+    request: new Request('https://shop.example/api/products'),
+  });
+  assert.strictEqual(d1GetRes.status, 200);
+  const d1GetData = await d1GetRes.json();
+  assert.ok(d1GetData.books.some((book) => book.id === 'book_d1_fallback'));
+  console.log('  PASS: D1 catalog fallback keeps admin product saves working when Cloudinary raw fails.');
+
   console.log('\nALL PRODUCT CREATION LIVE SYNC TESTS PASSED');
 } finally {
+  delete globalThis.__FAIL_RAW_CLOUDINARY__;
   globalThis.fetch = originalFetch;
 }

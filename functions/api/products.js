@@ -20,6 +20,44 @@ function getResponseHeaders(request, env) {
 }
 
 const MAX_PAYLOAD_BYTES = 1024 * 1024; // 1 MB limit
+const D1_CATALOG_KEY = 'xylem_products';
+
+async function ensureCatalogTable(env) {
+  if (!env?.DB || typeof env.DB.prepare !== 'function') return false;
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS app_kv_store (
+      storage_key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `).run();
+  return true;
+}
+
+async function getCatalogFromD1(env) {
+  if (!(await ensureCatalogTable(env))) return null;
+  const row = await env.DB.prepare('SELECT value FROM app_kv_store WHERE storage_key = ?')
+    .bind(D1_CATALOG_KEY)
+    .first();
+  if (!row?.value) return null;
+  try {
+    return JSON.parse(row.value);
+  } catch {
+    return null;
+  }
+}
+
+async function saveCatalogToD1(env, catalog) {
+  if (!(await ensureCatalogTable(env))) return false;
+  await env.DB.prepare(`
+    INSERT INTO app_kv_store (storage_key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(storage_key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).bind(D1_CATALOG_KEY, JSON.stringify(catalog), catalog.updatedAt || new Date().toISOString()).run();
+  return true;
+}
 
 function sanitizeString(val, maxLength = 250) {
   if (typeof val !== 'string') return '';
@@ -369,7 +407,32 @@ export async function onRequestGet(context) {
       }
     }
 
-    // 2. Cloudinary raw storage fallback
+    // 2. D1 catalog storage fallback/primary for Pages projects without KV
+    const d1Catalog = await getCatalogFromD1(env);
+    if (d1Catalog && Array.isArray(d1Catalog.books)) {
+      if (checkOnly) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            version: d1Catalog.version || 0,
+            count: d1Catalog.count || d1Catalog.books.length,
+          }),
+          {
+            status: 200,
+            headers: responseHeaders,
+          }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, ...d1Catalog, books: sanitizeBooks(d1Catalog.books) }),
+        {
+          status: 200,
+          headers: responseHeaders,
+        }
+      );
+    }
+
+    // 3. Cloudinary raw storage fallback
     const cloudName = env?.CLOUDINARY_CLOUD_NAME;
     if (cloudName) {
       const rawUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`;
@@ -450,17 +513,6 @@ export async function onRequestPost(context) {
     const apiKey = env?.CLOUDINARY_API_KEY;
     const apiSecret = env?.CLOUDINARY_API_SECRET;
 
-    if (!cloudName || !apiKey || !apiSecret) {
-      console.error('Cloudinary credentials missing in environment');
-      return new Response(
-        JSON.stringify({ error: 'Catalog storage configuration is unavailable.' }),
-        {
-          status: 500,
-          headers: responseHeaders,
-        }
-      );
-    }
-
     let currentCatalog = null;
     if (env && env.PRODUCTS_KV) {
       try {
@@ -469,11 +521,20 @@ export async function onRequestPost(context) {
     }
     if (!currentCatalog) {
       try {
-        const cRes = await fetch(
-          `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`,
-          { cache: 'no-store' }
-        );
-        if (cRes.ok) currentCatalog = await cRes.json();
+        currentCatalog = await getCatalogFromD1(env);
+      } catch (d1ReadErr) {
+        console.warn('D1 catalog read error:', d1ReadErr?.message || d1ReadErr);
+      }
+    }
+    if (!currentCatalog) {
+      try {
+        if (cloudName) {
+          const cRes = await fetch(
+            `https://res.cloudinary.com/${cloudName}/raw/upload/xylem_products_live.json?_t=${Date.now()}`,
+            { cache: 'no-store' }
+          );
+          if (cRes.ok) currentCatalog = await cRes.json();
+        }
       } catch {}
     }
 
@@ -579,45 +640,80 @@ export async function onRequestPost(context) {
     };
 
 
+    let savedToKv = false;
+    let savedToD1 = false;
+    let cloudinaryUrl = null;
+    let cloudinaryWarning = null;
+
     // 4. Save to Cloudflare KV (PRODUCTS_KV)
     if (env && env.PRODUCTS_KV) {
       await env.PRODUCTS_KV.put('xylem_products', JSON.stringify(updatedCatalog));
       await env.PRODUCTS_KV.put('xylem_products_version', String(timestamp));
+      savedToKv = true;
     }
 
-    // 5. Save to Cloudinary raw storage with instant CDN cache purge
-    const publicId = 'xylem_products_live';
-    const paramsToSign = `invalidate=true&overwrite=true&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+    // 5. Save to D1 catalog storage when available
+    try {
+      savedToD1 = await saveCatalogToD1(env, updatedCatalog);
+    } catch (d1WriteErr) {
+      console.error('D1 catalog save error:', d1WriteErr);
+    }
 
-    const encoder = new TextEncoder();
-    const data = encoder.encode(paramsToSign);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const signature = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    // 6. Mirror to Cloudinary raw storage when credentials are available.
+    // D1/KV are authoritative; Cloudinary raw failure should not block admin catalog saves.
+    if (cloudName && apiKey && apiSecret) {
+      try {
+        const publicId = 'xylem_products_live';
+        const paramsToSign = `invalidate=true&overwrite=true&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
 
-    const uploadData = new FormData();
-    const blob = new Blob([JSON.stringify(updatedCatalog)], { type: 'application/json' });
-    uploadData.append('file', blob, 'xylem_products_live.json');
-    uploadData.append('api_key', apiKey);
-    uploadData.append('timestamp', timestamp.toString());
-    uploadData.append('public_id', publicId);
-    uploadData.append('overwrite', 'true');
-    uploadData.append('invalidate', 'true');
-    uploadData.append('signature', signature);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(paramsToSign);
+        const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const signature = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
-    const cRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-      method: 'POST',
-      body: uploadData,
-    });
+        const uploadData = new FormData();
+        const blob = new Blob([JSON.stringify(updatedCatalog)], { type: 'application/json' });
+        uploadData.append('file', blob, 'xylem_products_live.json');
+        uploadData.append('api_key', apiKey);
+        uploadData.append('timestamp', timestamp.toString());
+        uploadData.append('public_id', publicId);
+        uploadData.append('overwrite', 'true');
+        uploadData.append('invalidate', 'true');
+        uploadData.append('signature', signature);
 
-    const cResult = await cRes.json();
+        const cRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+          method: 'POST',
+          body: uploadData,
+        });
 
-    if (!cRes.ok) {
-      console.error('Cloudinary save error:', cResult);
-      return new Response(JSON.stringify({ error: 'Catalog storage update failed.' }), {
-        status: 500,
-        headers: responseHeaders,
-      });
+        const cResult = await cRes.json().catch(() => ({}));
+
+        if (cRes.ok) {
+          cloudinaryUrl = cResult.secure_url || null;
+        } else {
+          console.error('Cloudinary catalog mirror error:', cResult);
+          cloudinaryWarning = cResult?.error?.message || cResult?.message || 'Cloudinary catalog mirror failed.';
+        }
+      } catch (cloudinaryErr) {
+        console.error('Cloudinary catalog mirror exception:', cloudinaryErr);
+        cloudinaryWarning = cloudinaryErr?.message || 'Cloudinary catalog mirror failed.';
+      }
+    } else {
+      cloudinaryWarning = 'Cloudinary raw catalog mirror is not configured.';
+    }
+
+    if (!savedToKv && !savedToD1 && !cloudinaryUrl) {
+      return new Response(
+        JSON.stringify({
+          error: 'Catalog storage update failed.',
+          details: cloudinaryWarning || 'No catalog storage backend accepted the update.',
+        }),
+        {
+          status: 500,
+          headers: responseHeaders,
+        }
+      );
     }
 
     return new Response(
@@ -626,7 +722,13 @@ export async function onRequestPost(context) {
         version: timestamp,
         updatedAt: updatedCatalog.updatedAt,
         count: updatedCatalog.count,
-        cloudinaryUrl: cResult.secure_url,
+        storage: {
+          kv: savedToKv,
+          d1: savedToD1,
+          cloudinary: Boolean(cloudinaryUrl),
+        },
+        ...(cloudinaryUrl ? { cloudinaryUrl } : {}),
+        ...(cloudinaryWarning ? { warning: cloudinaryWarning } : {}),
         books: updatedCatalog.books,
         examPaths: updatedCatalog.examPaths,
         testimonials: updatedCatalog.testimonials,
