@@ -239,12 +239,6 @@ export const Footer: React.FC = () => {
             >
               Shipping & Returns
             </Link>
-            <Link
-              to="/admin"
-              className="hover:text-emerald-400 transition-colors text-slate-500 hover:underline"
-            >
-              Admin
-            </Link>
           </div>
         </div>
       </div>
