@@ -4,11 +4,10 @@
 // Emits only meaningful business funnel events with client deduplication.
 // All network requests are asynchronous, non-blocking, and failure-isolated.
 
-import { AnalyticsEventType } from '../types';
+import { AnalyticsEventType, Book, BookFormat, CartItem, ProductAddon } from '../types';
 
 declare global {
   interface Window {
-    fbq?: (...args: any[]) => void;
     dataLayer?: any[];
   }
 }
@@ -103,26 +102,103 @@ function getMetaClickData(): Record<string, string> {
   return data;
 }
 
-export function trackMetaPurchase(order: {
+function makeEventId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function pushEcommerceEvent(event: string, value: number, items: any[], extra: Record<string, any> = {}): void {
+  if (typeof window === 'undefined') return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ ecommerce: null });
+  window.dataLayer.push({
+    event,
+    event_id: extra.event_id || makeEventId(event),
+    ecommerce: {
+      currency: 'INR',
+      value,
+      items,
+    },
+    ...extra,
+  });
+}
+
+function bookToDataLayerItem(book: Book, format: BookFormat = 'digital', quantity = 1, price?: number) {
+  const unitPrice = Number(price ?? book.prices?.[format]?.price ?? book.prices?.digital?.price ?? 0);
+  return {
+    item_id: book.id,
+    item_name: book.title,
+    item_category: book.category,
+    item_variant: format,
+    price: unitPrice,
+    quantity: Math.max(1, Number(quantity || 1)),
+  };
+}
+
+function addonToDataLayerItem(parentBook: Book, addon: ProductAddon, quantity = 1) {
+  return {
+    item_id: addon.id,
+    item_name: addon.name,
+    item_category: parentBook.category,
+    item_variant: addon.deliveryOption || 'digital',
+    price: Number(addon.price || 0),
+    quantity: Math.max(1, Number(quantity || 1)),
+  };
+}
+
+function cartItemToDataLayerItems(item: CartItem) {
+  const book = item.book;
+  if (!book) return [];
+  const quantity = Math.max(1, Number(item.quantity || 1));
+  const basePrice = Number(book.prices?.[item.format]?.price ?? item.price ?? 0);
+  const selectedAddons = Array.isArray(item.selectedAddons) ? item.selectedAddons : [];
+  return [
+    bookToDataLayerItem(book, item.format || 'digital', quantity, basePrice),
+    ...selectedAddons.map((addon) => addonToDataLayerItem(book, addon, quantity)),
+  ];
+}
+
+export function pushViewItemEvent(book: Book, format: BookFormat = 'digital'): void {
+  const item = bookToDataLayerItem(book, format, 1);
+  pushEcommerceEvent('view_item', item.price, [item]);
+}
+
+export function pushAddToCartEvent(
+  book: Book,
+  format: BookFormat = 'digital',
+  quantity = 1,
+  selectedAddons: ProductAddon[] = []
+): void {
+  const baseItem = bookToDataLayerItem(book, format, quantity);
+  const addonItems = selectedAddons.map((addon) => addonToDataLayerItem(book, addon, quantity));
+  const items = [baseItem, ...addonItems];
+  const value = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+  pushEcommerceEvent('add_to_cart', value, items);
+}
+
+export function pushBeginCheckoutEvent(cart: CartItem[]): void {
+  const items = cart.flatMap(cartItemToDataLayerItems);
+  if (items.length === 0) return;
+  const value = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+  pushEcommerceEvent('begin_checkout', value, items);
+}
+
+function pushPurchaseEvent(order: {
   orderId?: string;
   total?: number;
   currency?: string;
   items?: any[];
-}): void {
-  if (typeof window === 'undefined') return;
+}, eventCallback?: () => void): boolean {
+  if (typeof window === 'undefined') return false;
 
   const orderId = order.orderId || '';
-  if (!orderId) return;
+  if (!orderId) return false;
 
   try {
     const dedupKey = `${PURCHASE_DEDUP_PREFIX}${orderId}`;
-    if (localStorage.getItem(dedupKey)) return;
+    if (localStorage.getItem(dedupKey)) return false;
     localStorage.setItem(dedupKey, '1');
 
     const items = Array.isArray(order.items) ? order.items : [];
-    const contentIds = items
-      .map((item) => item.productId || item.bookId || item.id)
-      .filter(Boolean);
     const contents = items.map((item) => ({
       id: item.productId || item.bookId || item.id || orderId,
       quantity: Math.max(1, Number(item.quantity || 1)),
@@ -152,41 +228,39 @@ export function trackMetaPurchase(order: {
           quantity: item.quantity,
         })),
       },
+      ...(eventCallback ? { eventCallback, eventTimeout: 2000 } : {}),
       ...attribution,
       ...getMetaClickData(),
     });
 
-    if (typeof window.fbq !== 'function') return;
-
-    window.fbq(
-      'track',
-      'Purchase',
-      {
-        value,
-        currency,
-        content_type: 'product',
-        content_ids: contentIds,
-        contents,
-        num_items: items.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0) || 1,
-        order_id: orderId,
-        ...attribution,
-        ...getMetaClickData(),
-      },
-      { eventID: eventId }
-    );
+    return true;
   } catch {
     // Meta tracking must never block successful payment handling.
+    return false;
   }
 }
 
-export async function trackMetaPurchaseBeforeRedirect(order: {
+export function trackPurchaseAndRedirect(order: {
   orderId?: string;
   total?: number;
   currency?: string;
   items?: any[];
-}): Promise<void> {
-  trackMetaPurchase(order);
-  await new Promise((resolve) => window.setTimeout(resolve, 450));
+}, portalUrl: string): void {
+  if (typeof window === 'undefined') return;
+  let redirected = false;
+  const goToPortal = () => {
+    if (redirected) return;
+    redirected = true;
+    window.location.replace(portalUrl);
+  };
+
+  const pushed = pushPurchaseEvent(order, goToPortal);
+  if (!pushed) {
+    goToPortal();
+    return;
+  }
+
+  window.setTimeout(goToPortal, 2500);
 }
 
 // In-memory deduplication caches to prevent duplicate events on React component re-renders

@@ -33,7 +33,12 @@ import {
 import { useParams, Link } from 'react-router-dom';
 import { findBookBySlug } from '../utils/productSlug';
 import { NotFoundView } from './NotFoundView';
-import { trackProductView, trackAddToCart, trackAddonSelected } from '../utils/analytics';
+import {
+  trackProductView,
+  trackAddToCart,
+  trackAddonSelected,
+  pushViewItemEvent,
+} from '../utils/analytics';
 
 export const ProductDetailView: React.FC = () => {
   const {
@@ -61,6 +66,7 @@ export const ProductDetailView: React.FC = () => {
     if (book) {
       document.title = `${book.title} | Aylem Learning`;
       trackProductView(book.id);
+      pushViewItemEvent(book, 'digital');
     }
     return () => {
       document.title = 'Aylem Learning - Exam Preparation Books & Study Materials';

@@ -21,7 +21,7 @@ import {
   getSelectableAddons,
   validateAndReconcileCart,
 } from '../utils/pricing';
-import { trackAddToCart } from '../utils/analytics';
+import { trackAddToCart, pushAddToCartEvent } from '../utils/analytics';
 import { STUDENT_PORTAL_URL } from '../utils/cashfree';
 
 interface Toast {
@@ -706,6 +706,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
     trackAddToCart(targetBook.id, safeSelectedIds);
     const displayCalc = calculateDisplayPrice(targetBook, format, safeSelectedIds);
+    pushAddToCartEvent(targetBook, format, quantity, displayCalc.selectedAddons);
     const effectiveFormat: BookFormat =
       format === 'physical' || displayCalc.selectedAddons.some((a) => a.deliveryOption === 'physical')
         ? 'physical'
@@ -754,6 +755,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       new Set(Array.isArray(selectedAddonIds) ? selectedAddonIds.filter(Boolean).map(String) : [])
     );
     const displayCalc = calculateDisplayPrice(targetBook, format, safeSelectedIds);
+    pushAddToCartEvent(targetBook, format, quantity, displayCalc.selectedAddons);
     const effectiveFormat: BookFormat =
       format === 'physical' || displayCalc.selectedAddons.some((a) => a.deliveryOption === 'physical')
         ? 'physical'

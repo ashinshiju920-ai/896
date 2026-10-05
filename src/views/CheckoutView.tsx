@@ -24,7 +24,7 @@ import { CashfreeLogo } from '../components/CashfreeLogo';
 import { BackButton } from '../components/BackButton';
 import { BookCover } from '../components/BookCover';
 import { createCashfreeOrder, loadCashfreeSDK, CashfreeOrderPricing } from '../utils/cashfree';
-import { trackCheckoutStarted, resetCheckoutTracking } from '../utils/analytics';
+import { trackCheckoutStarted, resetCheckoutTracking, pushBeginCheckoutEvent } from '../utils/analytics';
 import { validateAndReconcileCart, getSelectableAddons, calculateDisplayPrice } from '../utils/pricing';
 import { Book } from '../types';
 
@@ -195,6 +195,7 @@ export const CheckoutView: React.FC = () => {
     if (cart.length > 0) {
       const productIds = cart.map((i) => i.book.id);
       trackCheckoutStarted(productIds, cart.length);
+      pushBeginCheckoutEvent(cart);
     }
     return () => {
       resetCheckoutTracking();

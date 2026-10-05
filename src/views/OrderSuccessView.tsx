@@ -18,7 +18,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { checkOrderStatus, OrderStatusResponse, STUDENT_PORTAL_URL } from '../utils/cashfree';
-import { trackMetaPurchaseBeforeRedirect } from '../utils/analytics';
+import { trackPurchaseAndRedirect } from '../utils/analytics';
 import { Order } from '../types';
 import { BOOKS } from '../data/books';
 
@@ -180,13 +180,12 @@ export const OrderSuccessView: React.FC = () => {
 
           setCurrentOrder(reconstructedOrder);
           showToast('Payment verified. Redirecting to the student portal.', 'success');
-          await trackMetaPurchaseBeforeRedirect({
+          trackPurchaseAndRedirect({
             orderId: res.orderId || orderIdToVerify,
             total: res.total,
             currency: res.currency || 'INR',
             items: res.items || [],
-          });
-          window.location.replace(STUDENT_PORTAL_URL);
+          }, STUDENT_PORTAL_URL);
         } else if (res.status === 'PENDING') {
           setOrderStatus('PENDING');
           if (isManual) {
