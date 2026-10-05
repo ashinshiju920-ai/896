@@ -9,6 +9,7 @@ import { AnalyticsEventType } from '../types';
 declare global {
   interface Window {
     fbq?: (...args: any[]) => void;
+    dataLayer?: any[];
   }
 }
 
@@ -108,7 +109,7 @@ export function trackMetaPurchase(order: {
   currency?: string;
   items?: any[];
 }): void {
-  if (typeof window === 'undefined' || typeof window.fbq !== 'function') return;
+  if (typeof window === 'undefined') return;
 
   const orderId = order.orderId || '';
   if (!orderId) return;
@@ -129,13 +130,40 @@ export function trackMetaPurchase(order: {
     }));
     const attribution = getMarketingAttribution();
     const eventId = `purchase_${orderId}`;
+    const value = Number(order.total || 0);
+    const currency = order.currency || 'INR';
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ ecommerce: null });
+    window.dataLayer.push({
+      event: 'purchase',
+      event_id: eventId,
+      transaction_id: orderId,
+      value,
+      currency,
+      ecommerce: {
+        transaction_id: orderId,
+        value,
+        currency,
+        items: contents.map((item, index) => ({
+          item_id: item.id,
+          item_name: items[index]?.title || items[index]?.name || items[index]?.productNameSnapshot || item.id,
+          price: item.item_price,
+          quantity: item.quantity,
+        })),
+      },
+      ...attribution,
+      ...getMetaClickData(),
+    });
+
+    if (typeof window.fbq !== 'function') return;
 
     window.fbq(
       'track',
       'Purchase',
       {
-        value: Number(order.total || 0),
-        currency: order.currency || 'INR',
+        value,
+        currency,
         content_type: 'product',
         content_ids: contentIds,
         contents,
