@@ -3,18 +3,35 @@
 # Canonical site: https://aylemlearning.online
 #
 # Goal:
-# - Keep public storefront, product, blog, and policy pages crawlable for SEO,
-#   AEO (answer engines), and GEO (generative/search answer visibility).
-# - Keep private, checkout, API, admin, account, and student material routes out
-#   of public search results.
+# - Make Google crawling as open as safely possible for SEO.
+# - Keep API and admin routes out of crawlers because they are not public SEO
+#   documents.
+# - Customer-flow pages are allowed for Google so it can read their noindex meta.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Public search engines
+# Google crawlers - maximum crawl access for SEO and inspection.
+# Google can crawl noindex pages such as checkout/login/account so it can see
+# the route-level robots meta. API and admin remain blocked.
 # ------------------------------------------------------------------------------
 User-agent: Googlebot
 User-agent: Googlebot-Image
 User-agent: Googlebot-News
+User-agent: Googlebot-Video
+User-agent: Google-InspectionTool
+User-agent: AdsBot-Google
+User-agent: AdsBot-Google-Mobile
+User-agent: Mediapartners-Google
+User-agent: Storebot-Google
+User-agent: APIs-Google
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+Disallow: /admin
+
+# ------------------------------------------------------------------------------
+# Other public search engines
+# ------------------------------------------------------------------------------
 User-agent: Bingbot
 User-agent: DuckDuckBot
 User-agent: Applebot
@@ -56,7 +73,6 @@ Disallow: /orders
 # agents above able to access public pages.
 # ------------------------------------------------------------------------------
 User-agent: GPTBot
-User-agent: Google-Extended
 User-agent: anthropic-ai
 User-agent: Claude-Web
 User-agent: CCBot
