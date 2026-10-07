@@ -1,4 +1,11 @@
 const CARD_WIDTHS = [360, 520, 720, 960];
+const DEFAULT_EXAM_IMAGE = '/hero-books-showcase.webp';
+const MISSING_LOCAL_EXAM_IMAGES = new Set([
+  '/images/exams/ielts.jpg',
+  '/images/exams/oet.jpg',
+  '/images/exams/pte.jpg',
+  '/images/exams/german.jpg',
+]);
 
 function isCloudinaryUrl(url: URL) {
   return url.hostname === 'res.cloudinary.com';
@@ -35,6 +42,7 @@ function withUnsplashWidth(rawUrl: string, width: number) {
 
 export function getOptimizedExamImage(rawUrl: string, width: number) {
   if (!rawUrl) return rawUrl;
+  if (MISSING_LOCAL_EXAM_IMAGES.has(rawUrl)) return DEFAULT_EXAM_IMAGE;
 
   try {
     const url = new URL(rawUrl, window.location.origin);

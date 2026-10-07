@@ -65,21 +65,6 @@ export const HomeView: React.FC = () => {
         document.head.appendChild(preconnect);
         createdLinks.push(preconnect);
       }
-
-      const preloadUrl = getExamImagePreloadUrl(path.bgImage);
-      if (!preloadUrl || document.querySelector(`link[data-exam-card-preload="${path.category}"]`)) return;
-
-      const preload = document.createElement('link');
-      preload.rel = 'preload';
-      preload.as = 'image';
-      preload.href = preloadUrl;
-      preload.setAttribute('fetchpriority', 'high');
-      preload.setAttribute('imagesizes', '(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw');
-      const srcSet = getExamImageSrcSet(path.bgImage);
-      if (srcSet) preload.setAttribute('imagesrcset', srcSet);
-      preload.dataset.examCardPreload = path.category;
-      document.head.appendChild(preload);
-      createdLinks.push(preload);
     });
 
     return () => {
@@ -263,8 +248,8 @@ export const HomeView: React.FC = () => {
                 width={720}
                 height={806}
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                loading={index < 4 ? 'eager' : 'lazy'}
-                fetchPriority={index < 4 ? 'high' : 'auto'}
+                loading="lazy"
+                fetchPriority="auto"
                 decoding="async"
               />
 

@@ -52,9 +52,9 @@ export const BOOKS: Book[] = [
       textColor: '#0a2540',
       badgeText: 'INSTANT PDF',
     },
-    imageUrl: '/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.jpeg',
-    coverImage: '/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.jpeg',
-    images: ['/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.jpeg'],
+    imageUrl: '/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.webp',
+    coverImage: '/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.webp',
+    images: ['/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.webp'],
     samplePdfName: 'Aylem-Select-Your-Path-Exam-Guide.pdf',
     disablePaperback: true,
     addOns: [

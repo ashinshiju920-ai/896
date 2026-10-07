@@ -71,17 +71,20 @@ export const HeroBookShowcase: React.FC = () => {
           className="relative rounded-[28px] sm:rounded-[38px] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,135,90,0.2)] border border-[#d2ebe5] bg-[#f2f9f8] group cursor-pointer"
         >
           {/* Base High-Resolution Showcase Graphic */}
-          <img
-            src="/hero-books-showcase.jpg"
-            alt="Aylem Learning Official Preparation Guides - IELTS, OET, and German"
-            width={1200}
-            height={774}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-            className="w-full h-auto block object-cover rounded-[28px] sm:rounded-[38px] transition-transform duration-500 group-hover:scale-[1.015]"
-            draggable={false}
-          />
+          <picture>
+            <source srcSet="/hero-books-showcase.webp" type="image/webp" />
+            <img
+              src="/hero-books-showcase.jpg"
+              alt="Aylem Learning Official Preparation Guides - IELTS, OET, and German"
+              width={1024}
+              height={960}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className="w-full h-auto block object-cover rounded-[28px] sm:rounded-[38px] transition-transform duration-500 group-hover:scale-[1.015]"
+              draggable={false}
+            />
+          </picture>
 
           {/* Animated Specular Light Glare (Follows Cursor) */}
           <div
