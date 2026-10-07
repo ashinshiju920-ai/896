@@ -1188,7 +1188,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                           <img
                             src={currentSlotImg}
                             alt={`Slot ${slotIdx + 1}`}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain bg-white"
                           />
                         ) : (
                           <div className="text-center p-3 text-slate-400 text-[11px]">
