@@ -598,7 +598,9 @@ export const CheckoutView: React.FC = () => {
                           <img
                             src={coverImg}
                             alt={liveBook.title}
-                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-contain bg-white"
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = 'none';
                             }}
@@ -1152,7 +1154,9 @@ export const CheckoutView: React.FC = () => {
                           <img
                             src={productImg}
                             alt={product.title}
-                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-contain bg-white"
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = 'none';
                             }}
@@ -1278,7 +1282,9 @@ export const CheckoutView: React.FC = () => {
                             <img
                               src={productImg}
                               alt={product.title}
-                              className="w-full h-full object-cover"
+                              loading="lazy"
+                              decoding="async"
+                              className="w-full h-full object-contain bg-white"
                               onError={(e) => {
                                 (e.target as HTMLElement).style.display = 'none';
                               }}

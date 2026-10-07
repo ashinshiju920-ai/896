@@ -225,7 +225,9 @@ export const ProductDetailView: React.FC = () => {
                     <img
                       src={imgUrl}
                       alt={`${book.title} view ${idx + 1}`}
-                      className="w-full h-full object-cover rounded-xs"
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-contain bg-white rounded-xs"
                     />
                   ) : idx === 0 ? (
                     <div className="w-full h-full bg-slate-900 rounded-xs flex items-center justify-center text-[7px] text-white font-bold">
@@ -283,6 +285,8 @@ export const ProductDetailView: React.FC = () => {
                       <img
                         src={activeCustomImg}
                         alt={`${book.title} slide ${selectedThumbnail + 1}`}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-contain rounded-lg"
                       />
                     </div>
