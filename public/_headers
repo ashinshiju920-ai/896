@@ -25,6 +25,9 @@
 /*.webmanifest
   Cache-Control: public, max-age=86400
 
+/*.txt
+  Cache-Control: public, max-age=86400
+
 /*
   # 1. HTTP Strict Transport Security (HSTS)
   # Forces all future connections over HTTPS for 1 year, including subdomains.

@@ -32,12 +32,14 @@ const trimText = (value: string, max = 155): string => {
 
 export const buildOrganizationSchema = () => ({
   '@context': 'https://schema.org',
-  '@type': 'Organization',
+  '@type': ['Organization', 'EducationalOrganization', 'LocalBusiness'],
   name: 'Aylem Learning',
   url: SITE_URL,
   logo: `${SITE_URL}/clean-emblem.png`,
+  image: `${SITE_URL}/hero-books-showcase.jpg`,
   email: 'aylembookstore@gmail.com',
   telephone: '+91-6282377918',
+  priceRange: 'INR 49-1499',
   address: {
     '@type': 'PostalAddress',
     streetAddress: '34/1000 Edappally Junction',
@@ -46,7 +48,21 @@ export const buildOrganizationSchema = () => ({
     postalCode: '682024',
     addressCountry: 'IN',
   },
+  contactPoint: {
+    '@type': 'ContactPoint',
+    telephone: '+91-6282377918',
+    contactType: 'customer support',
+    areaServed: 'IN',
+    availableLanguage: ['English', 'Malayalam'],
+  },
   areaServed: ['Kerala', 'India'],
+  knowsAbout: [
+    'IELTS books Kerala',
+    'OET mock test Kerala',
+    'PTE practice test India',
+    'German language study material Kerala',
+    'online IELTS mock test',
+  ],
 });
 
 export const buildWebsiteSchema = () => ({
@@ -112,6 +128,44 @@ export const buildCourseSchema = (book: Book) => ({
   areaServed: ['Kerala', 'India'],
 });
 
+const buildFaqSchema = (
+  items: Array<{ question: string; answer: string }>
+) => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: items.map((item) => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.answer,
+    },
+  })),
+});
+
+const homepageFaqSchema = buildFaqSchema([
+  {
+    question: 'Does Aylem Learning sell IELTS books for students in Kerala?',
+    answer:
+      'Yes. Aylem Learning offers IELTS digital books, mock tests, vocabulary, writing, reading, listening and speaking preparation materials for learners in Kerala and across India.',
+  },
+  {
+    question: 'Can I buy OET mock test materials online?',
+    answer:
+      'Yes. OET preparation materials and mock-test focused resources can be purchased online with instant digital access after payment confirmation.',
+  },
+  {
+    question: 'Are PTE and German study materials available as digital PDFs?',
+    answer:
+      'Yes. Aylem Learning offers PTE and German language study materials in digital formats for convenient self-study on mobile, tablet or desktop.',
+  },
+  {
+    question: 'Where is Aylem Learning located?',
+    answer:
+      'Aylem Learning is based near Edappally Junction, Kochi, Ernakulam, Kerala, and serves learners across Kerala and India.',
+  },
+]);
+
 const buildBlogPostingSchema = (slug: string) => {
   const post = findBlogBySlug(slug);
   if (!post) return null;
@@ -167,7 +221,7 @@ export const getSeoForRoute = ({
         'German language study material Kerala',
         'online IELTS mock test',
       ],
-      jsonLd: baseJsonLd,
+      jsonLd: [...baseJsonLd, homepageFaqSchema],
     };
   }
 
@@ -241,7 +295,21 @@ export const getSeoForRoute = ({
         image: absoluteUrl(book.coverImage || book.imageUrl || book.images?.[0]),
         type: 'product',
         keywords: [marketPhrase, book.title, `${book.category} digital book`, `${book.category} mock tests India`],
-        jsonLd: [...baseJsonLd, buildProductSchema(book), buildCourseSchema(book)],
+        jsonLd: [
+          ...baseJsonLd,
+          buildProductSchema(book),
+          buildCourseSchema(book),
+          buildFaqSchema([
+            {
+              question: `Is ${book.title} available as a digital study material?`,
+              answer: `Yes. ${book.title} is available as a digital study material from Aylem Learning with secure checkout and online access after payment confirmation.`,
+            },
+            {
+              question: `Who is ${book.title} useful for?`,
+              answer: `${book.title} is useful for learners preparing for ${book.category} exams or related study goals in Kerala and across India.`,
+            },
+          ]),
+        ],
       };
     }
   }

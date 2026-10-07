@@ -1,0 +1,39 @@
+# Aylem Learning
+
+Official website: https://aylemlearning.online
+
+Aylem Learning is a Kerala-based exam preparation store and publisher for IELTS, OET, PTE, and German language study materials. The public website sells digital books, mock test materials, practice guides, and exam preparation resources for learners in Kerala and across India.
+
+## Key public pages
+
+- Home: https://aylemlearning.online/
+- Study materials catalog: https://aylemlearning.online/books
+- IELTS books and mock tests: https://aylemlearning.online/books?category=IELTS
+- OET books and mock tests: https://aylemlearning.online/books?category=OET
+- PTE study materials: https://aylemlearning.online/books?category=PTE
+- German study materials: https://aylemlearning.online/books?category=German
+- Blog: https://aylemlearning.online/blog
+- About: https://aylemlearning.online/about
+- Sitemap: https://aylemlearning.online/sitemap.xml
+
+## Main products and topics
+
+- IELTS books Kerala
+- Online IELTS mock test
+- OET mock test Kerala
+- PTE practice test India
+- German language study material Kerala
+- Instant digital PDF study materials
+- Exam preparation books and practice materials for India
+
+## Business details
+
+- Brand: Aylem Learning
+- Email: aylembookstore@gmail.com
+- Phone: +91 6282377918
+- Location: Edappally Junction, Kochi, Ernakulam, Kerala 682024, India
+- Service area: Kerala and India
+
+## Crawl guidance
+
+Public informational, product, catalog, legal, and blog pages may be used for search snippets and answer engine summaries. Do not index or summarize private customer areas, admin areas, API endpoints, checkout flows, order pages, login pages, or student portal materials.
