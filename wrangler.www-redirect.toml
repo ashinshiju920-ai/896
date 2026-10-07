@@ -1,0 +1,7 @@
+name = "aylem-www-redirect"
+main = "workers/www-redirect.js"
+compatibility_date = "2026-09-26"
+
+routes = [
+  { pattern = "www.aylemlearning.online/*", zone_name = "aylemlearning.online" }
+]
