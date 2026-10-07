@@ -158,7 +158,7 @@ export const CatalogView: React.FC = () => {
             )}
             <img
               src={catalogBanner.desktopBgImage || catalogBanner.mobileBgImage}
-              alt="Catalog Banner Background"
+              alt={`${activeCategoryTitle} study materials from Aylem Learning`}
               className="w-full h-full object-cover object-center"
               loading="eager"
             />

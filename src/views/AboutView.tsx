@@ -25,27 +25,27 @@ export const AboutView: React.FC = () => {
           Empowering Learners Across Global Milestones
         </h1>
         <p className="text-base text-slate-600 leading-relaxed">
-          Aylem Learning is India's leading specialized academic and test-preparation publishing house, dedicated to helping students and professionals conquer IELTS, OET, PTE, and German language certifications.
+          Aylem Learning is a Kerala-based exam-preparation publisher helping students and professionals prepare for IELTS, OET, PTE, and German language certifications with focused digital books, mock tests, and study materials.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-          <div className="text-3xl sm:text-4xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">50,000+</div>
-          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Learners Prepared</div>
+          <div className="text-3xl sm:text-4xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">IELTS</div>
+          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Books & Mock Tests</div>
         </div>
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-          <div className="text-3xl sm:text-4xl font-extrabold text-[#00875a] font-['Plus_Jakarta_Sans',sans-serif]">8.0+</div>
-          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Average IELTS Score</div>
+          <div className="text-3xl sm:text-4xl font-extrabold text-[#00875a] font-['Plus_Jakarta_Sans',sans-serif]">OET</div>
+          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Healthcare English Prep</div>
         </div>
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-          <div className="text-3xl sm:text-4xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">100%</div>
-          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Verified Exam Formats</div>
+          <div className="text-3xl sm:text-4xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">PTE</div>
+          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Practice Test Material</div>
         </div>
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-          <div className="text-3xl sm:text-4xl font-extrabold text-[#00875a] font-['Plus_Jakarta_Sans',sans-serif]">4.9/5</div>
-          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Learner Satisfaction</div>
+          <div className="text-3xl sm:text-4xl font-extrabold text-[#00875a] font-['Plus_Jakarta_Sans',sans-serif]">German</div>
+          <div className="text-xs font-semibold text-slate-500 mt-1 font-['DM_Sans',sans-serif]">Language Study Material</div>
         </div>
       </div>
 

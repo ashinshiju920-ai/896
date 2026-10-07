@@ -74,6 +74,11 @@ export const HeroBookShowcase: React.FC = () => {
           <img
             src="/hero-books-showcase.jpg"
             alt="Aylem Learning Official Preparation Guides - IELTS, OET, and German"
+            width={1200}
+            height={774}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-auto block object-cover rounded-[28px] sm:rounded-[38px] transition-transform duration-500 group-hover:scale-[1.015]"
             draggable={false}
           />

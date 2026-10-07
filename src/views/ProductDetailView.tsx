@@ -61,16 +61,12 @@ export const ProductDetailView: React.FC = () => {
     ? findBookBySlug(slug, books)
     : (books.find((b) => b.id === selectedBookId) || books[0]);
 
-  // Page title for SEO & Analytics view tracking
+  // Analytics view tracking
   useEffect(() => {
     if (book) {
-      document.title = `${book.title} | Aylem Learning`;
       trackProductView(book.id);
       pushViewItemEvent(book, 'digital');
     }
-    return () => {
-      document.title = 'Aylem Learning - Exam Preparation Books & Study Materials';
-    };
   }, [book]);
 
   // If a slug was specifically passed in URL but does not match any product

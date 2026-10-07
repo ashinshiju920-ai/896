@@ -150,7 +150,7 @@ export const HomeView: React.FC = () => {
                   {bestProductImage ? (
                     <img
                       src={bestProductImage}
-                      alt={bestProduct.title}
+                      alt={`${bestProduct.title} digital study material from Aylem Learning`}
                       className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-[1.015]"
                       loading="eager"
                       decoding="async"
@@ -532,7 +532,9 @@ export const HomeView: React.FC = () => {
               <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <img
                   src={t.avatar}
-                  alt={t.name}
+                  alt={`${t.name}, Aylem Learning student review`}
+                  loading="lazy"
+                  decoding="async"
                   className="w-10 h-10 rounded-full object-cover border border-slate-200"
                   referrerPolicy="no-referrer"
                 />

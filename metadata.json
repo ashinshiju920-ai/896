@@ -1,6 +1,6 @@
 {
-  "name": "Aylem Learning - Digital Book Store",
-  "description": "Online digital and physical book selling e-commerce store for IELTS, OET, PTE, and German exam preparation study materials.",
+  "name": "Aylem Learning - IELTS, OET, PTE and German Study Materials",
+  "description": "Kerala-based exam preparation store for IELTS books, OET mock tests, PTE practice tests, and German language study material with instant digital access.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

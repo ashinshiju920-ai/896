@@ -19,6 +19,12 @@ User-agent: Applebot
 Allow: /
 Disallow: /admin
 Disallow: /api/
+Disallow: /checkout
+Disallow: /order-success
+Disallow: /login
+Disallow: /account
+Disallow: /my-materials
+Disallow: /orders
 
 # ------------------------------------------------------------------------------
 # 2. DISALLOW AI SCRAPERS & LLM TRAINING BOTS
@@ -88,3 +94,11 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /api/
+Disallow: /checkout
+Disallow: /order-success
+Disallow: /login
+Disallow: /account
+Disallow: /my-materials
+Disallow: /orders
+
+Sitemap: https://aylemlearning.online/sitemap.xml

@@ -14,6 +14,7 @@ import { PdfViewerModal } from './components/PdfViewerModal';
 import { ContactModal } from './components/ContactModal';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { ProgressiveLoader } from './components/ProgressiveLoader';
+import { SEO } from './components/SEO';
 
 // Views
 import { HomeView } from './views/HomeView';
@@ -145,6 +146,8 @@ const ShopApp: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#ffffff] text-slate-900 font-['DM_Sans',sans-serif] selection:bg-emerald-100 selection:text-emerald-900 relative">
+      <SEO books={books} />
+
       {/* Top Header Navigation */}
       {isStorefront && <Header />}
 
