@@ -164,6 +164,14 @@ const defaultShipping: ShippingInfo = {
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
+const mergeWithBuiltInBooks = (sourceBooks: Book[]): Book[] => {
+  const sourceIds = new Set(sourceBooks.map((book) => book.id));
+  return [
+    ...sourceBooks,
+    ...BOOKS.filter((book) => !sourceIds.has(book.id)),
+  ];
+};
+
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -206,7 +214,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('xylem_books_data');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return mergeWithBuiltInBooks(parsed);
       }
     } catch (e) {
       console.error('Failed to load books from storage:', e);
@@ -350,9 +358,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const remote = await fetchCatalogFromCloud();
       if (remote && Array.isArray(remote.books) && remote.books.length > 0) {
         const remoteVersion = Number(remote.version) || Math.floor(Date.now() / 1000);
+        const mergedBooks = mergeWithBuiltInBooks(remote.books);
         if (force || remoteVersion > localCatalogVersionRef.current) {
           localCatalogVersionRef.current = remoteVersion;
-          setBooks(remote.books);
+          setBooks(mergedBooks);
           if (Array.isArray(remote.examPaths)) {
             setExamPaths(remote.examPaths);
             try {
@@ -374,11 +383,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           setLastCloudSync(new Date());
           try {
-            localStorage.setItem('xylem_books_data', JSON.stringify(remote.books));
+            localStorage.setItem('xylem_books_data', JSON.stringify(mergedBooks));
             localStorage.setItem('xylem_books_version', String(remoteVersion));
           } catch {}
         }
-        return remote.books;
+        return mergedBooks;
       }
       return null;
     } catch (err) {
@@ -402,8 +411,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis, newBanner) => {
+      const mergedBooks = mergeWithBuiltInBooks(newBooks);
       localCatalogVersionRef.current = version;
-      setBooks(newBooks);
+      setBooks(mergedBooks);
       if (newPaths && Array.isArray(newPaths)) {
         setExamPaths(newPaths);
       }

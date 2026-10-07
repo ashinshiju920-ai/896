@@ -15,6 +15,20 @@ export const BUNDLE_DEALS = [
 
 export const DEFAULT_CATALOG = [
   {
+    id: 'select-your-path-guide',
+    title: 'Select Your Path Exam Guide',
+    category: 'All',
+    prices: {
+      digital: { price: 199, originalPrice: 599 },
+      physical: { price: 199, originalPrice: 599 },
+    },
+    addons: [
+      { id: 'digital', name: 'Digital (PDF)', price: 199, originalPrice: 599, deliveryOption: 'digital', active: true },
+    ],
+    disablePaperback: true,
+    buy2Get3rdFree: false,
+  },
+  {
     id: 'ielts-full-prep',
     title: 'IELTS Full Preparation with Mock Tests',
     category: 'IELTS',

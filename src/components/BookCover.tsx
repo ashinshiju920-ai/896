@@ -165,7 +165,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
               <img
                 src={book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) || ''}
                 alt={book.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain bg-white"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}

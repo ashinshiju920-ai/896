@@ -2,6 +2,76 @@ import { Book } from '../types';
 
 export const BOOKS: Book[] = [
   {
+    id: 'select-your-path-guide',
+    title: 'Select Your Path Exam Guide',
+    subtitle: 'Instant PDF roadmap for choosing the right IELTS, OET, PTE, or German preparation path',
+    category: 'All',
+    type: 'Study Guides',
+    isNew: true,
+    isBestSeller: true,
+    rating: 4.8,
+    reviewCount: 64,
+    buyersCount: 730,
+    description:
+      'A practical exam-path guide that helps students compare IELTS, OET, PTE, and German preparation options and choose the best route for their study goals.',
+    longDescription:
+      'The Select Your Path Exam Guide is built for students who want a clear, confident starting point before buying study materials or booking exam dates. It compares exam routes, preparation timelines, scoring goals, and study plans in one easy-to-follow PDF.',
+    features: [
+      'IELTS, OET, PTE, and German Path Comparison',
+      'Score Goal and Timeline Planning',
+      'Beginner-Friendly Preparation Roadmap',
+      'Instant Digital PDF Access',
+    ],
+    whatYouGet: [
+      'Complete Select Your Path guide (Instant Digital PDF)',
+      'Exam comparison and decision checklist',
+      'Preparation timeline templates',
+      'Recommended next-step study plan',
+    ],
+    tableOfContents: [
+      { chapter: 'Section 1: Choosing Your Exam Path', pages: '1 - 18' },
+      { chapter: 'Section 2: Score Goals, Eligibility & Timelines', pages: '19 - 42' },
+      { chapter: 'Section 3: Study Plan Builder', pages: '43 - 72' },
+      { chapter: 'Section 4: Next-Step Materials Checklist', pages: '73 - 90' },
+    ],
+    prices: {
+      digital: {
+        price: 199,
+        originalPrice: 599,
+        discountPercent: 67,
+      },
+      physical: {
+        price: 199,
+        originalPrice: 599,
+        discountPercent: 67,
+      },
+    },
+    coverTheme: {
+      bgGradient: 'from-[#f8fafc] via-[#ecfdf5] to-[#dff7ef]',
+      accentColor: '#00875a',
+      textColor: '#0a2540',
+      badgeText: 'INSTANT PDF',
+    },
+    imageUrl: '/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.jpeg',
+    coverImage: '/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.jpeg',
+    images: ['/WhatsApp%20Image%202026-10-07%20at%209.35.24%20PM.jpeg'],
+    samplePdfName: 'Aylem-Select-Your-Path-Exam-Guide.pdf',
+    disablePaperback: true,
+    addOns: [
+      {
+        id: 'digital',
+        name: 'Digital (PDF)',
+        subtitle: 'Instant Download',
+        description: 'Instant PDF Download',
+        price: 199,
+        originalPrice: 599,
+        discountPercent: 67,
+        active: true,
+        deliveryOption: 'digital',
+      },
+    ],
+  },
+  {
     id: 'ielts-full-prep',
     title: 'IELTS Full Preparation with Mock Tests',
     subtitle: 'Complete Study Guide for IELTS Academic & General Training',
