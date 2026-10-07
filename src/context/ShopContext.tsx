@@ -188,6 +188,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (p === '/my-materials') return 'my-materials';
     if (p === '/orders') return 'orders';
     if (p === '/about') return 'about';
+    if (p === '/blog' || p.startsWith('/blog/')) return 'blog';
     if (p === '/login') return 'login';
     if (p === '/account') return 'account';
     if (p.startsWith('/admin')) return 'admin';

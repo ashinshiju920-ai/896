@@ -2,7 +2,7 @@ export type ExamCategory = 'IELTS' | 'OET' | 'PTE' | 'German' | 'All';
 
 export type BookFormat = 'digital' | 'physical';
 
-export type ViewType = 'home' | 'catalog' | 'product' | 'cart' | 'checkout' | 'order-success' | 'orders' | 'my-materials' | 'about' | 'admin' | 'login' | 'account';
+export type ViewType = 'home' | 'catalog' | 'product' | 'cart' | 'checkout' | 'order-success' | 'orders' | 'my-materials' | 'about' | 'blog' | 'admin' | 'login' | 'account';
 
 export interface Customer {
   id: string;
@@ -441,6 +441,5 @@ export interface AnalyticsDashboardResponse {
   addOnPerformance: AddOnPerformanceMetric[];
   promotions: PromotionPerformanceMetric[];
 }
-
 
 

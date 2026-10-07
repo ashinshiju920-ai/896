@@ -1,4 +1,5 @@
 import { Book } from '../types';
+import { BLOG_POSTS, findBlogBySlug } from '../data/blogs';
 import { getBookSlug } from './productSlug';
 
 export const SITE_URL =
@@ -110,6 +111,35 @@ export const buildCourseSchema = (book: Book) => ({
   inLanguage: 'en',
   areaServed: ['Kerala', 'India'],
 });
+
+const buildBlogPostingSchema = (slug: string) => {
+  const post = findBlogBySlug(slug);
+  if (!post) return null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.metaDescription,
+    datePublished: post.publishedAt,
+    dateModified: post.publishedAt,
+    mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
+    author: {
+      '@type': 'Organization',
+      name: 'Aylem Learning',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Aylem Learning',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/clean-emblem.png`,
+      },
+    },
+    about: post.keyword,
+    articleSection: post.category,
+  };
+};
 
 export const getSeoForRoute = ({
   pathname,
@@ -225,6 +255,48 @@ export const getSeoForRoute = ({
       keywords: ['Aylem Learning Kerala', 'exam preparation publisher Kerala', 'IELTS OET PTE German study material'],
       jsonLd: baseJsonLd,
     };
+  }
+
+  if (pathname === '/blog') {
+    return {
+      title: 'Exam Preparation Blog | IELTS, OET, PTE & German | Aylem Learning',
+      description:
+        'Read practical exam preparation guides for IELTS books Kerala, OET mock test Kerala, PTE practice test India, German study material and online IELTS mock tests.',
+      canonicalPath: '/blog',
+      keywords: ['IELTS books Kerala', 'OET mock test Kerala', 'PTE practice test India', 'German language study material Kerala'],
+      jsonLd: [
+        ...baseJsonLd,
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Blog',
+          name: 'Aylem Learning Exam Preparation Blog',
+          url: `${SITE_URL}/blog`,
+          blogPost: BLOG_POSTS.map((post) => ({
+            '@type': 'BlogPosting',
+            headline: post.title,
+            url: `${SITE_URL}/blog/${post.slug}`,
+            datePublished: post.publishedAt,
+          })),
+        },
+      ],
+    };
+  }
+
+  const blogMatch = pathname.match(/^\/blog\/([^/]+)/);
+  if (blogMatch) {
+    const slug = decodeURIComponent(blogMatch[1]);
+    const post = findBlogBySlug(slug);
+    if (post) {
+      const blogSchema = buildBlogPostingSchema(slug);
+      return {
+        title: `${post.metaTitle} | Aylem Learning Blog`,
+        description: post.metaDescription,
+        canonicalPath: `/blog/${post.slug}`,
+        type: 'article',
+        keywords: [post.keyword, `${post.category} preparation Kerala`, `${post.category} study material India`],
+        jsonLd: blogSchema ? [...baseJsonLd, blogSchema] : baseJsonLd,
+      };
+    }
   }
 
   if (pathname === '/cart') {

@@ -52,6 +52,12 @@ export const Header: React.FC = () => {
       isActive: currentView === 'catalog' && selectedCategory === 'All',
     },
     {
+      label: 'Blog',
+      to: '/blog',
+      action: () => setCurrentView('blog'),
+      isActive: currentView === 'blog',
+    },
+    {
       label: 'About',
       to: '/about',
       action: () => setCurrentView('about'),

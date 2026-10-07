@@ -27,6 +27,8 @@ const MyMaterialsView = React.lazy(() => import('./views/MyMaterialsView').then(
 const CustomerLoginView = React.lazy(() => import('./views/CustomerLoginView').then((m) => ({ default: m.CustomerLoginView })));
 const CustomerAccountView = React.lazy(() => import('./views/CustomerAccountView').then((m) => ({ default: m.CustomerAccountView })));
 const AboutView = React.lazy(() => import('./views/AboutView').then((m) => ({ default: m.AboutView })));
+const BlogListView = React.lazy(() => import('./views/BlogListView').then((m) => ({ default: m.BlogListView })));
+const BlogDetailView = React.lazy(() => import('./views/BlogDetailView').then((m) => ({ default: m.BlogDetailView })));
 const PrivacyPolicyView = React.lazy(() => import('./views/PrivacyPolicyView').then((m) => ({ default: m.PrivacyPolicyView })));
 const TermsConditionsView = React.lazy(() => import('./views/TermsConditionsView').then((m) => ({ default: m.TermsConditionsView })));
 const ShippingReturnsRefundPolicyView = React.lazy(() =>
@@ -172,6 +174,8 @@ const ShopApp: React.FC = () => {
             <Route path="/login" element={<CustomerLoginView />} />
             <Route path="/account" element={<CustomerAccountView />} />
             <Route path="/about" element={<AboutView />} />
+            <Route path="/blog" element={<BlogListView />} />
+            <Route path="/blog/:slug" element={<BlogDetailView />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyView />} />
             <Route path="/terms-and-conditions" element={<TermsConditionsView />} />
             <Route path="/shipping-returns-refund-policy" element={<ShippingReturnsRefundPolicyView />} />
