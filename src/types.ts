@@ -280,6 +280,20 @@ export interface CatalogBannerConfig {
   featurePills?: string[];
 }
 
+export interface HomeSpotlightConfig {
+  enabled?: boolean;
+  productId?: string;
+  imageUrl?: string;
+  badgeText?: string;
+  secondaryBadgeText?: string;
+  title?: string;
+  description?: string;
+  price?: number;
+  originalPrice?: number;
+  buttonText?: string;
+  backgroundColor?: string;
+}
+
 
 // -------------------------------------------------------------
 // PHASE 10: PROMOTIONS, COUPONS & BUNDLES
@@ -441,5 +455,4 @@ export interface AnalyticsDashboardResponse {
   addOnPerformance: AddOnPerformanceMetric[];
   promotions: PromotionPerformanceMetric[];
 }
-
 

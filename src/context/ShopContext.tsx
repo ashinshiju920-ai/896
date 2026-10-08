@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Book, BookFormat, CartItem, Order, ShippingInfo, ExamCategory, ViewType, Review, Testimonial, ExamPath, Customer, CatalogBannerConfig } from '../types';
+import { Book, BookFormat, CartItem, Order, ShippingInfo, ExamCategory, ViewType, Review, Testimonial, ExamPath, Customer, CatalogBannerConfig, HomeSpotlightConfig } from '../types';
 import { BOOKS } from '../data/books';
 
 import { TESTIMONIALS } from '../data/testimonials';
 import { DEFAULT_EXAM_PATHS } from '../data/examPaths';
 import { DEFAULT_CATALOG_BANNER } from '../data/catalogBanner';
+import { DEFAULT_HOME_SPOTLIGHT } from '../data/homeSpotlight';
 import {
   saveCatalogToCloud,
   fetchCatalogFromCloud,
@@ -69,6 +70,9 @@ interface ShopContextType {
   catalogBanner: CatalogBannerConfig;
   updateCatalogBanner: (updated: Partial<CatalogBannerConfig>) => Promise<boolean>;
   resetCatalogBannerToDefault: () => Promise<boolean>;
+  homeSpotlight: HomeSpotlightConfig;
+  updateHomeSpotlight: (updated: Partial<HomeSpotlightConfig>) => Promise<boolean>;
+  resetHomeSpotlightToDefault: () => Promise<boolean>;
 
 
   // Testimonials & Reviews (Image 2 - Learner Avatars & Quotes)
@@ -275,6 +279,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_CATALOG_BANNER;
   });
 
+  const [homeSpotlight, setHomeSpotlight] = useState<HomeSpotlightConfig>(() => {
+    try {
+      const saved = localStorage.getItem('xylem_home_spotlight_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...DEFAULT_HOME_SPOTLIGHT, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load home spotlight from storage:', e);
+    }
+    return DEFAULT_HOME_SPOTLIGHT;
+  });
+
   // Real-time Cloud Synchronization State
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   // A persisted catalog is only a cache. Checkout waits for the first no-cache
@@ -299,7 +318,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     booksToSync: Book[],
     pathsToSync?: ExamPath[],
     testisToSync?: Testimonial[],
-    bannerToSync?: CatalogBannerConfig
+    bannerToSync?: CatalogBannerConfig,
+    spotlightToSync?: HomeSpotlightConfig
   ): Promise<{
     success: boolean;
     version?: number;
@@ -307,6 +327,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     examPaths?: ExamPath[];
     testimonials?: Testimonial[];
     catalogBanner?: CatalogBannerConfig;
+    homeSpotlight?: HomeSpotlightConfig;
     error?: string;
   }> => {
     setIsCloudSyncing(true);
@@ -314,7 +335,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const paths = pathsToSync !== undefined ? pathsToSync : examPaths;
       const testis = testisToSync !== undefined ? testisToSync : testimonials;
       const banner = bannerToSync !== undefined ? bannerToSync : catalogBanner;
-      const res = await saveCatalogToCloud(booksToSync, paths, testis, banner);
+      const spotlight = spotlightToSync !== undefined ? spotlightToSync : homeSpotlight;
+      const res = await saveCatalogToCloud(booksToSync, paths, testis, banner, spotlight);
       if (res.success) {
         if (res.version) localCatalogVersionRef.current = res.version;
         setLastCloudSync(new Date());
@@ -325,6 +347,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           examPaths: res.examPaths,
           testimonials: res.testimonials,
           catalogBanner: res.catalogBanner,
+          homeSpotlight: res.homeSpotlight,
         };
       } else {
         return { success: false, error: res.error };
@@ -382,6 +405,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(merged));
             } catch {}
           }
+          if (remote.homeSpotlight && typeof remote.homeSpotlight === 'object') {
+            const merged = { ...DEFAULT_HOME_SPOTLIGHT, ...remote.homeSpotlight };
+            setHomeSpotlight(merged);
+            try {
+              localStorage.setItem('xylem_home_spotlight_data', JSON.stringify(merged));
+            } catch {}
+          }
           setLastCloudSync(new Date());
           try {
             localStorage.setItem('xylem_books_data', JSON.stringify(mergedBooks));
@@ -411,7 +441,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (active) setIsCatalogReady(true);
     });
 
-    const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis, newBanner) => {
+    const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis, newBanner, newSpotlight) => {
       const mergedBooks = mergeWithBuiltInBooks(newBooks);
       localCatalogVersionRef.current = version;
       setBooks(mergedBooks);
@@ -423,6 +453,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       if (newBanner && typeof newBanner === 'object') {
         setCatalogBanner({ ...DEFAULT_CATALOG_BANNER, ...newBanner });
+      }
+      if (newSpotlight && typeof newSpotlight === 'object') {
+        setHomeSpotlight({ ...DEFAULT_HOME_SPOTLIGHT, ...newSpotlight });
       }
       setLastCloudSync(new Date());
     });
@@ -1329,6 +1362,56 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateHomeSpotlight = async (updated: Partial<HomeSpotlightConfig>): Promise<boolean> => {
+    const nextSpotlight: HomeSpotlightConfig = {
+      ...homeSpotlight,
+      ...updated,
+    };
+    setHomeSpotlight(nextSpotlight);
+    try {
+      localStorage.setItem('xylem_home_spotlight_data', JSON.stringify(nextSpotlight));
+    } catch {}
+
+    const syncRes = await triggerCloudSync(books, examPaths, testimonials, catalogBanner, nextSpotlight);
+    if (syncRes.success) {
+      const confirmedSpotlight = syncRes.homeSpotlight || nextSpotlight;
+      setHomeSpotlight(confirmedSpotlight);
+      try {
+        localStorage.setItem('xylem_home_spotlight_data', JSON.stringify(confirmedSpotlight));
+      } catch {}
+      const confirmedVer = syncRes.version || Math.floor(Date.now() / 1000);
+      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, catalogBanner, confirmedSpotlight);
+      showToast('Homepage spotlight updated! Synced in real time.', 'success');
+      return true;
+    }
+
+    showToast(`Unable to sync spotlight: ${syncRes.error || 'Server error'}. Changes kept locally.`, 'warning');
+    return false;
+  };
+
+  const resetHomeSpotlightToDefault = async (): Promise<boolean> => {
+    setHomeSpotlight(DEFAULT_HOME_SPOTLIGHT);
+    try {
+      localStorage.setItem('xylem_home_spotlight_data', JSON.stringify(DEFAULT_HOME_SPOTLIGHT));
+    } catch {}
+
+    const syncRes = await triggerCloudSync(books, examPaths, testimonials, catalogBanner, DEFAULT_HOME_SPOTLIGHT);
+    if (syncRes.success) {
+      const confirmedSpotlight = syncRes.homeSpotlight || DEFAULT_HOME_SPOTLIGHT;
+      setHomeSpotlight(confirmedSpotlight);
+      try {
+        localStorage.setItem('xylem_home_spotlight_data', JSON.stringify(confirmedSpotlight));
+      } catch {}
+      const confirmedVer = syncRes.version || Math.floor(Date.now() / 1000);
+      broadcastLocalUpdate(books, confirmedVer, examPaths, testimonials, catalogBanner, confirmedSpotlight);
+      showToast('Reset homepage spotlight to defaults.', 'info');
+      return true;
+    }
+
+    showToast(`Unable to reset spotlight: ${syncRes.error || 'Server error'}.`, 'warning');
+    return false;
+  };
+
 
   // Testimonials management (Image 2)
   const addTestimonial = async (item: Omit<Testimonial, 'id'>): Promise<boolean> => {
@@ -1470,6 +1553,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         catalogBanner,
         updateCatalogBanner,
         resetCatalogBannerToDefault,
+        homeSpotlight,
+        updateHomeSpotlight,
+        resetHomeSpotlightToDefault,
 
 
         // Testimonials (Image 2)

@@ -31,19 +31,23 @@ export const HomeView: React.FC = () => {
     addToCart,
     buyNow,
     openPdfViewer,
+    homeSpotlight,
   } = useShop();
 
   // Featured books dynamically respect the admin's custom arrangement (6 products for balanced 2x3 mobile grid)
   const featuredBooks = (books && books.length > 0 ? books.slice(0, 6) : []).filter(Boolean);
   const bestProduct = React.useMemo(
-    () => books.find((book) => book.id === 'select-your-path-guide') || featuredBooks[0],
-    [books, featuredBooks]
+    () => books.find((book) => book.id === homeSpotlight?.productId) || books.find((book) => book.id === 'select-your-path-guide') || featuredBooks[0],
+    [books, featuredBooks, homeSpotlight?.productId]
   );
   const bestProductImage = bestProduct
-    ? bestProduct.coverImage || bestProduct.imageUrl || bestProduct.images?.[0] || ''
+    ? homeSpotlight?.imageUrl || bestProduct.coverImage || bestProduct.imageUrl || bestProduct.images?.[0] || ''
     : '';
-  const bestProductPrice = bestProduct?.prices?.digital?.price ?? 199;
-  const bestProductOriginalPrice = bestProduct?.prices?.digital?.originalPrice ?? 599;
+  const bestProductPrice = homeSpotlight?.price ?? bestProduct?.prices?.digital?.price ?? 199;
+  const bestProductOriginalPrice = homeSpotlight?.originalPrice ?? bestProduct?.prices?.digital?.originalPrice ?? 599;
+  const bestProductTitle = homeSpotlight?.title?.trim() || bestProduct?.title || '';
+  const bestProductDescription = homeSpotlight?.description?.trim() || bestProduct?.description || '';
+  const bestProductButtonText = homeSpotlight?.buttonText?.trim() || 'Buy Now';
   const priorityExamPaths = React.useMemo(() => examPaths.slice(0, 4), [examPaths]);
 
   React.useEffect(() => {
@@ -121,21 +125,24 @@ export const HomeView: React.FC = () => {
       </section>
 
       {/* 2. BEST PRODUCT SPOTLIGHT */}
-      {bestProduct && (
+      {bestProduct && homeSpotlight?.enabled !== false && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-12">
-          <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-emerald-100 bg-white shadow-[0_18px_60px_rgba(8,47,73,0.08)]">
+          <div
+            className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-emerald-100 shadow-[0_18px_60px_rgba(8,47,73,0.08)]"
+            style={{ backgroundColor: homeSpotlight?.backgroundColor || '#ffffff' }}
+          >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
               <div className="lg:col-span-7 bg-gradient-to-br from-slate-50 via-white to-emerald-50/60 p-4 sm:p-6 lg:p-7">
                 <button
                   type="button"
                   onClick={() => navigateToProduct(bestProduct.id)}
                   className="group relative w-full overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 bg-white aspect-[16/8.5] sm:aspect-[16/7.2] lg:aspect-[16/6.4] flex items-center justify-center shadow-xs"
-                  aria-label={`View ${bestProduct.title}`}
+                  aria-label={`View ${bestProductTitle}`}
                 >
                   {bestProductImage ? (
                     <img
                       src={bestProductImage}
-                      alt={`${bestProduct.title} digital study material from Aylem Learning`}
+                      alt={`${bestProductTitle} digital study material from Aylem Learning`}
                       className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-[1.015]"
                       loading="eager"
                       decoding="async"
@@ -150,20 +157,22 @@ export const HomeView: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-[#00875a] bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">
-                      Best Product
+                      {homeSpotlight?.badgeText || 'Best Product'}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                      <DownloadCloud className="w-3.5 h-3.5 text-[#00875a]" />
-                      Instant PDF
-                    </span>
+                    {(homeSpotlight?.secondaryBadgeText ?? 'Instant PDF') && (
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                        <DownloadCloud className="w-3.5 h-3.5 text-[#00875a]" />
+                        {homeSpotlight?.secondaryBadgeText || 'Instant PDF'}
+                      </span>
+                    )}
                   </div>
 
                   <div>
                     <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif] tracking-tight leading-tight">
-                      {bestProduct.title}
+                      {bestProductTitle}
                     </h2>
                     <p className="text-sm text-slate-600 leading-relaxed mt-2 font-['DM_Sans',sans-serif]">
-                      {bestProduct.description}
+                      {bestProductDescription}
                     </p>
                   </div>
 
@@ -189,7 +198,7 @@ export const HomeView: React.FC = () => {
                     onClick={() => buyNow(bestProduct, 'digital')}
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-sm sm:text-base font-bold shadow-md shadow-emerald-700/20 active:scale-95 transition-all"
                   >
-                    <span>Buy Now ₹{bestProductPrice}</span>
+                    <span>{bestProductButtonText} ₹{bestProductPrice}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>

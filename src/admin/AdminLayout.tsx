@@ -36,6 +36,9 @@ export const AdminLayout: React.FC = () => {
     catalogBanner,
     updateCatalogBanner,
     resetCatalogBannerToDefault,
+    homeSpotlight,
+    updateHomeSpotlight,
+    resetHomeSpotlightToDefault,
     testimonials,
     addTestimonial,
     updateTestimonial,
@@ -359,12 +362,16 @@ export const AdminLayout: React.FC = () => {
           {currentSection === 'categories' && (
             <CategoriesPage
               examPaths={examPaths}
+              books={books}
               onUpdateExamPath={(cat, updated) => updateExamPath(cat, updated)}
               onDeleteExamPath={(cat) => deleteExamPath(cat)}
               onResetDefaults={resetExamPathsToDefault}
               catalogBanner={catalogBanner}
               onUpdateCatalogBanner={updateCatalogBanner}
               onResetCatalogBanner={resetCatalogBannerToDefault}
+              homeSpotlight={homeSpotlight}
+              onUpdateHomeSpotlight={updateHomeSpotlight}
+              onResetHomeSpotlight={resetHomeSpotlightToDefault}
               showToast={showToast}
             />
 

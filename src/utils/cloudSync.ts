@@ -1,4 +1,4 @@
-import { Book, ExamPath, Testimonial, CatalogBannerConfig } from '../types';
+import { Book, ExamPath, Testimonial, CatalogBannerConfig, HomeSpotlightConfig } from '../types';
 
 const CHANNEL_NAME = 'xylem_products_realtime_sync';
 
@@ -43,7 +43,8 @@ export async function saveCatalogToCloud(
   books: Book[],
   examPaths?: ExamPath[],
   testimonials?: Testimonial[],
-  catalogBanner?: CatalogBannerConfig
+  catalogBanner?: CatalogBannerConfig,
+  homeSpotlight?: HomeSpotlightConfig
 ): Promise<{
   success: boolean;
   version?: number;
@@ -51,6 +52,7 @@ export async function saveCatalogToCloud(
   examPaths?: ExamPath[];
   testimonials?: Testimonial[];
   catalogBanner?: CatalogBannerConfig;
+  homeSpotlight?: HomeSpotlightConfig;
   error?: string;
 }> {
   // Persist via Cloudflare Pages edge endpoint /api/products
@@ -59,7 +61,7 @@ export async function saveCatalogToCloud(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ books, examPaths, testimonials, catalogBanner }),
+      body: JSON.stringify({ books, examPaths, testimonials, catalogBanner, homeSpotlight }),
     });
 
     if (res.ok) {
@@ -70,9 +72,10 @@ export async function saveCatalogToCloud(
         const confirmedPaths = Array.isArray(data.examPaths) ? data.examPaths : examPaths;
         const confirmedTestis = Array.isArray(data.testimonials) ? data.testimonials : testimonials;
         const confirmedBanner = data.catalogBanner !== undefined ? data.catalogBanner : catalogBanner;
+        const confirmedSpotlight = data.homeSpotlight !== undefined ? data.homeSpotlight : homeSpotlight;
 
         // ONLY cache and broadcast AFTER authoritative server write succeeds
-        broadcastLocalUpdate(confirmedBooks, confirmedVersion, confirmedPaths, confirmedTestis, confirmedBanner);
+        broadcastLocalUpdate(confirmedBooks, confirmedVersion, confirmedPaths, confirmedTestis, confirmedBanner, confirmedSpotlight);
 
         return {
           success: true,
@@ -81,6 +84,7 @@ export async function saveCatalogToCloud(
           examPaths: confirmedPaths,
           testimonials: confirmedTestis,
           catalogBanner: confirmedBanner,
+          homeSpotlight: confirmedSpotlight,
         };
       }
       return { success: false, error: data?.error || 'Failed to sync catalog with server' };
@@ -163,6 +167,7 @@ export async function fetchCatalogFromCloud(): Promise<{
   examPaths?: ExamPath[];
   testimonials?: Testimonial[];
   catalogBanner?: CatalogBannerConfig;
+  homeSpotlight?: HomeSpotlightConfig;
   version?: number;
   updatedAt?: string;
 } | null> {
@@ -180,6 +185,7 @@ export async function fetchCatalogFromCloud(): Promise<{
           examPaths: Array.isArray(data.examPaths) ? data.examPaths : undefined,
           testimonials: Array.isArray(data.testimonials) ? data.testimonials : undefined,
           catalogBanner: data.catalogBanner && typeof data.catalogBanner === 'object' ? data.catalogBanner : undefined,
+          homeSpotlight: data.homeSpotlight && typeof data.homeSpotlight === 'object' ? data.homeSpotlight : undefined,
           version: data.version,
           updatedAt: data.updatedAt,
         };
@@ -200,7 +206,8 @@ export function broadcastLocalUpdate(
   version: number,
   examPaths?: ExamPath[],
   testimonials?: Testimonial[],
-  catalogBanner?: CatalogBannerConfig
+  catalogBanner?: CatalogBannerConfig,
+  homeSpotlight?: HomeSpotlightConfig
 ) {
   if (typeof window === 'undefined') return;
 
@@ -216,6 +223,9 @@ export function broadcastLocalUpdate(
     if (catalogBanner !== undefined) {
       localStorage.setItem('xylem_catalog_banner_data', JSON.stringify(catalogBanner));
     }
+    if (homeSpotlight !== undefined) {
+      localStorage.setItem('xylem_home_spotlight_data', JSON.stringify(homeSpotlight));
+    }
   } catch {}
 
   if ('BroadcastChannel' in window) {
@@ -227,6 +237,7 @@ export function broadcastLocalUpdate(
         examPaths,
         testimonials,
         catalogBanner,
+        homeSpotlight,
         version,
         timestamp: Date.now(),
       });
@@ -246,7 +257,8 @@ export function subscribeToRealtimeBroadcast(
     version: number,
     examPaths?: ExamPath[],
     testimonials?: Testimonial[],
-    catalogBanner?: CatalogBannerConfig
+    catalogBanner?: CatalogBannerConfig,
+    homeSpotlight?: HomeSpotlightConfig
   ) => void
 ): () => void {
   if (typeof window === 'undefined') {
@@ -266,7 +278,8 @@ export function subscribeToRealtimeBroadcast(
             event.data.version || Date.now(),
             Array.isArray(event.data.examPaths) ? event.data.examPaths : undefined,
             Array.isArray(event.data.testimonials) ? event.data.testimonials : undefined,
-            event.data.catalogBanner && typeof event.data.catalogBanner === 'object' ? event.data.catalogBanner : undefined
+            event.data.catalogBanner && typeof event.data.catalogBanner === 'object' ? event.data.catalogBanner : undefined,
+            event.data.homeSpotlight && typeof event.data.homeSpotlight === 'object' ? event.data.homeSpotlight : undefined
           );
         }
       };
@@ -282,7 +295,8 @@ export function subscribeToRealtimeBroadcast(
       (e.key === 'xylem_books_data' ||
         e.key === 'xylem_exam_paths_data' ||
         e.key === 'xylem_testimonials_data' ||
-        e.key === 'xylem_catalog_banner_data') &&
+        e.key === 'xylem_catalog_banner_data' ||
+        e.key === 'xylem_home_spotlight_data') &&
       e.newValue
     ) {
       try {
@@ -294,10 +308,12 @@ export function subscribeToRealtimeBroadcast(
         const parsedTestis = rawTestis ? JSON.parse(rawTestis) : undefined;
         const rawBanner = localStorage.getItem('xylem_catalog_banner_data');
         const parsedBanner = rawBanner ? JSON.parse(rawBanner) : undefined;
+        const rawSpotlight = localStorage.getItem('xylem_home_spotlight_data');
+        const parsedSpotlight = rawSpotlight ? JSON.parse(rawSpotlight) : undefined;
 
         if (Array.isArray(parsedBooks) && parsedBooks.length > 0) {
           const v = Number(localStorage.getItem('xylem_books_version')) || Date.now();
-          onUpdate(parsedBooks, v, parsedPaths, parsedTestis, parsedBanner);
+          onUpdate(parsedBooks, v, parsedPaths, parsedTestis, parsedBanner, parsedSpotlight);
         }
       } catch {}
     }

@@ -628,6 +628,27 @@ export async function onRequestPost(context) {
         }
       : undefined;
 
+    const rawHomeSpotlight = payload.homeSpotlight !== undefined ? payload.homeSpotlight : currentCatalog?.homeSpotlight;
+    const sanitizedHomeSpotlight = rawHomeSpotlight && typeof rawHomeSpotlight === 'object'
+      ? {
+          enabled: rawHomeSpotlight.enabled !== false,
+          productId: sanitizeString(rawHomeSpotlight.productId, 100),
+          imageUrl: sanitizeString(rawHomeSpotlight.imageUrl, 1000),
+          badgeText: sanitizeString(rawHomeSpotlight.badgeText, 80),
+          secondaryBadgeText: sanitizeString(rawHomeSpotlight.secondaryBadgeText, 80),
+          title: sanitizeString(rawHomeSpotlight.title, 160),
+          description: sanitizeString(rawHomeSpotlight.description, 600),
+          price: rawHomeSpotlight.price === '' || rawHomeSpotlight.price === null || rawHomeSpotlight.price === undefined
+            ? undefined
+            : sanitizeNumber(rawHomeSpotlight.price, 0, 1000000, 0),
+          originalPrice: rawHomeSpotlight.originalPrice === '' || rawHomeSpotlight.originalPrice === null || rawHomeSpotlight.originalPrice === undefined
+            ? undefined
+            : sanitizeNumber(rawHomeSpotlight.originalPrice, 0, 1000000, 0),
+          buttonText: sanitizeString(rawHomeSpotlight.buttonText, 80),
+          backgroundColor: sanitizeString(rawHomeSpotlight.backgroundColor, 50),
+        }
+      : undefined;
+
     const timestamp = Math.round(Date.now() / 1000);
     const updatedCatalog = {
       version: timestamp,
@@ -637,6 +658,7 @@ export async function onRequestPost(context) {
       ...(sanitizedExamPaths !== undefined ? { examPaths: sanitizedExamPaths } : {}),
       ...(sanitizedTestimonials !== undefined ? { testimonials: sanitizedTestimonials } : {}),
       ...(sanitizedCatalogBanner !== undefined ? { catalogBanner: sanitizedCatalogBanner } : {}),
+      ...(sanitizedHomeSpotlight !== undefined ? { homeSpotlight: sanitizedHomeSpotlight } : {}),
     };
 
 
@@ -733,6 +755,7 @@ export async function onRequestPost(context) {
         examPaths: updatedCatalog.examPaths,
         testimonials: updatedCatalog.testimonials,
         catalogBanner: updatedCatalog.catalogBanner,
+        homeSpotlight: updatedCatalog.homeSpotlight,
       }),
       {
         status: 200,

@@ -11,10 +11,11 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react';
-import { ExamPath, ExamCategory, CatalogBannerConfig } from '../../types';
+import { Book, ExamPath, ExamCategory, CatalogBannerConfig, HomeSpotlightConfig } from '../../types';
 import { uploadImageToCloud } from '../../utils/cloudSync';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { CatalogBannerEditor } from './CatalogBannerEditor';
+import { HomeSpotlightEditor } from './HomeSpotlightEditor';
 import { useShop } from '../../context/ShopContext';
 
 const ARROW_COLOR_PRESETS = [
@@ -66,31 +67,43 @@ const EXAM_IMAGE_PRESETS: { [key: string]: { label: string; url: string }[] } = 
 
 interface CategoriesPageProps {
   examPaths: ExamPath[];
+  books?: Book[];
   onUpdateExamPath: (category: ExamCategory, updated: Partial<ExamPath>) => boolean | Promise<boolean>;
   onDeleteExamPath?: (category: ExamCategory) => boolean | Promise<boolean>;
   onResetDefaults: () => boolean | Promise<boolean>;
   catalogBanner?: CatalogBannerConfig;
   onUpdateCatalogBanner?: (updated: Partial<CatalogBannerConfig>) => Promise<boolean> | void;
   onResetCatalogBanner?: () => Promise<boolean> | void;
+  homeSpotlight?: HomeSpotlightConfig;
+  onUpdateHomeSpotlight?: (updated: Partial<HomeSpotlightConfig>) => Promise<boolean> | void;
+  onResetHomeSpotlight?: () => Promise<boolean> | void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
 
 export const CategoriesPage: React.FC<CategoriesPageProps> = ({
   examPaths,
+  books,
   onUpdateExamPath,
   onDeleteExamPath,
   onResetDefaults,
   catalogBanner,
   onUpdateCatalogBanner,
   onResetCatalogBanner,
+  homeSpotlight,
+  onUpdateHomeSpotlight,
+  onResetHomeSpotlight,
   showToast,
 }) => {
   const shop = useShop();
   const activeCatalogBanner = catalogBanner || shop.catalogBanner;
   const activeUpdateBanner = onUpdateCatalogBanner || shop.updateCatalogBanner;
   const activeResetBanner = onResetCatalogBanner || shop.resetCatalogBannerToDefault;
+  const activeBooks = books || shop.books;
+  const activeHomeSpotlight = homeSpotlight || shop.homeSpotlight;
+  const activeUpdateSpotlight = onUpdateHomeSpotlight || shop.updateHomeSpotlight;
+  const activeResetSpotlight = onResetHomeSpotlight || shop.resetHomeSpotlightToDefault;
 
-  const [activeTab, setActiveTab] = useState<'cards' | 'banner'>('cards');
+  const [activeTab, setActiveTab] = useState<'cards' | 'banner' | 'spotlight'>('cards');
   const [editingCategory, setEditingCategory] = useState<ExamCategory | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [categoryName, setCategoryName] = useState<string>('IELTS');
@@ -229,6 +242,22 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
             Dual Image &amp; Colors
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('spotlight')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'spotlight'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Homepage Spotlight</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">
+            Best Product
+          </span>
+        </button>
       </div>
 
       {activeTab === 'banner' ? (
@@ -236,6 +265,14 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
           catalogBanner={activeCatalogBanner}
           onUpdateCatalogBanner={activeUpdateBanner}
           onResetCatalogBanner={activeResetBanner}
+          showToast={showToast}
+        />
+      ) : activeTab === 'spotlight' ? (
+        <HomeSpotlightEditor
+          books={activeBooks}
+          homeSpotlight={activeHomeSpotlight}
+          onUpdateHomeSpotlight={activeUpdateSpotlight}
+          onResetHomeSpotlight={activeResetSpotlight}
           showToast={showToast}
         />
       ) : (
