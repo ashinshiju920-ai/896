@@ -1,3 +1,5 @@
+import { appendParamBuilderCookies, createMetaParamContext } from './utils/metaParamBuilder.js';
+
 /**
  * Cloudflare Pages Edge Middleware
  * Intercepts every incoming request to enforce bot-blocking and protect SEO ranking.
@@ -77,6 +79,8 @@ const ALLOWED_SEARCH_BOTS = [
 export async function onRequest(context) {
   const { request, next } = context;
   const url = new URL(request.url);
+  const shouldProcessMetaParams = request.method === 'GET' && !url.pathname.startsWith('/api/');
+  const metaParams = shouldProcessMetaParams ? createMetaParamContext(request) : null;
 
   // Helper to attach standard production security headers
   function attachSecurityHeaders(response) {
@@ -97,6 +101,10 @@ export async function onRequest(context) {
           "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com https://*.googletagmanager.com https://tagmanager.google.com https://*.google-analytics.com https://sdk.cashfree.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.googletagmanager.com https://tagmanager.google.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.googletagmanager.com https://ssl.gstatic.com https://www.gstatic.com https://res.cloudinary.com https://images.unsplash.com https://api.qrserver.com; connect-src 'self' https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://res.cloudinary.com; frame-src 'self' https://www.googletagmanager.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
         );
       }
+    }
+
+    if (metaParams?.cookiesToSet?.length) {
+      appendParamBuilderCookies(headers, metaParams.cookiesToSet);
     }
 
     return new Response(response.body, {

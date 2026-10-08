@@ -1,37 +1,14 @@
+import {
+  PII_DATA_TYPE,
+  createMetaParamContext,
+  getClientIpFromBuilderOrCookie,
+  getNormalizedAndHashedPII,
+} from './metaParamBuilder.js';
+
 const DEFAULT_PIXEL_ID = '1066331326319035';
 
 function cleanString(value) {
   return typeof value === 'string' ? value.trim() : '';
-}
-
-function parseCookies(cookieHeader = '') {
-  return Object.fromEntries(
-    String(cookieHeader || '')
-      .split(';')
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const idx = part.indexOf('=');
-        if (idx === -1) return [part, ''];
-        return [part.slice(0, idx), decodeURIComponent(part.slice(idx + 1))];
-      })
-  );
-}
-
-async function sha256(value) {
-  const clean = cleanString(value).toLowerCase();
-  if (!clean) return null;
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clean));
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function normalizePhone(phone) {
-  const digits = cleanString(phone).replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.length === 10) return `91${digits}`;
-  return digits;
 }
 
 function splitName(name) {
@@ -42,19 +19,15 @@ function splitName(name) {
   };
 }
 
-function getRequestUserData(request) {
-  if (!request) return {};
-  const cookies = parseCookies(request.headers.get('cookie') || '');
+function getRequestUserData(request, builder) {
+  if (!request || !builder) return {};
   const userData = {};
-  const fbp = cleanString(cookies._fbp);
-  const fbc = cleanString(cookies._fbc);
+  const fbp = cleanString(builder.getFbp?.());
+  const fbc = cleanString(builder.getFbc?.());
   if (fbp) userData.fbp = fbp;
   if (fbc) userData.fbc = fbc;
 
-  const ip =
-    request.headers.get('cf-connecting-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    '';
+  const ip = getClientIpFromBuilderOrCookie(builder, request);
   const ua = request.headers.get('user-agent') || '';
   if (ip) userData.client_ip_address = ip;
   if (ua) userData.client_user_agent = ua;
@@ -116,18 +89,26 @@ export async function sendMetaPurchaseEvent(env, order, options = {}) {
   const currency = order.currency || 'INR';
   const eventId = `purchase_${order.id}`;
   const { firstName, lastName } = splitName(order.customer_name || order.shipping?.fullName || '');
+  const { builder } = createMetaParamContext(options.request);
+  const email = getNormalizedAndHashedPII(builder, order.customer_email || order.shipping?.email, PII_DATA_TYPE.EMAIL);
+  const phone = getNormalizedAndHashedPII(builder, order.customer_phone || order.shipping?.phone, PII_DATA_TYPE.PHONE);
+  const hashedFirstName = getNormalizedAndHashedPII(builder, firstName, PII_DATA_TYPE.FIRST_NAME);
+  const hashedLastName = getNormalizedAndHashedPII(builder, lastName, PII_DATA_TYPE.LAST_NAME);
 
   const userData = {
-    ...(await sha256(order.customer_email || order.shipping?.email) ? { em: [await sha256(order.customer_email || order.shipping?.email)] } : {}),
-    ...(await sha256(normalizePhone(order.customer_phone || order.shipping?.phone)) ? { ph: [await sha256(normalizePhone(order.customer_phone || order.shipping?.phone))] } : {}),
-    ...(await sha256(firstName) ? { fn: [await sha256(firstName)] } : {}),
-    ...(await sha256(lastName) ? { ln: [await sha256(lastName)] } : {}),
-    ...getRequestUserData(options.request),
+    ...(email ? { em: [email] } : {}),
+    ...(phone ? { ph: [phone] } : {}),
+    ...(hashedFirstName ? { fn: [hashedFirstName] } : {}),
+    ...(hashedLastName ? { ln: [hashedLastName] } : {}),
+    ...getRequestUserData(options.request, builder),
   };
 
   const requestUrl = options.request ? new URL(options.request.url) : null;
   const siteOrigin = cleanString(env?.SITE_URL) || requestUrl?.origin || 'https://aylemlearning.online';
-  const eventSourceUrl = `${siteOrigin.replace(/\/+$/, '')}/order-success?order_id=${encodeURIComponent(order.id)}`;
+  const eventSourceUrl =
+    cleanString(builder.getEventSourceUrl?.()) ||
+    `${siteOrigin.replace(/\/+$/, '')}/order-success?order_id=${encodeURIComponent(order.id)}`;
+  const referrerUrl = cleanString(builder.getReferrerUrl?.());
 
   const payload = {
     data: [
@@ -137,6 +118,7 @@ export async function sendMetaPurchaseEvent(env, order, options = {}) {
         event_id: eventId,
         action_source: 'website',
         event_source_url: eventSourceUrl,
+        ...(referrerUrl ? { referrer_url: referrerUrl } : {}),
         user_data: userData,
         custom_data: {
           value,
