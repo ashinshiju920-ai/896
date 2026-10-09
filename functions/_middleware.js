@@ -81,6 +81,10 @@ const ALLOWED_SEARCH_BOTS = [
 export async function onRequest(context) {
   const { request, next } = context;
   const url = new URL(request.url);
+  const isCrawlerResource =
+    url.pathname === '/sitemap.xml' ||
+    url.pathname === '/robots.txt' ||
+    url.pathname.endsWith('.xml');
   const shouldProcessMetaParams = request.method === 'GET' && !url.pathname.startsWith('/api/');
   const metaParams = shouldProcessMetaParams ? createMetaParamContext(request) : null;
 
@@ -120,6 +124,11 @@ export async function onRequest(context) {
   if (url.pathname.startsWith('/api/')) {
     const apiRes = await next();
     return attachSecurityHeaders(apiRes);
+  }
+
+  if (isCrawlerResource) {
+    const res = await next();
+    return attachSecurityHeaders(res);
   }
 
   const rawUserAgent = request.headers.get('user-agent');
