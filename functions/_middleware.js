@@ -57,6 +57,8 @@ const BAD_BOTS = [
 const ALLOWED_SEARCH_BOTS = [
   // Search Engine Crawlers
   'googlebot',             // Google Search indexer
+  'google-inspectiontool', // Google Search Console URL inspection / rich results tests
+  'googleother',           // Google generic crawler used by other Google products
   'bingbot',               // Microsoft Bing indexer
   'slurp',                 // Yahoo Search indexer
   'duckduckbot',           // DuckDuckGo crawler
