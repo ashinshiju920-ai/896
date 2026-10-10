@@ -4,7 +4,7 @@
 import { getOrder, updateOrderStatus, saveOrder, recordOrderEvent } from '../utils/db.js';
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
-import { sendMetaPurchaseEvent } from '../utils/metaCapi.js';
+import { deliverMetaPurchaseEvent } from '../utils/metaCapi.js';
 
 export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
@@ -188,7 +188,7 @@ export async function onRequestGet(context) {
       }
 
       try {
-        const metaResult = await sendMetaPurchaseEvent(env, order, { request });
+        const metaResult = await deliverMetaPurchaseEvent(env, order, { request, source: 'ORDER_STATUS_PAID_VERIFY' });
         if (metaResult.attempted) {
           await recordOrderEvent(env, {
             orderId: order.id,
@@ -198,6 +198,18 @@ export async function onRequestGet(context) {
               eventId: metaResult.eventId || `purchase_${order.id}`,
               eventsReceived: metaResult.eventsReceived,
               status: metaResult.status,
+              error: metaResult.error || null,
+            }),
+          });
+        } else if (metaResult.reason && metaResult.reason !== 'ALREADY_SENT') {
+          await recordOrderEvent(env, {
+            orderId: order.id,
+            eventType: 'META_CAPI_PURCHASE_SKIPPED',
+            rawPayload: JSON.stringify({
+              source: 'ORDER_STATUS_PAID_VERIFY',
+              reason: metaResult.reason,
+              status: metaResult.status || null,
+              nextAttemptAt: metaResult.nextAttemptAt || null,
               error: metaResult.error || null,
             }),
           });

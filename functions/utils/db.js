@@ -292,6 +292,171 @@ export async function recordOrderEvent(env, { orderId, eventType, rawPayload }) 
   }
 }
 
+function isD1(env) {
+  return Boolean(env && env.DB && typeof env.DB.prepare === 'function');
+}
+
+function isoNow() {
+  return new Date().toISOString();
+}
+
+function addSecondsIso(seconds) {
+  return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
+function metaRetryDelaySeconds(attempts) {
+  const safeAttempts = Math.max(1, Number(attempts || 1));
+  return Math.min(3600, Math.max(30, 30 * 2 ** Math.min(safeAttempts - 1, 7)));
+}
+
+export function getMetaPurchaseEventId(orderId) {
+  const cleanId = String(orderId || '').trim();
+  return cleanId ? `purchase_${cleanId}` : '';
+}
+
+export async function ensureMetaPurchaseEvent(env, order, { source = 'UNKNOWN' } = {}) {
+  if (!order?.id || order.status !== 'PAID') {
+    return { available: false, reason: 'ORDER_NOT_PAID' };
+  }
+  if (!isD1(env)) {
+    return { available: false, reason: 'D1_NOT_CONFIGURED' };
+  }
+
+  const now = isoNow();
+  const eventId = getMetaPurchaseEventId(order.id);
+  const valuePaise = Number(order.amount_paise ?? order.amountPaise ?? order.total_paise ?? 0) || null;
+  const currency = String(order.currency || 'INR').toUpperCase();
+
+  try {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO meta_purchase_events (
+        order_id, event_id, status, attempts, value_paise, currency,
+        last_source, next_attempt_at, created_at, updated_at
+      ) VALUES (?, ?, 'PENDING', 0, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(order.id, eventId, valuePaise, currency, source, now, now, now)
+      .run();
+
+    await env.DB.prepare(
+      `UPDATE meta_purchase_events
+       SET value_paise = COALESCE(value_paise, ?),
+           currency = COALESCE(NULLIF(currency, ''), ?),
+           last_source = ?,
+           updated_at = ?
+       WHERE order_id = ? AND status != 'SENT'`
+    )
+      .bind(valuePaise, currency, source, now, order.id)
+      .run();
+
+    const row = await getMetaPurchaseEvent(env, order.id);
+    return { available: true, event: row };
+  } catch (err) {
+    return { available: false, reason: 'META_OUTBOX_UNAVAILABLE', error: err?.message || String(err) };
+  }
+}
+
+export async function getMetaPurchaseEvent(env, orderId) {
+  if (!orderId || !isD1(env)) return null;
+  try {
+    return await env.DB.prepare(
+      `SELECT * FROM meta_purchase_events WHERE order_id = ? LIMIT 1`
+    )
+      .bind(String(orderId).trim())
+      .first();
+  } catch {
+    return null;
+  }
+}
+
+export async function claimMetaPurchaseEvent(env, orderId, { source = 'UNKNOWN', staleAfterSeconds = 300 } = {}) {
+  if (!orderId || !isD1(env)) {
+    return { claimed: false, reason: 'D1_NOT_CONFIGURED' };
+  }
+
+  const now = isoNow();
+  const staleBefore = new Date(Date.now() - staleAfterSeconds * 1000).toISOString();
+  const cleanId = String(orderId).trim();
+
+  try {
+    const result = await env.DB.prepare(
+      `UPDATE meta_purchase_events
+       SET status = 'PROCESSING',
+           attempts = attempts + 1,
+           processing_started_at = ?,
+           last_source = ?,
+           updated_at = ?
+       WHERE order_id = ?
+         AND status != 'SENT'
+         AND (
+           status = 'PENDING'
+           OR (status = 'FAILED' AND (next_attempt_at IS NULL OR next_attempt_at <= ?))
+           OR (status = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_started_at < ?)
+         )`
+    )
+      .bind(now, source, now, cleanId, now, staleBefore)
+      .run();
+
+    const changed = Number(result?.meta?.changes ?? result?.changes ?? 0);
+    const row = await getMetaPurchaseEvent(env, cleanId);
+    if (changed > 0) return { claimed: true, event: row };
+    return { claimed: false, reason: row?.status === 'SENT' ? 'ALREADY_SENT' : 'NOT_READY', event: row };
+  } catch (err) {
+    return { claimed: false, reason: 'CLAIM_FAILED', error: err?.message || String(err) };
+  }
+}
+
+export async function markMetaPurchaseSent(env, orderId, { eventsReceived = null, fbtraceId = null } = {}) {
+  if (!orderId || !isD1(env)) return { updated: false };
+  const now = isoNow();
+  const metadata = JSON.stringify({ eventsReceived, fbtraceId });
+  try {
+    const result = await env.DB.prepare(
+      `UPDATE meta_purchase_events
+       SET status = 'SENT',
+           sent_at = ?,
+           last_error = NULL,
+           processing_started_at = NULL,
+           updated_at = ?
+       WHERE order_id = ? AND status = 'PROCESSING'`
+    )
+      .bind(now, now, String(orderId).trim())
+      .run();
+    await recordOrderEvent(env, {
+      orderId,
+      eventType: 'META_CAPI_PURCHASE_DELIVERED',
+      rawPayload: metadata,
+    });
+    return { updated: Number(result?.meta?.changes ?? result?.changes ?? 0) > 0 };
+  } catch (err) {
+    return { updated: false, error: err?.message || String(err) };
+  }
+}
+
+export async function markMetaPurchaseFailed(env, orderId, { error = 'Meta CAPI request failed' } = {}) {
+  if (!orderId || !isD1(env)) return { updated: false };
+  const row = await getMetaPurchaseEvent(env, orderId);
+  const attempts = Number(row?.attempts || 1);
+  const nextAttemptAt = addSecondsIso(metaRetryDelaySeconds(attempts));
+  const now = isoNow();
+  const cleanError = String(error || 'Meta CAPI request failed').slice(0, 500);
+  try {
+    const result = await env.DB.prepare(
+      `UPDATE meta_purchase_events
+       SET status = 'FAILED',
+           last_error = ?,
+           next_attempt_at = ?,
+           processing_started_at = NULL,
+           updated_at = ?
+       WHERE order_id = ? AND status = 'PROCESSING'`
+    )
+      .bind(cleanError, nextAttemptAt, now, String(orderId).trim())
+      .run();
+    return { updated: Number(result?.meta?.changes ?? result?.changes ?? 0) > 0, nextAttemptAt };
+  } catch (err) {
+    return { updated: false, error: err?.message || String(err) };
+  }
+}
+
 /**
  * Retrieves paginated list of orders from D1 or KV with optional status filtering.
  */

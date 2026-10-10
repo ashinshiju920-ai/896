@@ -4,6 +4,12 @@ import {
   getClientIpFromBuilderOrCookie,
   getNormalizedAndHashedPII,
 } from './metaParamBuilder.js';
+import {
+  claimMetaPurchaseEvent,
+  ensureMetaPurchaseEvent,
+  markMetaPurchaseFailed,
+  markMetaPurchaseSent,
+} from './db.js';
 
 const DEFAULT_PIXEL_ID = '1066331326319035';
 
@@ -168,4 +174,69 @@ export async function sendMetaPurchaseEvent(env, order, options = {}) {
       error: err?.message || 'Meta CAPI network error',
     };
   }
+}
+
+export async function deliverMetaPurchaseEvent(env, order, options = {}) {
+  const source = options.source || 'UNKNOWN';
+  if (!order?.id || order.status !== 'PAID') {
+    return { attempted: false, skipped: true, reason: 'ORDER_NOT_PAID' };
+  }
+
+  const ensured = await ensureMetaPurchaseEvent(env, order, { source });
+  if (!ensured.available) {
+    return {
+      attempted: false,
+      success: false,
+      retryable: true,
+      reason: ensured.reason,
+      error: ensured.error,
+    };
+  }
+
+  if (ensured.event?.status === 'SENT') {
+    return {
+      attempted: false,
+      success: true,
+      skipped: true,
+      reason: 'ALREADY_SENT',
+      eventId: ensured.event.event_id,
+    };
+  }
+
+  const claim = await claimMetaPurchaseEvent(env, order.id, { source });
+  if (!claim.claimed) {
+    return {
+      attempted: false,
+      success: claim.reason === 'ALREADY_SENT',
+      skipped: true,
+      reason: claim.reason,
+      eventId: claim.event?.event_id,
+      status: claim.event?.status,
+      nextAttemptAt: claim.event?.next_attempt_at,
+      error: claim.error,
+    };
+  }
+
+  const result = await sendMetaPurchaseEvent(env, order, options);
+  if (result.success) {
+    await markMetaPurchaseSent(env, order.id, {
+      eventsReceived: result.eventsReceived,
+      fbtraceId: result.fbtraceId,
+    });
+    return {
+      ...result,
+      outboxStatus: 'SENT',
+    };
+  }
+
+  await markMetaPurchaseFailed(env, order.id, {
+    error: result.error || result.reason || `Meta CAPI failed${result.status ? ` (${result.status})` : ''}`,
+  });
+
+  return {
+    ...result,
+    success: false,
+    retryable: true,
+    outboxStatus: 'FAILED',
+  };
 }

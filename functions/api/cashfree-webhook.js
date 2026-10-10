@@ -12,7 +12,7 @@ import {
   recordAnalyticsEvent,
 } from '../utils/db.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
-import { sendMetaPurchaseEvent } from '../utils/metaCapi.js';
+import { deliverMetaPurchaseEvent } from '../utils/metaCapi.js';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
@@ -203,7 +203,7 @@ export async function onRequestPost(context) {
         console.warn('Portal bridge retry failed for already-paid webhook:', bridgeErr?.message);
       }
       try {
-        const metaResult = await sendMetaPurchaseEvent(env, order);
+        const metaResult = await deliverMetaPurchaseEvent(env, order, { source: 'CASHFREE_WEBHOOK_DUPLICATE_PAID' });
         if (metaResult.attempted) {
           await recordOrderEvent(env, {
             orderId: order.id,
@@ -213,6 +213,18 @@ export async function onRequestPost(context) {
               eventId: metaResult.eventId || `purchase_${order.id}`,
               eventsReceived: metaResult.eventsReceived,
               status: metaResult.status,
+              error: metaResult.error || null,
+            }),
+          });
+        } else if (metaResult.reason && metaResult.reason !== 'ALREADY_SENT') {
+          await recordOrderEvent(env, {
+            orderId: order.id,
+            eventType: 'META_CAPI_PURCHASE_SKIPPED',
+            rawPayload: JSON.stringify({
+              source: 'CASHFREE_WEBHOOK_DUPLICATE_PAID',
+              reason: metaResult.reason,
+              status: metaResult.status || null,
+              nextAttemptAt: metaResult.nextAttemptAt || null,
               error: metaResult.error || null,
             }),
           });
@@ -342,7 +354,7 @@ export async function onRequestPost(context) {
     }
 
     try {
-      const metaResult = await sendMetaPurchaseEvent(env, order);
+      const metaResult = await deliverMetaPurchaseEvent(env, order, { source: 'CASHFREE_WEBHOOK' });
       if (metaResult.attempted) {
         await recordOrderEvent(env, {
           orderId: order.id,
@@ -352,6 +364,18 @@ export async function onRequestPost(context) {
             eventId: metaResult.eventId || `purchase_${order.id}`,
             eventsReceived: metaResult.eventsReceived,
             status: metaResult.status,
+            error: metaResult.error || null,
+          }),
+        });
+      } else if (metaResult.reason && metaResult.reason !== 'ALREADY_SENT') {
+        await recordOrderEvent(env, {
+          orderId: order.id,
+          eventType: 'META_CAPI_PURCHASE_SKIPPED',
+          rawPayload: JSON.stringify({
+            source: 'CASHFREE_WEBHOOK',
+            reason: metaResult.reason,
+            status: metaResult.status || null,
+            nextAttemptAt: metaResult.nextAttemptAt || null,
             error: metaResult.error || null,
           }),
         });
