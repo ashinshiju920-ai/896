@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS orders (
   coupon_code TEXT,
   discount_paise INTEGER DEFAULT 0,
   promotion_snapshot_json TEXT,
+  meta_context_json TEXT,
   cf_payment_id TEXT,
   verified_amount_paise INTEGER,
   reconciliation_state TEXT NOT NULL DEFAULT 'UNKNOWN',

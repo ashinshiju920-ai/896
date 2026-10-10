@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_phone TEXT,
   shipping_json TEXT,
   items_json TEXT,
+  meta_context_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

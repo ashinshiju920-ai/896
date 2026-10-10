@@ -40,6 +40,32 @@ function getRequestUserData(request, builder) {
   return userData;
 }
 
+function parseMetaContext(order) {
+  const raw = order?.metaContext || order?.meta_context_json;
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  if (typeof raw !== 'string') return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getStoredUserData(metaContext) {
+  const userData = {};
+  const fbp = cleanString(metaContext.fbp);
+  const fbc = cleanString(metaContext.fbc);
+  const ip = cleanString(metaContext.client_ip_address || metaContext.clientIp);
+  const ua = cleanString(metaContext.client_user_agent || metaContext.userAgent);
+  if (fbp) userData.fbp = fbp;
+  if (fbc) userData.fbc = fbc;
+  if (ip) userData.client_ip_address = ip;
+  if (ua) userData.client_user_agent = ua;
+  return userData;
+}
+
 function getOrderItems(order) {
   if (Array.isArray(order?.items)) return order.items;
   if (typeof order?.items === 'string') {
@@ -100,12 +126,14 @@ export async function sendMetaPurchaseEvent(env, order, options = {}) {
   const phone = getNormalizedAndHashedPII(builder, order.customer_phone || order.shipping?.phone, PII_DATA_TYPE.PHONE);
   const hashedFirstName = getNormalizedAndHashedPII(builder, firstName, PII_DATA_TYPE.FIRST_NAME);
   const hashedLastName = getNormalizedAndHashedPII(builder, lastName, PII_DATA_TYPE.LAST_NAME);
+  const metaContext = parseMetaContext(order);
 
   const userData = {
     ...(email ? { em: [email] } : {}),
     ...(phone ? { ph: [phone] } : {}),
     ...(hashedFirstName ? { fn: [hashedFirstName] } : {}),
     ...(hashedLastName ? { ln: [hashedLastName] } : {}),
+    ...getStoredUserData(metaContext),
     ...getRequestUserData(options.request, builder),
   };
 
@@ -113,8 +141,11 @@ export async function sendMetaPurchaseEvent(env, order, options = {}) {
   const siteOrigin = cleanString(env?.SITE_URL) || requestUrl?.origin || 'https://aylemlearning.online';
   const eventSourceUrl =
     cleanString(builder.getEventSourceUrl?.()) ||
+    cleanString(metaContext.event_source_url || metaContext.eventSourceUrl) ||
     `${siteOrigin.replace(/\/+$/, '')}/order-success?order_id=${encodeURIComponent(order.id)}`;
-  const referrerUrl = cleanString(builder.getReferrerUrl?.());
+  const referrerUrl =
+    cleanString(builder.getReferrerUrl?.()) ||
+    cleanString(metaContext.referrer_url || metaContext.referrerUrl);
 
   const payload = {
     data: [

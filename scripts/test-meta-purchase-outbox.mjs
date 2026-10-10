@@ -250,6 +250,38 @@ async function run() {
   {
     const db = new FakeDB();
     const env = { DB: db, META_CAPI_ACCESS_TOKEN: 'test-token', META_PIXEL_ID: 'pixel-1' };
+    const order = paidOrder({
+      id: 'order_meta_context',
+      meta_context_json: JSON.stringify({
+        fbp: 'fb.1.1700000000000.111',
+        fbc: 'fb.1.1700000000000.AbCdEf',
+        client_ip_address: '203.0.113.10',
+        client_user_agent: 'Mozilla/5.0 MetaContextTest',
+        event_source_url: 'https://aylemlearning.online/checkout',
+        referrer_url: 'https://facebook.com/ad-click',
+      }),
+    });
+    await withFetch(async (_url, init) => {
+      const payload = JSON.parse(init.body);
+      const event = payload.data[0];
+      assert.equal(event.event_id, 'purchase_order_meta_context');
+      assert.equal(event.event_source_url, 'https://aylemlearning.online/checkout');
+      assert.equal(event.referrer_url, 'https://facebook.com/ad-click');
+      assert.equal(event.user_data.fbp, 'fb.1.1700000000000.111');
+      assert.equal(event.user_data.fbc, 'fb.1.1700000000000.AbCdEf');
+      assert.equal(event.user_data.client_ip_address, '203.0.113.10');
+      assert.equal(event.user_data.client_user_agent, 'Mozilla/5.0 MetaContextTest');
+      return new Response(JSON.stringify({ events_received: 1 }), { status: 200 });
+    }, async () => {
+      const result = await deliverMetaPurchaseEvent(env, order, { source: 'TEST_STORED_META_CONTEXT' });
+      assert.equal(result.success, true);
+    });
+    console.log('  OK Stored checkout Meta context is included for webhook-style CAPI sends');
+  }
+
+  {
+    const db = new FakeDB();
+    const env = { DB: db, META_CAPI_ACCESS_TOKEN: 'test-token', META_PIXEL_ID: 'pixel-1' };
     const order = paidOrder({ id: 'order_meta_processing' });
     await withFetch(async () => {
       throw new Error('worker interrupted after claim');

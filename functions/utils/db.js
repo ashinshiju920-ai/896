@@ -28,6 +28,9 @@ export async function saveOrder(env, order) {
     promotion_snapshot_json: typeof order.promotion_snapshot_json === 'string'
       ? order.promotion_snapshot_json
       : (order.promotionSnapshot ? JSON.stringify(order.promotionSnapshot) : null),
+    meta_context_json: typeof order.meta_context_json === 'string'
+      ? order.meta_context_json
+      : (order.metaContext ? JSON.stringify(order.metaContext) : null),
     created_at: order.created_at || now,
     updated_at: order.updated_at || now,
   };
@@ -36,6 +39,35 @@ export async function saveOrder(env, order) {
 
   // 1. Primary: Cloudflare D1 Database (if valid binding)
   if (env && env.DB && typeof env.DB.prepare === 'function') {
+    const insertWithMetaContext = () => env.DB.prepare(
+      `INSERT INTO orders (
+        id, cf_order_id, customer_id, amount_paise, currency, status,
+        customer_name, customer_email, customer_phone,
+        shipping_json, items_json, coupon_code, discount_paise, promotion_snapshot_json,
+        meta_context_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        orderRecord.id,
+        orderRecord.cf_order_id,
+        orderRecord.customer_id,
+        orderRecord.amount_paise,
+        orderRecord.currency,
+        orderRecord.status,
+        orderRecord.customer_name,
+        orderRecord.customer_email,
+        orderRecord.customer_phone,
+        orderRecord.shipping_json,
+        orderRecord.items_json,
+        orderRecord.coupon_code,
+        orderRecord.discount_paise,
+        orderRecord.promotion_snapshot_json,
+        orderRecord.meta_context_json,
+        orderRecord.created_at,
+        orderRecord.updated_at
+      )
+      .run();
+
     const insertWithPromotions = () => env.DB.prepare(
       `INSERT INTO orders (
         id, cf_order_id, customer_id, amount_paise, currency, status,
@@ -111,13 +143,24 @@ export async function saveOrder(env, order) {
       )
       .run();
 
+    const hasMetaContext = Boolean(orderRecord.meta_context_json);
     const hasPromotionData =
       Boolean(orderRecord.coupon_code) ||
       Number(orderRecord.discount_paise || 0) > 0 ||
       Boolean(orderRecord.promotion_snapshot_json);
 
     try {
-      if (hasPromotionData) {
+      if (hasMetaContext) {
+        try {
+          await insertWithMetaContext();
+        } catch (_) {
+          if (hasPromotionData) {
+            await insertWithPromotions();
+          } else {
+            await insertWithCustomerId();
+          }
+        }
+      } else if (hasPromotionData) {
         try {
           await insertWithPromotions();
         } catch (_) {
@@ -189,6 +232,7 @@ export async function getOrder(env, orderId) {
           couponCode: row.coupon_code || null,
           discountPaise: row.discount_paise || 0,
           promotionSnapshot: row.promotion_snapshot_json ? JSON.parse(row.promotion_snapshot_json) : null,
+          metaContext: row.meta_context_json ? JSON.parse(row.meta_context_json) : null,
         };
       }
     } catch (d1Err) {
@@ -216,6 +260,9 @@ export async function getOrder(env, orderId) {
           promotionSnapshot: typeof data.promotion_snapshot_json === 'string'
             ? JSON.parse(data.promotion_snapshot_json)
             : (data.promotionSnapshot || null),
+          metaContext: typeof data.meta_context_json === 'string'
+            ? JSON.parse(data.meta_context_json)
+            : (data.metaContext || null),
         };
       }
     } catch (kvErr) {

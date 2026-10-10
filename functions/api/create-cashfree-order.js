@@ -12,6 +12,34 @@ export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
 }
 
+function cleanString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getClientIp(request) {
+  const forwarded = cleanString(request.headers.get('x-forwarded-for'));
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return cleanString(request.headers.get('cf-connecting-ip'));
+}
+
+function buildMetaContext(request, returnUrl) {
+  const cookies = parseCookies(request.headers.get('cookie') || '');
+  const sourceUrl =
+    cleanString(request.headers.get('x-aylem-event-source-url')) ||
+    cleanString(request.headers.get('referer')) ||
+    returnUrl;
+
+  return {
+    fbp: cleanString(cookies._fbp),
+    fbc: cleanString(cookies._fbc),
+    client_ip_address: getClientIp(request),
+    client_user_agent: cleanString(request.headers.get('user-agent')),
+    event_source_url: sourceUrl,
+    referrer_url: cleanString(request.headers.get('referer')),
+    captured_at: new Date().toISOString(),
+  };
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   const corsHeaders = getCorsHeaders(request, env);
@@ -222,6 +250,9 @@ export async function onRequestPost(context) {
     const timestamp = Math.round(Date.now() / 1000);
     const orderId = `order_${timestamp}_${Math.floor(1000 + Math.random() * 9000)}`;
     const customerId = authenticatedCustomerId || `cust_${cleanShipping.phone}_${timestamp % 10000}`;
+    const requestUrl = new URL(request.url);
+    const returnUrl = `${requestUrl.origin}/order-success?order_id=${encodeURIComponent(orderId)}`;
+    const metaContext = buildMetaContext(request, returnUrl);
 
     // 4. Authoritative order persistence: write PENDING order row to D1 / KV BEFORE calling Cashfree
     try {
@@ -243,6 +274,7 @@ export async function onRequestPost(context) {
         subtotal_paise: pricing.subtotalPaise,
         shipping_paise: pricing.deliveryFeePaise,
         total_paise: pricing.totalPaise,
+        metaContext,
       });
     } catch (persistErr) {
       console.error('Critical: Authoritative order persistence failed:', persistErr?.message);
@@ -283,9 +315,6 @@ export async function onRequestPost(context) {
 
     // Cashfree must return to our verifier first. The student portal is opened
     // only after /api/order-status confirms this order is PAID server-side.
-    const requestUrl = new URL(request.url);
-    const returnUrl = `${requestUrl.origin}/order-success?order_id=${encodeURIComponent(orderId)}`;
-
     const cashfreePayload = {
       order_id: orderId,
       order_amount: pricing.total,
