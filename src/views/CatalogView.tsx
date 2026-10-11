@@ -24,7 +24,7 @@ export const CatalogView: React.FC = () => {
   const categoryParam = searchParams.get('category');
 
   // Filter categories
-  const categories: ExamCategory[] = ['All', 'IELTS', 'OET', 'PTE', 'German'];
+  const categories: ExamCategory[] = ['All', 'IELTS', 'OET', 'PTE', 'German', 'Mock Test'];
 
   // Sync category from URL query parameter (?category=IELTS)
   useEffect(() => {

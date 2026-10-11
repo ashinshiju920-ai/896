@@ -1,4 +1,4 @@
-export type ExamCategory = 'IELTS' | 'OET' | 'PTE' | 'German' | 'All';
+export type ExamCategory = 'IELTS' | 'OET' | 'PTE' | 'German' | 'Mock Test' | 'All';
 
 export type BookFormat = 'digital' | 'physical';
 
@@ -455,4 +455,3 @@ export interface AnalyticsDashboardResponse {
   addOnPerformance: AddOnPerformanceMetric[];
   promotions: PromotionPerformanceMetric[];
 }
-

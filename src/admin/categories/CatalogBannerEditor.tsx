@@ -311,7 +311,7 @@ export const CatalogBannerEditor: React.FC<CatalogBannerEditorProps> = ({
               {/* Banner Content */}
               <div className="relative z-10 max-w-2xl space-y-3 sm:space-y-4">
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  {['All', 'IELTS', 'OET', 'PTE', 'German'].map((cat, idx) => (
+                  {['All', 'IELTS', 'OET', 'PTE', 'German', 'Mock Test'].map((cat, idx) => (
                     <span
                       key={cat}
                       className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold ${

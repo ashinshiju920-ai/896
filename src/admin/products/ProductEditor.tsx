@@ -823,6 +823,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
                   <option value="OET">OET</option>
                   <option value="PTE">PTE</option>
                   <option value="German">German</option>
+                  <option value="Mock Test">Mock Test</option>
                 </select>
               </div>
 

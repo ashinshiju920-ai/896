@@ -72,7 +72,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     }
   };
 
-  const categories: Array<ExamCategory | 'All'> = ['All', 'IELTS', 'OET', 'PTE', 'German'];
+  const categories: Array<ExamCategory | 'All'> = ['All', 'IELTS', 'OET', 'PTE', 'German', 'Mock Test'];
 
   // Client-side filtering
   const filteredBooks = books.filter((b) => {

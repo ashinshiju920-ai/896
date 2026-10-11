@@ -46,6 +46,12 @@ export const Header: React.FC = () => {
       isActive: currentView === 'catalog' && selectedCategory === 'German',
     },
     {
+      label: 'Mock Test',
+      to: '/books?category=Mock%20Test',
+      action: () => navigateToCatalog('Mock Test'),
+      isActive: currentView === 'catalog' && selectedCategory === 'Mock Test',
+    },
+    {
       label: 'Study Materials',
       to: '/books',
       action: () => navigateToCatalog('All'),

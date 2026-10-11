@@ -92,6 +92,11 @@ export const Footer: React.FC = () => {
                   German
                 </Link>
               </li>
+              <li>
+                <Link to="/books?category=Mock%20Test" className="hover:text-emerald-400 transition-colors">
+                  Mock Test
+                </Link>
+              </li>
             </ul>
           </div>
 

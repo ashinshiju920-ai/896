@@ -17,7 +17,7 @@ export const DEFAULT_CATALOG = [
   {
     id: 'select-your-path-guide',
     title: 'Select Your Path Exam Guide',
-    category: 'All',
+    category: 'Mock Test',
     prices: {
       digital: { price: 199, originalPrice: 599 },
       physical: { price: 199, originalPrice: 599 },

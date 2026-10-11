@@ -28,7 +28,7 @@ export const ProductReorder: React.FC<ProductReorderProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<ExamCategory | 'All'>('All');
   const [hasChanges, setHasChanges] = useState(false);
 
-  const categories: Array<ExamCategory | 'All'> = ['All', 'IELTS', 'OET', 'PTE', 'German'];
+  const categories: Array<ExamCategory | 'All'> = ['All', 'IELTS', 'OET', 'PTE', 'German', 'Mock Test'];
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;

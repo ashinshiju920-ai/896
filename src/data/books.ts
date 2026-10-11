@@ -5,7 +5,7 @@ export const BOOKS: Book[] = [
     id: 'select-your-path-guide',
     title: 'Select Your Path Exam Guide',
     subtitle: 'Instant PDF roadmap for choosing the right IELTS, OET, PTE, or German preparation path',
-    category: 'All',
+    category: 'Mock Test',
     type: 'Study Guides',
     isNew: true,
     isBestSeller: true,
