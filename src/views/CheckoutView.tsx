@@ -47,10 +47,6 @@ export const CheckoutView: React.FC = () => {
     openCart,
     cartCount,
     setIsSearchOpen,
-    appliedCoupon,
-    couponDiscount,
-    applyCoupon,
-    removeCoupon,
     reconcileCartWithCatalog,
     pruneInvalidAddon,
     refreshProductsFromCloud,
@@ -65,9 +61,6 @@ export const CheckoutView: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [serverPayableAmount, setServerPayableAmount] = useState<number | null>(null);
   const [serverPricing, setServerPricing] = useState<CashfreeOrderPricing | null>(null);
-  const [inputCoupon, setInputCoupon] = useState('');
-  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
-  const [couponFeedback, setCouponFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [activeCarouselDot, setActiveCarouselDot] = useState(0);
   const mobileCarouselRef = useRef<HTMLDivElement>(null);
 
@@ -264,7 +257,7 @@ export const CheckoutView: React.FC = () => {
   const payableAmount = serverPayableAmount !== null ? serverPayableAmount : total;
   const authoritativeSubtotal = serverPricing ? serverPricing.subtotal : subtotal;
   const authoritativeDeliveryFee = serverPricing ? serverPricing.shipping : deliveryFee;
-  const authoritativeDiscount = serverPricing ? serverPricing.discount : couponDiscount;
+  const authoritativeDiscount = serverPricing ? serverPricing.discount : 0;
 
   // Catalog MRP savings (difference between catalog MRP and actual payable amount)
   const totalSavings = Math.max(0, totalOriginalPrice - payableAmount);
@@ -272,11 +265,11 @@ export const CheckoutView: React.FC = () => {
     ? Math.round((totalSavings / totalOriginalPrice) * 100)
     : 0;
 
-  // A server quote belongs to one cart/coupon/delivery combination only.
+  // A server quote belongs to one cart/delivery combination only.
   useEffect(() => {
     setServerPayableAmount(null);
     setServerPricing(null);
-  }, [cart, appliedCoupon, deliveryOption]);
+  }, [cart, deliveryOption]);
 
   const isSubmittingRef = useRef(false);
 
@@ -290,58 +283,6 @@ export const CheckoutView: React.FC = () => {
     );
   }
 
-
-  const handleApplyCoupon = async () => {
-    const clean = inputCoupon.trim().toUpperCase();
-    if (!clean) return;
-
-    setIsValidatingCoupon(true);
-    setCouponFeedback(null);
-
-    try {
-      const cartPayload = cart.map((item: any) => ({
-        bookId: item.bookId || item.book?.id,
-        addonIds: item.selectedAddonIds || [item.format || 'digital'],
-        format: item.format || 'digital',
-        quantity: item.quantity || 1,
-      }));
-
-      const res = await fetch('/api/coupon/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: clean,
-          cart: cartPayload,
-          deliveryOption: hasPhysical ? 'physical' : 'digital',
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.valid) {
-        applyCoupon(clean);
-        setCouponFeedback({
-          type: 'success',
-          message: `✓ ${data.code} applied. Discount: -₹${data.discountRupees}`,
-        });
-        showToast(`✓ ${data.code} applied! Discount: -₹${data.discountRupees}`, 'success');
-        setInputCoupon('');
-      } else {
-        const errorMsg = data.error || 'Coupon is not valid for this order.';
-        setCouponFeedback({ type: 'error', message: errorMsg });
-        showToast(errorMsg, 'warning');
-      }
-    } catch {
-      const success = applyCoupon(clean);
-      if (success) {
-        setCouponFeedback({ type: 'success', message: `✓ ${clean} applied.` });
-        setInputCoupon('');
-      } else {
-        setCouponFeedback({ type: 'error', message: 'Coupon is not valid for this order.' });
-      }
-    } finally {
-      setIsValidatingCoupon(false);
-    }
-  };
 
   const handleProceedToPayment = async () => {
     // 0. Double-Click & In-Flight Guard
@@ -395,7 +336,7 @@ export const CheckoutView: React.FC = () => {
 
       const orderData = await createCashfreeOrder({
         cart: cartPayload,
-        couponCode: appliedCoupon,
+        couponCode: null,
         shippingInfo: {
           ...shippingInfo,
           deliveryOption,
@@ -737,70 +678,6 @@ export const CheckoutView: React.FC = () => {
               })}
             </div>
 
-            {/* Promo Code Box — Placed AFTER all products and add-ons */}
-            <div className="pt-4 border-t border-slate-150">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Promo Code
-                </label>
-                <span className="text-[11px] text-slate-400">Apply coupon for discount</span>
-              </div>
-              {appliedCoupon ? (
-                <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200/90 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
-                    <div>
-                      <span className="font-bold text-xs sm:text-sm text-emerald-900">{appliedCoupon} applied</span>
-                      {couponDiscount > 0 && (
-                        <span className="block text-[11px] text-emerald-700 font-medium">Discount: -₹{couponDiscount}</span>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      removeCoupon();
-                      setCouponFeedback(null);
-                    }}
-                    className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={inputCoupon}
-                      onChange={(e) => setInputCoupon(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleApplyCoupon();
-                        }
-                      }}
-                      placeholder="E.G. XYLEM20"
-                      className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold uppercase text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      disabled={isValidatingCoupon || !inputCoupon.trim()}
-                      className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center min-w-[72px]"
-                    >
-                      {isValidatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
-                    </button>
-                  </div>
-                  {couponFeedback && (
-                    <p className={`text-xs font-medium ${couponFeedback.type === 'success' ? 'text-emerald-700' : 'text-rose-600'}`}>
-                      {couponFeedback.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Price Calculations */}
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between text-slate-600">
@@ -809,14 +686,7 @@ export const CheckoutView: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between text-slate-600">
-                <div className="flex items-center gap-1.5">
-                  <span>Discount</span>
-                  {authoritativeDiscount > 0 && appliedCoupon && (
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                      {appliedCoupon}
-                    </span>
-                  )}
-                </div>
+                <span>Discount</span>
                 <span className={`font-semibold ${authoritativeDiscount > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
                   - ₹{authoritativeDiscount}
                 </span>
@@ -1486,3 +1356,5 @@ export const CheckoutView: React.FC = () => {
     </div>
   );
 };
+
+
