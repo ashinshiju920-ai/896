@@ -323,11 +323,6 @@ export const ProductDetailView: React.FC = () => {
                   BEST SELLER
                 </span>
               )}
-              {digitalOrig > digitalPrice && (
-                <span className="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-md">
-                  Price dropped from ₹{digitalOrig} to ₹{digitalPrice}
-                </span>
-              )}
               <span className="text-xs font-bold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
                 {book.category} Exam
               </span>

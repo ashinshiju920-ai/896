@@ -407,11 +407,6 @@ export const HomeView: React.FC = () => {
 
               {/* Price & Action */}
               <div className="p-2.5 sm:p-3.5 pt-2 border-t border-slate-100 mt-2">
-                {(book.prices?.digital?.originalPrice ?? 599) > (book.prices?.digital?.price ?? 199) && (
-                  <div className="mb-2 text-[9px] sm:text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1 font-['DM_Sans',sans-serif]">
-                    Price dropped from ₹{book.prices?.digital?.originalPrice ?? 599} to ₹{book.prices?.digital?.price ?? 199}
-                  </div>
-                )}
                 <div className="flex items-baseline gap-1 sm:gap-1.5 mb-2.5 flex-wrap">
                   <span className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
                     ₹{book.prices?.digital?.price ?? 199}

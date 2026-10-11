@@ -3,21 +3,8 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, CalendarDays, Clock } from 'lucide-react';
 import { BLOG_POSTS } from '../data/blogs';
 import { BackButton } from '../components/BackButton';
-import { fetchPublishedBlogs } from '../utils/blogs';
 
 export const BlogListView: React.FC = () => {
-  const [posts, setPosts] = React.useState(BLOG_POSTS);
-
-  React.useEffect(() => {
-    let mounted = true;
-    fetchPublishedBlogs().then((next) => {
-      if (mounted) setPosts(next);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10 space-y-8 sm:space-y-10">
       <div className="flex items-center justify-between">
@@ -44,7 +31,7 @@ export const BlogListView: React.FC = () => {
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
-        {posts.map((post) => (
+        {BLOG_POSTS.map((post) => (
           <article
             key={post.slug}
             className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs hover:shadow-md hover:border-emerald-200 transition-all flex flex-col justify-between gap-5"

@@ -393,7 +393,6 @@ export const CatalogView: React.FC = () => {
                 const discount = selectedFormat === 'physical'
                   ? (book.prices?.physical?.discountPercent ?? 23)
                   : (book.prices?.digital?.discountPercent ?? 67);
-                const hasPriceDrop = originalPrice > currentPrice;
 
                 return (
                   <div
@@ -431,11 +430,6 @@ export const CatalogView: React.FC = () => {
                             New
                           </span>
                         )}
-                        {hasPriceDrop && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                            Price Drop
-                          </span>
-                        )}
                       </div>
 
                       {/* Title */}
@@ -460,11 +454,6 @@ export const CatalogView: React.FC = () => {
                           {discount}% OFF
                         </span>
                       </div>
-                      {hasPriceDrop && (
-                        <div className="mb-3 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1 font-['DM_Sans',sans-serif]">
-                          Price dropped from ₹{originalPrice} to ₹{currentPrice}
-                        </div>
-                      )}
 
                       <button
                         onClick={() => buyNow(book, selectedFormat === 'physical' ? 'physical' : 'digital')}

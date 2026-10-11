@@ -8,7 +8,6 @@ import {
   Users,
   Layers,
   Tag,
-  FileText,
   ImageIcon,
   Settings,
   ExternalLink,
@@ -26,7 +25,6 @@ export type AdminSection =
   | 'testimonials'
   | 'categories'
   | 'offers'
-  | 'blogs'
   | 'media'
   | 'settings';
 
@@ -61,7 +59,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'testimonials', label: 'Testimonials', icon: Users },
     { id: 'categories', label: 'Exam Categories', icon: Layers },
     { id: 'offers', label: 'Offers & Coupons', icon: Tag },
-    { id: 'blogs', label: 'Blog CMS', icon: FileText },
     { id: 'media', label: 'Media & Assets', icon: ImageIcon },
     { id: 'settings', label: 'Settings & Cloud', icon: Settings },
   ];
