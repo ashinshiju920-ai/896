@@ -1124,11 +1124,12 @@ export const ProductDetailView: React.FC = () => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  buyNow(rec, 'digital');
+                  addToCart(rec, 'digital', 1, []);
                 }}
-                className="mt-3 w-full py-1.5 bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] font-bold rounded-lg font-['DM_Sans',sans-serif] active:scale-95"
+                className="mt-3 w-full py-1.5 bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] font-bold rounded-lg font-['DM_Sans',sans-serif] active:scale-95 flex items-center justify-center gap-1.5"
               >
-                Buy Now
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Add to Cart</span>
               </button>
             </div>
           ))}
