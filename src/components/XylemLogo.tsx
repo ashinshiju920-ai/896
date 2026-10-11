@@ -69,29 +69,38 @@ export const XylemLogo: React.FC<XylemLogoProps> = ({
           />
         </g>
 
-        {/* Aylem Learning wordmark */}
-        <text
-          x="58"
-          y="34"
-          fill={navyColor}
-          fontFamily="'Plus Jakarta Sans', sans-serif"
-          fontWeight="900"
-          fontSize="28"
-          letterSpacing="0"
-        >
-          Aylem
-        </text>
+        {/* XYLEM letters in Navy */}
+        <g id="xylem-text" fill={navyColor} fontWeight="900" fontFamily="'Plus Jakarta Sans', sans-serif">
+          {/* Y */}
+          <path
+            d="M58 6H72L81 26L90 6H104L88 34V52H74V34L58 6Z"
+          />
+          {/* L */}
+          <path
+            d="M109 6H123V41H147V52H109V6Z"
+          />
+          {/* E */}
+          <path
+            d="M153 6H191V17H167V24H187V34H167V41H192V52H153V6Z"
+          />
+          {/* M */}
+          <path
+            d="M198 6H215L227 33L239 6H256V52H243V23L232 46H222L211 23V52H198V6Z"
+          />
+        </g>
 
+        {/* LEARNING in Emerald Green */}
         <text
-          x="58"
-          y="54"
+          x="134"
+          y="66"
+          textAnchor="middle"
           fill={greenColor}
           fontFamily="'Plus Jakarta Sans', sans-serif"
           fontWeight="800"
-          fontSize="15"
-          letterSpacing="2"
+          fontSize="13"
+          letterSpacing="5.5"
         >
-          Learning
+          LEARNING
         </text>
       </svg>
 

@@ -194,7 +194,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
                     isLightCover ? 'text-slate-700' : 'text-slate-200'
                   }`}
                 >
-                  AYLEM LEARNING
+                  XYLEM LEARNING
                 </span>
               </div>
               <div
@@ -256,7 +256,14 @@ export const BookCover: React.FC<BookCoverProps> = ({
                     isLightCover ? 'text-slate-800' : 'text-white'
                   }`}
                 >
-                  AYLEM LEARNING
+                  XYLEM
+                </span>
+                <span
+                  className={`text-[5px] tracking-wider uppercase font-semibold ${
+                    isLightCover ? 'text-teal-700' : 'text-teal-400'
+                  }`}
+                >
+                  LEARNING
                 </span>
               </div>
               <div
