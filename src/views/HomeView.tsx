@@ -91,12 +91,12 @@ export const HomeView: React.FC = () => {
             {/* Left Hero Text */}
             <div className="lg:col-span-6 space-y-5 sm:space-y-6 text-left">
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-[#0a2540] tracking-tight leading-[1.12] font-['Plus_Jakarta_Sans',sans-serif]">
-                Prepare Smarter.{' '}
-                <span className="text-[#00875a] block">Achieve Your Next Goal.</span>
+                India's Trusted IELTS, OET, PTE & German{' '}
+                <span className="text-[#00875a] block">Study Materials with Mock Tests</span>
               </h1>
 
               <p className="text-sm sm:text-lg text-slate-600 max-w-xl leading-relaxed font-['DM_Sans',sans-serif] font-normal">
-                Complete preparation materials for IELTS, OET, PTE & German — designed for focused self-study and practice.
+                Buy exam-oriented digital books and practice with mock tests designed for serious self-study across India.
               </p>
 
               {/* CTAs */}
@@ -585,3 +585,4 @@ export const HomeView: React.FC = () => {
     </div>
   );
 };
+
