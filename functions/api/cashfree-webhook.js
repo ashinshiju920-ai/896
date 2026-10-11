@@ -13,6 +13,7 @@ import {
 } from '../utils/db.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
 import { deliverMetaPurchaseEvent } from '../utils/metaCapi.js';
+import { sendPurchaseThankYouEmail } from '../utils/purchaseEmail.js';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
@@ -351,6 +352,12 @@ export async function onRequestPost(context) {
         eventType: 'PORTAL_BRIDGE_UNHANDLED_ERROR',
         rawPayload: JSON.stringify({ source: 'CASHFREE_WEBHOOK', error: bridgeErr?.message || 'Unknown error' }),
       });
+    }
+
+    try {
+      await sendPurchaseThankYouEmail(env, order, { source: 'CASHFREE_WEBHOOK' });
+    } catch (emailErr) {
+      console.warn('Purchase thank-you email failed in webhook:', emailErr?.message);
     }
 
     try {

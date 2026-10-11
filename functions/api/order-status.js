@@ -5,6 +5,7 @@ import { getOrder, updateOrderStatus, saveOrder, recordOrderEvent } from '../uti
 import { getCorsHeaders, handleOptions } from '../utils/cors.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../utils/portalBridge.js';
 import { deliverMetaPurchaseEvent } from '../utils/metaCapi.js';
+import { sendPurchaseThankYouEmail } from '../utils/purchaseEmail.js';
 
 export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
@@ -185,6 +186,12 @@ export async function onRequestGet(context) {
         await provisionPortalAccessForPaidOrder(env, order, { source: 'ORDER_STATUS_PAID_VERIFY' });
       } catch (bridgeErr) {
         console.warn('Portal bridge invocation error in order-status:', bridgeErr?.message);
+      }
+
+      try {
+        await sendPurchaseThankYouEmail(env, order, { source: 'ORDER_STATUS_PAID_VERIFY' });
+      } catch (emailErr) {
+        console.warn('Purchase thank-you email failed in order-status:', emailErr?.message);
       }
 
       try {
