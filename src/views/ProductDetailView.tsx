@@ -381,7 +381,7 @@ export const ProductDetailView: React.FC = () => {
           </div>
 
           {/* 1. Base Format Selection (Digital PDF vs Physical Book) */}
-          <div className="space-y-2">
+          <div className="hidden">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                 Select Book Format
@@ -1187,7 +1187,7 @@ export const ProductDetailView: React.FC = () => {
       </div>
 
       {/* Bottom Physical Copy Callout Banner (Image 2) */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-slate-100 to-emerald-50/50 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="hidden">
         <div className="space-y-1 text-center sm:text-left">
           <h4 className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
             Prefer a Physical Copy?
