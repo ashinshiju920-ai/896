@@ -15,6 +15,7 @@ import { ReviewsPage } from './reviews/ReviewsPage';
 import { TestimonialsPage } from './testimonials/TestimonialsPage';
 import { CategoriesPage } from './categories/CategoriesPage';
 import { OffersPage } from './offers/OffersPage';
+import { BlogCmsPage } from './blog/BlogCmsPage';
 import { MediaPage } from './media/MediaPage';
 import { SettingsPage } from './settings/SettingsPage';
 
@@ -89,6 +90,7 @@ export const AdminLayout: React.FC = () => {
     if (pathname.includes('/admin/testimonials')) return 'testimonials';
     if (pathname.includes('/admin/categories')) return 'categories';
     if (pathname.includes('/admin/offers')) return 'offers';
+    if (pathname.includes('/admin/blogs')) return 'blogs';
     if (pathname.includes('/admin/media')) return 'media';
     if (pathname.includes('/admin/settings')) return 'settings';
     return 'dashboard';
@@ -197,6 +199,8 @@ export const AdminLayout: React.FC = () => {
       navigate('/admin');
     } else if (section === 'reorder') {
       navigate('/admin/products/reorder');
+    } else if (section === 'blogs') {
+      navigate('/admin/blogs');
     } else {
       navigate(`/admin/${section}`);
     }
@@ -380,6 +384,11 @@ export const AdminLayout: React.FC = () => {
           {/* OFFERS & COUPONS */}
           {currentSection === 'offers' && (
             <OffersPage showToast={showToast} />
+          )}
+
+          {/* BLOG CMS */}
+          {currentSection === 'blogs' && (
+            <BlogCmsPage books={books} showToast={showToast} />
           )}
 
           {/* MEDIA & ASSETS */}

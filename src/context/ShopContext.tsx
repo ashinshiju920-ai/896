@@ -144,6 +144,7 @@ interface ShopContextType {
   currentCustomer: Customer | null;
   isCustomerLoading: boolean;
   checkCustomerSession: () => Promise<Customer | null>;
+  handleExpiredCustomerSession: () => void;
   logoutCustomer: () => Promise<void>;
   setCurrentCustomer: React.Dispatch<React.SetStateAction<Customer | null>>;
 
@@ -642,6 +643,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [isCustomerLoading, setIsCustomerLoading] = useState<boolean>(true);
 
+  const handleExpiredCustomerSession = useCallback(() => {
+    setCurrentCustomer(null);
+    showToast('Your session expired. Please sign in again.', 'warning');
+    navigate('/login');
+  }, [navigate, showToast]);
+
   // Centralized session check (optimizes Free plan by avoiding duplicate requests)
   const checkCustomerSession = useCallback(async (): Promise<Customer | null> => {
     try {
@@ -670,12 +677,32 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentCustomer(null);
     showToast('Signed out of your account.', 'info');
     navigate('/');
-  }, [navigate]);
+  }, [navigate, showToast]);
 
   // Initial check on mount only - NO polling loops
   useEffect(() => {
     checkCustomerSession();
   }, [checkCustomerSession]);
+
+  useEffect(() => {
+    if (!currentCustomer) return;
+
+    const verifyActiveSession = () => {
+      if (document.visibilityState === 'visible') {
+        checkCustomerSession().then((customer) => {
+          if (!customer) handleExpiredCustomerSession();
+        });
+      }
+    };
+
+    window.addEventListener('focus', verifyActiveSession);
+    document.addEventListener('visibilitychange', verifyActiveSession);
+
+    return () => {
+      window.removeEventListener('focus', verifyActiveSession);
+      document.removeEventListener('visibilitychange', verifyActiveSession);
+    };
+  }, [checkCustomerSession, currentCustomer, handleExpiredCustomerSession]);
 
   // Scroll to top on view changes
   useEffect(() => {
@@ -1629,6 +1656,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentCustomer,
         isCustomerLoading,
         checkCustomerSession,
+        handleExpiredCustomerSession,
         logoutCustomer,
         setCurrentCustomer,
       }}

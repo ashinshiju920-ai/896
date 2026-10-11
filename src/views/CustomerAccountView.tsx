@@ -6,7 +6,7 @@ import { BackButton } from '../components/BackButton';
 
 export const CustomerAccountView: React.FC = () => {
   const navigate = useNavigate();
-  const { currentCustomer, logoutCustomer, showToast, isCustomerLoading } = useShop();
+  const { currentCustomer, logoutCustomer, handleExpiredCustomerSession, showToast, isCustomerLoading } = useShop();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -76,6 +76,10 @@ export const CustomerAccountView: React.FC = () => {
       });
 
       const data = await res.json();
+      if (res.status === 401) {
+        handleExpiredCustomerSession();
+        return;
+      }
       if (res.ok && data.success) {
         setPassSuccess('Password updated successfully!');
         setCurrentPassword('');

@@ -5,11 +5,23 @@ import { BLOG_POSTS, findBlogBySlug } from '../data/blogs';
 import { BackButton } from '../components/BackButton';
 import { NotFoundView } from './NotFoundView';
 import { useShop } from '../context/ShopContext';
+import { fetchPublishedBlogs } from '../utils/blogs';
 
 export const BlogDetailView: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
-  const post = findBlogBySlug(slug);
+  const [posts, setPosts] = React.useState(BLOG_POSTS);
+  const post = posts.find((item) => item.slug === slug) || findBlogBySlug(slug);
   const { books, buyNow } = useShop();
+
+  React.useEffect(() => {
+    let mounted = true;
+    fetchPublishedBlogs().then((next) => {
+      if (mounted) setPosts(next);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (!post) {
     return (
@@ -25,7 +37,7 @@ export const BlogDetailView: React.FC = () => {
     .filter(Boolean)
     .slice(0, 3);
 
-  const relatedPosts = BLOG_POSTS.filter((item) => item.slug !== post.slug).slice(0, 3);
+  const relatedPosts = posts.filter((item) => item.slug !== post.slug).slice(0, 3);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-10 space-y-8 sm:space-y-10">

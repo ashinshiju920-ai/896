@@ -47,6 +47,7 @@ export const MyMaterialsView: React.FC<MyMaterialsViewProps> = ({ initialTab = '
     showToast,
     currentCustomer,
     logoutCustomer,
+    handleExpiredCustomerSession,
     isCustomerLoading,
   } = useShop();
 
@@ -74,6 +75,10 @@ export const MyMaterialsView: React.FC<MyMaterialsViewProps> = ({ initialTab = '
     setIsLoadingServerMaterials(true);
     fetch('/api/customer/materials')
       .then(async (res) => {
+        if (res.status === 401) {
+          if (isMounted) handleExpiredCustomerSession();
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data && Array.isArray(data.materials)) {
@@ -110,7 +115,7 @@ export const MyMaterialsView: React.FC<MyMaterialsViewProps> = ({ initialTab = '
     return () => {
       isMounted = false;
     };
-  }, [currentCustomer, books]);
+  }, [currentCustomer, books, handleExpiredCustomerSession]);
 
   // Extract all authorized materials across paid orders
   const paidOrders = orders.filter((o) => o.status === 'PAID' || o.status === 'confirmed');

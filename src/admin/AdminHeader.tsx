@@ -44,6 +44,10 @@ const SECTION_TITLES: Record<AdminSection, { title: string; subtitle: string }> 
     title: 'Offers & Promotions',
     subtitle: 'Server-authoritative discount coupons and bundle deal rules',
   },
+  blogs: {
+    title: 'Blog CMS',
+    subtitle: 'Write, edit, publish, and unpublish preparation articles',
+  },
   media: {
     title: 'Media & Asset Manager',
     subtitle: 'Cloudinary CDN uploads for book covers, syllabus guides, and avatars',
