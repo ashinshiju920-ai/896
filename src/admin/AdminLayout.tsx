@@ -299,6 +299,7 @@ export const AdminLayout: React.FC = () => {
                 onOpenNewProduct={() => setActiveEditingBook('new')}
                 onOpenEditProduct={(book) => setActiveEditingBook(book)}
                 onDeleteProduct={(id) => deleteBook(id)}
+                onTogglePublishProduct={(book, publish) => updateBook(book.id, { active: publish })}
                 onNavigateToReorder={() => handleSelectSection('reorder')}
                 showToast={showToast}
               />

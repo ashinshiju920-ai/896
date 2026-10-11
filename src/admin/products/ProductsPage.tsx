@@ -7,7 +7,8 @@ import {
   Trash2,
   ExternalLink,
   CheckCircle2,
-  FileText,
+  Eye,
+  EyeOff,
   Star,
   BookOpen,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ interface ProductsPageProps {
   onOpenNewProduct: () => void;
   onOpenEditProduct: (book: Book) => void;
   onDeleteProduct: (bookId: string) => Promise<boolean>;
+  onTogglePublishProduct: (book: Book, publish: boolean) => Promise<boolean>;
   onNavigateToReorder: () => void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
@@ -30,6 +32,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   onOpenNewProduct,
   onOpenEditProduct,
   onDeleteProduct,
+  onTogglePublishProduct,
   onNavigateToReorder,
   showToast,
 }) => {
@@ -37,6 +40,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<ExamCategory | 'All'>('All');
   const [productToDelete, setProductToDelete] = useState<Book | null>(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [publishingProductId, setPublishingProductId] = useState<string | null>(null);
 
   const { setPaperbackGlobally } = useShop();
   const [globalPaperbackModalOpen, setGlobalPaperbackModalOpen] = useState(false);
@@ -92,6 +96,26 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
       }
     } finally {
       setIsDeletingProduct(false);
+    }
+  };
+
+  const handleTogglePublish = async (book: Book) => {
+    const publish = book.active === false;
+    setPublishingProductId(book.id);
+    try {
+      const saved = await onTogglePublishProduct(book, publish);
+      if (saved) {
+        showToast(
+          publish
+            ? `"${book.title}" is published and visible to customers.`
+            : `"${book.title}" is unpublished and hidden from customers.`,
+          publish ? 'success' : 'info'
+        );
+      } else {
+        showToast(`Could not ${publish ? 'publish' : 'unpublish'} "${book.title}". Please try again.`, 'warning');
+      }
+    } finally {
+      setPublishingProductId(null);
     }
   };
 
@@ -206,6 +230,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                             Digital Only
                           </span>
                         )}
+                        {book.active === false && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white px-2 py-0.5 rounded">
+                            Unpublished
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif] truncate">
                         {book.title}
@@ -247,6 +276,23 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
+                    <button
+                      onClick={() => handleTogglePublish(book)}
+                      disabled={publishingProductId === book.id}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait ${
+                        book.active === false
+                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
+                      }`}
+                      title={book.active === false ? 'Publish Product' : 'Unpublish Product'}
+                    >
+                      {book.active === false ? (
+                        <Eye className="w-3.5 h-3.5" />
+                      ) : (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      )}
+                      <span>{book.active === false ? 'Publish' : 'Unpublish'}</span>
+                    </button>
                     <button
                       onClick={() => onOpenEditProduct(book)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold transition-colors cursor-pointer"

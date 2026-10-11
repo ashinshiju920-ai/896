@@ -416,7 +416,8 @@ export async function loadCatalogue(env) {
     ...DEFAULT_CATALOG.filter((b) => !kvIds.has(b.id)),
   ];
 
-  return mergedCatalog.length > 0 ? mergedCatalog : DEFAULT_CATALOG;
+  const activeCatalog = mergedCatalog.filter((book) => book?.active !== false);
+  return activeCatalog.length > 0 ? activeCatalog : DEFAULT_CATALOG.filter((book) => book?.active !== false);
 }
 
 /**

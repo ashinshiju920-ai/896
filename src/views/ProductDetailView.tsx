@@ -82,7 +82,7 @@ export const ProductDetailView: React.FC = () => {
     );
   }
 
-  if (!book) {
+  if (!book || book.active === false) {
     return (
       <NotFoundView
         title="Product Unavailable"
@@ -149,8 +149,8 @@ export const ProductDetailView: React.FC = () => {
 
   // Recommendations: prioritize more products from the same exam/category.
   const recommendations = React.useMemo(() => {
-    const sameCategory = books.filter((b) => b.id !== book.id && b.category === book.category);
-    const fallback = books.filter((b) => b.id !== book.id && b.category !== book.category);
+    const sameCategory = books.filter((b) => b.active !== false && b.id !== book.id && b.category === book.category);
+    const fallback = books.filter((b) => b.active !== false && b.id !== book.id && b.category !== book.category);
     return [...sameCategory, ...fallback].slice(0, 4);
   }, [books, book.id, book.category]);
 

@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Star, ArrowRight, BookOpen } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
-import { BOOKS } from '../data/books';
 import { BookCover } from './BookCover';
 
 export const SearchModal: React.FC = () => {
-  const { isSearchOpen, setIsSearchOpen, navigateToProduct } = useShop();
+  const { books, isSearchOpen, setIsSearchOpen, navigateToProduct } = useShop();
   const [searchTerm, setSearchTerm] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -21,12 +20,14 @@ export const SearchModal: React.FC = () => {
 
   if (!isSearchOpen) return null;
 
-  const results = BOOKS.filter(
+  const normalizedSearch = searchTerm.toLowerCase();
+  const results = books.filter(
     (b) =>
-      b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.subtitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.description.toLowerCase().includes(searchTerm.toLowerCase())
+      b.active !== false &&
+      (b.title.toLowerCase().includes(normalizedSearch) ||
+        b.category.toLowerCase().includes(normalizedSearch) ||
+        b.subtitle.toLowerCase().includes(normalizedSearch) ||
+        b.description.toLowerCase().includes(normalizedSearch))
   );
 
   return (

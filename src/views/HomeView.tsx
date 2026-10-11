@@ -40,10 +40,11 @@ export const HomeView: React.FC = () => {
   } = useShop();
 
   // Featured books dynamically respect the admin's custom arrangement (6 products for balanced 2x3 mobile grid)
-  const featuredBooks = (books && books.length > 0 ? books.slice(0, 6) : []).filter(Boolean);
+  const publishedBooks = React.useMemo(() => books.filter((book) => book.active !== false), [books]);
+  const featuredBooks = (publishedBooks && publishedBooks.length > 0 ? publishedBooks.slice(0, 6) : []).filter(Boolean);
   const bestProduct = React.useMemo(
-    () => books.find((book) => book.id === homeSpotlight?.productId) || books.find((book) => book.id === 'select-your-path-guide') || featuredBooks[0],
-    [books, featuredBooks, homeSpotlight?.productId]
+    () => publishedBooks.find((book) => book.id === homeSpotlight?.productId) || publishedBooks.find((book) => book.id === 'select-your-path-guide') || featuredBooks[0],
+    [publishedBooks, featuredBooks, homeSpotlight?.productId]
   );
   const bestProductImage = bestProduct
     ? homeSpotlight?.imageUrl || bestProduct.coverImage || bestProduct.imageUrl || bestProduct.images?.[0] || ''

@@ -232,7 +232,9 @@ export const getSeoForRoute = ({
         ? 'IELTS, OET, PTE and German'
         : `${categoryName}`;
     const visibleBooks = books.filter(
-      (book) => categoryName === 'All Exams' || book.category.toLowerCase() === categoryName.toLowerCase()
+      (book) =>
+        book.active !== false &&
+        (categoryName === 'All Exams' || book.category.toLowerCase() === categoryName.toLowerCase())
     );
     return {
       title: `${categoryText} Books & Mock Tests | Aylem Learning Kerala`,
@@ -266,15 +268,17 @@ export const getSeoForRoute = ({
   const productMatch = pathname.match(/^\/(?:books|product)\/([^/]+)/);
   if (productMatch) {
     const slug = decodeURIComponent(productMatch[1]).toLowerCase();
-    const book = books.find(
-      (item) =>
+    const book = books.find((item) => {
+      if (item.active === false) return false;
+      return (
         item.id.toLowerCase() === slug ||
         getBookSlug(item).toLowerCase() === slug ||
         item.title
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '') === slug
-    );
+      );
+    });
 
     if (book) {
       const marketPhrase =

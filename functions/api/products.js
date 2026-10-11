@@ -296,6 +296,7 @@ function sanitizeProduct(raw) {
 
   return {
     id: cleanId,
+    active: raw.active !== false,
     title: sanitizeString(raw.title, 200) || 'Study Material',
     subtitle: sanitizeString(raw.subtitle, 300),
     category: sanitizeString(raw.category, 50) || 'General',
@@ -349,7 +350,7 @@ export async function onRequestGet(context) {
     const sanitizeBooks = (books) => {
       if (!Array.isArray(books)) return [];
       if (isAdmin) return books;
-      return books.map((b) => {
+      return books.filter((b) => b?.active !== false).map((b) => {
         const { pdfUrl, ...safeBook } = b;
         if (safeBook.digitalFile) {
           const { fileUrl, ...safeFile } = safeBook.digitalFile;

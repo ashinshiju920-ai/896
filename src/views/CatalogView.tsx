@@ -74,6 +74,10 @@ export const CatalogView: React.FC = () => {
   // Filtered & sorted books
   const filteredBooks = useMemo(() => {
     return books.filter((book) => {
+      if (book.active === false) {
+        return false;
+      }
+
       // Category filter
       if (selectedCategory !== 'All' && book.category !== selectedCategory && book.category !== 'All') {
         return false;
@@ -117,7 +121,7 @@ export const CatalogView: React.FC = () => {
       }
       return 0;
     });
-  }, [selectedCategory, selectedPriceRanges, selectedTypes, selectedFormat, sortBy]);
+  }, [books, selectedCategory, selectedPriceRanges, selectedTypes, selectedFormat, sortBy]);
 
   const activeCategoryTitle = selectedCategory === 'All'
     ? (catalogBanner?.title || 'Complete Exam Study Materials')

@@ -163,6 +163,7 @@ export const ProductEditor: React.FC<ProductEditorProps> = ({
     buy2Get3rdFree: Boolean(initialBook?.buy2Get3rdFree),
     addonDealText: initialBook?.addonDealText || 'Special Deal: Buy Any 2 Add-ons, Get the 3rd FREE!',
     disablePaperback: Boolean(initialBook?.disablePaperback),
+    active: initialBook?.active !== false,
   };
 
   const { books, setPaperbackGlobally } = useShop();
