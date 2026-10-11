@@ -5,6 +5,7 @@
 // All network requests are asynchronous, non-blocking, and failure-isolated.
 
 import { AnalyticsEventType, Book, BookFormat, CartItem, ProductAddon } from '../types';
+import { OrderStatusResponse } from './cashfree';
 
 declare global {
   interface Window {
@@ -238,6 +239,43 @@ function pushPurchaseEvent(order: {
     // Meta tracking must never block successful payment handling.
     return false;
   }
+}
+
+function getOrderItemUnitPrice(item: any): number {
+  if (item?.unitPricePaise !== undefined) return Number(item.unitPricePaise || 0) / 100;
+  if (item?.totalPricePaise !== undefined && item?.quantity) {
+    return Number(item.totalPricePaise || 0) / 100 / Math.max(1, Number(item.quantity || 1));
+  }
+  if (item?.unitPrice !== undefined) return Number(item.unitPrice || 0);
+  if (item?.price !== undefined) return Number(item.price || 0);
+  if (item?.totalPrice !== undefined && item?.quantity) {
+    return Number(item.totalPrice || 0) / Math.max(1, Number(item.quantity || 1));
+  }
+  return 0;
+}
+
+export function buildPurchaseTrackingPayload(res: OrderStatusResponse, fallbackOrderId: string) {
+  const orderId = res.orderId || fallbackOrderId;
+  const items = Array.isArray(res.items) ? res.items : [];
+  const normalizedItems = items.map((item) => ({
+    ...item,
+    id: item.productId || item.bookId || item.id,
+    title: item.productNameSnapshot || item.title || item.name,
+    quantity: Math.max(1, Number(item.quantity || 1)),
+    price: getOrderItemUnitPrice(item),
+  }));
+  const itemsValue = normalizedItems.reduce(
+    (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+    0
+  );
+  const total = Number(res.total || 0) > 0 ? Number(res.total) : itemsValue;
+
+  return {
+    orderId,
+    total,
+    currency: res.currency || 'INR',
+    items: normalizedItems,
+  };
 }
 
 export function trackPurchaseAndRedirect(order: {

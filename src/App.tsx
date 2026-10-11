@@ -37,7 +37,7 @@ const ShippingReturnsRefundPolicyView = React.lazy(() =>
 const AdminView = React.lazy(() => import('./views/AdminView'));
 const NotFoundView = React.lazy(() => import('./views/NotFoundView').then((m) => ({ default: m.NotFoundView })));
 import { checkOrderStatus, STUDENT_PORTAL_URL } from './utils/cashfree';
-import { captureMarketingAttribution, trackPurchaseAndRedirect } from './utils/analytics';
+import { buildPurchaseTrackingPayload, captureMarketingAttribution, trackPurchaseAndRedirect } from './utils/analytics';
 import { Order } from './types';
 import { BOOKS } from './data/books';
 
@@ -113,12 +113,7 @@ const ShopApp: React.FC = () => {
             };
             setCurrentOrder(verifiedOrder);
             showToast('Payment confirmed! Redirecting to the student portal.', 'success');
-            trackPurchaseAndRedirect({
-              orderId: res.orderId || orderId,
-              total: res.total,
-              currency: res.currency || 'INR',
-              items: res.items || [],
-            }, STUDENT_PORTAL_URL);
+            trackPurchaseAndRedirect(buildPurchaseTrackingPayload(res, orderId), STUDENT_PORTAL_URL);
           } else if (res && (res.status === 'FAILED' || res.status === 'USER_DROPPED')) {
             showToast('Payment was not completed. Please try again from checkout.', 'warning');
             navigate(`/checkout?payment=${res.status === 'FAILED' ? 'failed' : 'cancelled'}&order_id=${encodeURIComponent(orderId)}`, { replace: true });
