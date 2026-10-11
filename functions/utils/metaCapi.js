@@ -84,22 +84,53 @@ function rupeesFromPaise(paise) {
   return Math.round(num) / 100;
 }
 
+function cleanNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
 function buildContents(items) {
-  return items.map((item) => {
+  return items.flatMap((item) => {
     const quantity = Math.max(1, Number(item.quantity || 1));
-    const unitPrice =
-      item.unitPrice !== undefined
-        ? Number(item.unitPrice)
-        : item.unitPricePaise !== undefined
-        ? rupeesFromPaise(item.unitPricePaise)
-        : item.price !== undefined
-        ? Number(item.price)
-        : 0;
-    return {
+    const addOns = Array.isArray(item.addOns)
+      ? item.addOns
+      : (Array.isArray(item.selectedAddons) ? item.selectedAddons : []);
+    const addOnsUnitTotalPaise = addOns.reduce((sum, addon) => {
+      if (addon?.unitPricePaise !== undefined) return sum + cleanNumber(addon.unitPricePaise);
+      if (addon?.pricePaise !== undefined) return sum + cleanNumber(addon.pricePaise);
+      return sum + Math.round(cleanNumber(addon?.price) * 100);
+    }, 0);
+    const lineUnitPaise = item.unitPricePaise !== undefined
+      ? cleanNumber(item.unitPricePaise)
+      : item.totalPricePaise !== undefined
+      ? cleanNumber(item.totalPricePaise) / quantity
+      : item.unitPrice !== undefined
+      ? Math.round(cleanNumber(item.unitPrice) * 100)
+      : item.price !== undefined
+      ? Math.round(cleanNumber(item.price) * 100)
+      : 0;
+    const baseUnitPaise = Math.max(0, lineUnitPaise - addOnsUnitTotalPaise);
+    const productContent = {
       id: item.productId || item.bookId || item.id,
       quantity,
-      item_price: unitPrice,
+      item_price: rupeesFromPaise(baseUnitPaise || lineUnitPaise),
     };
+
+    const addonContents = addOns.map((addon) => {
+      const addonId = addon.addOnId || addon.id;
+      const addonUnitPaise = addon.unitPricePaise !== undefined
+        ? cleanNumber(addon.unitPricePaise)
+        : addon.pricePaise !== undefined
+        ? cleanNumber(addon.pricePaise)
+        : Math.round(cleanNumber(addon.price) * 100);
+      return {
+        id: addonId && productContent.id ? `${productContent.id}:${addonId}` : addonId,
+        quantity,
+        item_price: rupeesFromPaise(addonUnitPaise),
+      };
+    });
+
+    return [productContent, ...addonContents];
   }).filter((item) => item.id);
 }
 

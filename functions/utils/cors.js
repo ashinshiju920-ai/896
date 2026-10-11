@@ -55,7 +55,7 @@ export function getCorsHeaders(request, env) {
     return {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, X-Requested-With, Cache-Control, Pragma',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie, X-Requested-With, Cache-Control, Pragma, X-Aylem-Event-Source-Url',
       'Access-Control-Allow-Credentials': 'true',
       'Vary': 'Origin',
     };

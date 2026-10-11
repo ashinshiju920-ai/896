@@ -23,7 +23,7 @@ function getClientIp(request) {
 }
 
 function buildMetaContext(request, returnUrl) {
-  const cookies = parseCookies(request.headers.get('cookie') || '');
+  const cookies = parseCookies(request);
   const sourceUrl =
     cleanString(request.headers.get('x-aylem-event-source-url')) ||
     cleanString(request.headers.get('referer')) ||

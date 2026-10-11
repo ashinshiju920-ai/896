@@ -134,9 +134,13 @@ export async function createCashfreeOrder(params: CheckoutIntentParams): Promise
   let res: Response;
 
   try {
+    const eventSourceUrl = typeof window !== 'undefined' ? window.location.href : undefined;
     res = await fetch('/api/create-cashfree-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(eventSourceUrl ? { 'X-Aylem-Event-Source-Url': eventSourceUrl } : {}),
+      },
       body: JSON.stringify(sanitizedIntent),
     });
 
