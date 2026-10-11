@@ -456,6 +456,7 @@ export const CatalogView: React.FC = () => {
                       </div>
 
                       <button
+                        id={`buy-now-catalog-${book.id}`}
                         onClick={() => buyNow(book, selectedFormat === 'physical' ? 'physical' : 'digital')}
                         className="w-full py-2.5 px-3 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
                       >

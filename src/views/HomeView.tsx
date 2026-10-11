@@ -434,7 +434,7 @@ export const HomeView: React.FC = () => {
         <div className="flex justify-center mt-8 sm:mt-10">
           <button
             onClick={() => navigateToCatalog('All')}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#00875a] px-6 py-3 text-sm sm:text-base font-bold text-white shadow-md shadow-emerald-900/10 transition-all hover:bg-[#00734c] hover:shadow-lg active:scale-95 font-['Plus_Jakarta_Sans',sans-serif]"
+            className="buy-now-wave inline-flex items-center justify-center gap-2 rounded-xl bg-[#00875a] px-6 py-3 text-sm sm:text-base font-bold text-white shadow-md shadow-emerald-900/10 transition-all hover:bg-[#00734c] hover:shadow-lg active:scale-95 font-['Plus_Jakarta_Sans',sans-serif]"
           >
             <span>Explore More Study Books</span>
             <ArrowRight className="w-4 h-4" />

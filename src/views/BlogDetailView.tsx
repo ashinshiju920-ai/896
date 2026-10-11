@@ -120,7 +120,7 @@ export const BlogDetailView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => buyNow(book!, 'digital')}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#00875a] text-white text-xs font-bold hover:bg-[#00734c]"
+                    className="buy-now-wave inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#00875a] text-white text-xs font-bold hover:bg-[#00734c]"
                   >
                     Buy Now
                   </button>
