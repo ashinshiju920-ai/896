@@ -21,6 +21,7 @@ const KV_PREFIXES_TO_CLEAR = [
   'customer_orders:',
   'order_claim:',
   'purchase_thank_you_email_sent:',
+  'meta_purchase_sent:',
 ];
 
 async function clearD1Table(env, table) {

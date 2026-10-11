@@ -12,6 +12,7 @@ import {
 } from './db.js';
 
 const DEFAULT_PIXEL_ID = '1066331326319035';
+const META_KV_DEDUP_TTL_SECONDS = 86400 * 7;
 
 function cleanString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -134,6 +135,62 @@ function buildContents(items) {
   }).filter((item) => item.id);
 }
 
+async function wasMetaPurchaseSentInKv(env, orderId) {
+  if (!env?.PRODUCTS_KV || typeof env.PRODUCTS_KV.get !== 'function') return false;
+  try {
+    return Boolean(await env.PRODUCTS_KV.get(`meta_purchase_sent:${orderId}`));
+  } catch {
+    return false;
+  }
+}
+
+async function markMetaPurchaseSentInKv(env, orderId, result = {}) {
+  if (!env?.PRODUCTS_KV || typeof env.PRODUCTS_KV.put !== 'function') return;
+  try {
+    await env.PRODUCTS_KV.put(
+      `meta_purchase_sent:${orderId}`,
+      JSON.stringify({
+        eventId: result.eventId || `purchase_${orderId}`,
+        eventsReceived: result.eventsReceived || null,
+        fbtraceId: result.fbtraceId || null,
+        sentAt: new Date().toISOString(),
+      }),
+      { expirationTtl: META_KV_DEDUP_TTL_SECONDS }
+    );
+  } catch {}
+}
+
+async function deliverMetaPurchaseDirect(env, order, options = {}, reason = 'OUTBOX_UNAVAILABLE') {
+  if (await wasMetaPurchaseSentInKv(env, order.id)) {
+    return {
+      attempted: false,
+      success: true,
+      skipped: true,
+      reason: 'ALREADY_SENT_KV',
+      eventId: `purchase_${order.id}`,
+      outboxStatus: reason,
+    };
+  }
+
+  const result = await sendMetaPurchaseEvent(env, order, options);
+  if (result.success) {
+    await markMetaPurchaseSentInKv(env, order.id, result);
+    return {
+      ...result,
+      outboxStatus: reason,
+      fallbackDelivery: true,
+    };
+  }
+
+  return {
+    ...result,
+    success: false,
+    retryable: true,
+    outboxStatus: reason,
+    fallbackDelivery: true,
+  };
+}
+
 export async function sendMetaPurchaseEvent(env, order, options = {}) {
   const accessToken = cleanString(env?.META_CAPI_ACCESS_TOKEN);
   const pixelId = cleanString(env?.META_PIXEL_ID) || DEFAULT_PIXEL_ID;
@@ -246,6 +303,10 @@ export async function deliverMetaPurchaseEvent(env, order, options = {}) {
 
   const ensured = await ensureMetaPurchaseEvent(env, order, { source });
   if (!ensured.available) {
+    if (ensured.reason === 'D1_NOT_CONFIGURED' || ensured.reason === 'META_OUTBOX_UNAVAILABLE') {
+      return deliverMetaPurchaseDirect(env, order, options, ensured.reason);
+    }
+
     return {
       attempted: false,
       success: false,
