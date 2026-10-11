@@ -39,6 +39,7 @@ import {
   trackAddonSelected,
   pushViewItemEvent,
 } from '../utils/analytics';
+import { getProductCardImageUrl, getProductDetailImageUrl } from '../utils/imageOptimization';
 
 export const ProductDetailView: React.FC = () => {
   const {
@@ -223,7 +224,7 @@ export const ProductDetailView: React.FC = () => {
                 >
                   {imgUrl ? (
                     <img
-                      src={imgUrl}
+                      src={getProductCardImageUrl(imgUrl)}
                       alt={`${book.title} view ${idx + 1}`}
                       loading="lazy"
                       decoding="async"
@@ -279,20 +280,21 @@ export const ProductDetailView: React.FC = () => {
             <div className="py-4 w-full flex items-center justify-center min-h-[320px]">
               {(() => {
                 const activeCustomImg = (book.images && book.images[selectedThumbnail]) || (selectedThumbnail === 0 ? (book.imageUrl || book.coverImage) : null);
-                if (activeCustomImg && selectedThumbnail > 0) {
+                if (activeCustomImg) {
                   return (
                     <div className="w-56 h-76 sm:w-64 sm:h-88 rounded-xl overflow-hidden shadow-xl border border-slate-200 bg-white flex items-center justify-center p-2">
                       <img
-                        src={activeCustomImg}
+                        src={getProductDetailImageUrl(activeCustomImg)}
                         alt={`${book.title} slide ${selectedThumbnail + 1}`}
-                        loading="lazy"
+                        loading={selectedThumbnail === 0 ? 'eager' : 'lazy'}
+                        fetchPriority={selectedThumbnail === 0 ? 'high' : 'auto'}
                         decoding="async"
                         className="w-full h-full object-contain rounded-lg"
                       />
                     </div>
                   );
                 }
-                return <BookCover book={book} size="lg" />;
+                return <BookCover book={book} size="lg" imageVariant="detail" imageLoading="eager" imageFetchPriority="high" />;
               })()}
             </div>
 

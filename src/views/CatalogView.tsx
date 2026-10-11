@@ -5,6 +5,7 @@ import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { BackButton } from '../components/BackButton';
 import { ExamCategory } from '../types';
+import { getHeroBannerImageUrl } from '../utils/imageOptimization';
 
 export const CatalogView: React.FC = () => {
   const {
@@ -147,20 +148,21 @@ export const CatalogView: React.FC = () => {
             {catalogBanner.mobileBgImage && (
               <source
                 media="(max-width: 639px)"
-                srcSet={catalogBanner.mobileBgImage}
+                srcSet={getHeroBannerImageUrl(catalogBanner.mobileBgImage)}
               />
             )}
             {catalogBanner.desktopBgImage && (
               <source
                 media="(min-width: 640px)"
-                srcSet={catalogBanner.desktopBgImage}
+                srcSet={getHeroBannerImageUrl(catalogBanner.desktopBgImage)}
               />
             )}
             <img
-              src={catalogBanner.desktopBgImage || catalogBanner.mobileBgImage}
+              src={getHeroBannerImageUrl(catalogBanner.desktopBgImage || catalogBanner.mobileBgImage || '')}
               alt={`${activeCategoryTitle} study materials from Aylem Learning`}
               className="w-full h-full object-cover object-center"
               loading="eager"
+              fetchPriority="high"
             />
           </picture>
         )}

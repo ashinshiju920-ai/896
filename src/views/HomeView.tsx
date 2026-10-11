@@ -16,7 +16,12 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { HeroBookShowcase } from '../components/HeroBookShowcase';
-import { getExamImagePreloadUrl, getExamImageSrcSet, getImageOrigin } from '../utils/imageOptimization';
+import {
+  getExamImageSrcSet,
+  getHeroBannerImageUrl,
+  getImageOrigin,
+  getOptimizedExamImage,
+} from '../utils/imageOptimization';
 
 import { ExamCategory, Book } from '../types';
 
@@ -141,10 +146,11 @@ export const HomeView: React.FC = () => {
                 >
                   {bestProductImage ? (
                     <img
-                      src={bestProductImage}
+                      src={getHeroBannerImageUrl(bestProductImage)}
                       alt={`${bestProductTitle} digital study material from Aylem Learning`}
                       className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-[1.015]"
                       loading="eager"
+                      fetchPriority="high"
                       decoding="async"
                     />
                   ) : (
@@ -250,7 +256,7 @@ export const HomeView: React.FC = () => {
             >
               {/* High-Resolution Background Image */}
               <img
-                src={getExamImagePreloadUrl(path.bgImage)}
+                src={getOptimizedExamImage(path.bgImage, 500)}
                 srcSet={getExamImageSrcSet(path.bgImage)}
                 sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                 alt={path.title}

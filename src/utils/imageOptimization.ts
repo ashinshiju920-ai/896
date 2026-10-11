@@ -11,7 +11,9 @@ function isCloudinaryUrl(url: URL) {
   return url.hostname === 'res.cloudinary.com';
 }
 
-function withCloudinaryTransform(rawUrl: string, width: number) {
+export function getCloudinaryTransformedUrl(rawUrl: string, transformation: string) {
+  if (!rawUrl || !transformation) return rawUrl;
+
   try {
     const url = new URL(rawUrl);
     const marker = '/upload/';
@@ -20,11 +22,31 @@ function withCloudinaryTransform(rawUrl: string, width: number) {
 
     const before = url.pathname.slice(0, idx + marker.length);
     const after = url.pathname.slice(idx + marker.length);
-    url.pathname = `${before}f_auto,q_auto:eco,c_fill,g_auto,w_${width},h_${Math.round(width * 1.12)}/${after}`;
+    url.pathname = `${before}${transformation}/${after}`;
     return url.toString();
   } catch {
     return rawUrl;
   }
+}
+
+export function getProductCardImageUrl(rawUrl: string) {
+  return getCloudinaryTransformedUrl(rawUrl, 'f_auto,q_auto,w_300,c_limit');
+}
+
+export function getProductDetailImageUrl(rawUrl: string) {
+  return getCloudinaryTransformedUrl(rawUrl, 'f_auto,q_auto,w_700,c_limit');
+}
+
+export function getBlogCategoryImageUrl(rawUrl: string) {
+  return getCloudinaryTransformedUrl(rawUrl, 'f_auto,q_auto,w_500,c_limit');
+}
+
+export function getHeroBannerImageUrl(rawUrl: string) {
+  return getCloudinaryTransformedUrl(rawUrl, 'f_auto,q_auto,w_1400,c_limit');
+}
+
+function withCloudinaryTransform(rawUrl: string, width: number) {
+  return getCloudinaryTransformedUrl(rawUrl, `f_auto,q_auto,w_${width},c_limit`);
 }
 
 function withUnsplashWidth(rawUrl: string, width: number) {

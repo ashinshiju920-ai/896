@@ -1,11 +1,15 @@
 import React from 'react';
 import { Book } from '../types';
+import { getProductCardImageUrl, getProductDetailImageUrl } from '../utils/imageOptimization';
 
 interface BookCoverProps {
   book: Book;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   showShadow?: boolean;
+  imageVariant?: 'card' | 'detail';
+  imageLoading?: 'eager' | 'lazy';
+  imageFetchPriority?: 'high' | 'low' | 'auto';
 }
 
 export const BookCover: React.FC<BookCoverProps> = ({
@@ -13,6 +17,9 @@ export const BookCover: React.FC<BookCoverProps> = ({
   size = 'md',
   className = '',
   showShadow = true,
+  imageVariant = 'card',
+  imageLoading = 'lazy',
+  imageFetchPriority = 'auto',
 }) => {
   const sizeClasses = {
     sm: 'w-24 h-32 text-[8px]',
@@ -163,10 +170,15 @@ export const BookCover: React.FC<BookCoverProps> = ({
             {/* Custom Uploaded / Product Image */}
             <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-slate-900">
               <img
-                src={book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) || ''}
+                src={
+                  imageVariant === 'detail'
+                    ? getProductDetailImageUrl(book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) || '')
+                    : getProductCardImageUrl(book.imageUrl || book.coverImage || (Array.isArray(book.images) && book.images[0]) || '')
+                }
                 alt={`${book.title} book cover by Aylem Learning`}
                 className="w-full h-full object-contain bg-white"
-                loading="lazy"
+                loading={imageLoading}
+                fetchPriority={imageFetchPriority}
                 decoding="async"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';

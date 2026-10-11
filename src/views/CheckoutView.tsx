@@ -27,6 +27,7 @@ import { createCashfreeOrder, loadCashfreeSDK, CashfreeOrderPricing } from '../u
 import { trackCheckoutStarted, resetCheckoutTracking, pushBeginCheckoutEvent } from '../utils/analytics';
 import { validateAndReconcileCart, getSelectableAddons, calculateDisplayPrice } from '../utils/pricing';
 import { Book } from '../types';
+import { getProductCardImageUrl } from '../utils/imageOptimization';
 
 const getProductImage = (book?: Book | null): string | null => {
   if (!book) return null;
@@ -596,7 +597,7 @@ export const CheckoutView: React.FC = () => {
                       <div className="w-16 h-22 sm:w-20 sm:h-26 shrink-0 rounded-xl overflow-hidden shadow-xs border border-slate-100 bg-slate-50 flex items-center justify-center">
                         {coverImg ? (
                           <img
-                            src={coverImg}
+                            src={getProductCardImageUrl(coverImg)}
                             alt={liveBook.title}
                             loading="lazy"
                             decoding="async"
@@ -1152,7 +1153,7 @@ export const CheckoutView: React.FC = () => {
                       {productImg ? (
                         <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80 group-hover:scale-[1.01] transition-transform">
                           <img
-                            src={productImg}
+                            src={getProductCardImageUrl(productImg)}
                             alt={product.title}
                             loading="lazy"
                             decoding="async"
@@ -1280,7 +1281,7 @@ export const CheckoutView: React.FC = () => {
                         {productImg ? (
                           <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
                             <img
-                              src={productImg}
+                              src={getProductCardImageUrl(productImg)}
                               alt={product.title}
                               loading="lazy"
                               decoding="async"

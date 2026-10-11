@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Book, ProductAddon } from '../types';
 import { BookCover } from './BookCover';
+import { getProductCardImageUrl } from '../utils/imageOptimization';
 
 interface ProductPurchasePreviewProps {
   book: Partial<Book>;
@@ -97,9 +98,11 @@ export const ProductPurchasePreview: React.FC<ProductPurchasePreviewProps> = ({
           <div className="w-32 sm:w-36 shrink-0 mx-auto sm:mx-0 shadow-md rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
             {book.imageUrl || book.coverImage ? (
               <img
-                src={book.imageUrl || book.coverImage}
+                src={getProductCardImageUrl(book.imageUrl || book.coverImage || '')}
                 alt={title}
                 className="w-full h-auto object-cover aspect-[3/4]"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <BookCover book={book as Book} size="sm" />
