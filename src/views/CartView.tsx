@@ -5,6 +5,12 @@ import { BookCover } from '../components/BookCover';
 import { BackButton } from '../components/BackButton';
 import { BOOKS } from '../data/books';
 import { getCartLineKey } from '../utils/pricing';
+import { getProductCardImageUrl } from '../utils/imageOptimization';
+
+const getProductImage = (book?: typeof BOOKS[number] | null): string | null => {
+  if (!book) return null;
+  return book.coverImage || book.imageUrl || (Array.isArray(book.images) && book.images[0]) || null;
+};
 
 export const CartView: React.FC = () => {
   const {
@@ -58,6 +64,7 @@ export const CartView: React.FC = () => {
             <div className="divide-y divide-slate-200 border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs">
               {cart.map((item, idx) => {
                 const itemKey = `${getCartLineKey(item.bookId, item.format, item.selectedAddonIds)}-${idx}`;
+                const productImage = getProductImage(item.book);
 
                 return (
                   <div
@@ -69,7 +76,20 @@ export const CartView: React.FC = () => {
                         onClick={() => navigateToProduct(item.bookId)}
                         className="cursor-pointer shrink-0"
                       >
-                        <BookCover book={item.book} size="sm" showShadow={false} />
+                        {productImage ? (
+                          <img
+                            src={getProductCardImageUrl(productImage)}
+                            alt={item.book.title}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-24 h-32 object-contain bg-white rounded-lg border border-slate-100 shadow-sm"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <BookCover book={item.book} size="sm" />
+                        )}
                       </div>
 
                       <div className="min-w-0 space-y-1.5 flex-1">

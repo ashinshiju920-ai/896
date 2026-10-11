@@ -607,14 +607,14 @@ export const CheckoutView: React.FC = () => {
                             }}
                           />
                         ) : (
-                          <BookCover book={liveBook} size="sm" showShadow={false} />
+                          <BookCover book={liveBook} size="sm" />
                         )}
                       </div>
 
                       {/* Product Info & Controls */}
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug font-['Plus_Jakarta_Sans',sans-serif] line-clamp-2">
-                          {item.book.title}
+                          {liveBook.title}
                         </h3>
 
                         <div className="mt-1">
@@ -650,7 +650,7 @@ export const CheckoutView: React.FC = () => {
 
                           <button
                             type="button"
-                            aria-label={`Remove ${item.book.title} from cart`}
+                            aria-label={`Remove ${liveBook.title} from cart`}
                             onClick={() => handleRemoveProduct(itemIdx)}
                             className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 transition-colors cursor-pointer py-1 px-1.5"
                           >
