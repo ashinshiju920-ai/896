@@ -13,6 +13,7 @@ import { SearchModal } from './components/SearchModal';
 import { PdfViewerModal } from './components/PdfViewerModal';
 import { ContactModal } from './components/ContactModal';
 import { WhatsAppButton } from './components/WhatsAppButton';
+import { CategoryFloatingButton } from './components/CategoryFloatingButton';
 import { ProgressiveLoader } from './components/ProgressiveLoader';
 import { SEO } from './components/SEO';
 
@@ -198,6 +199,9 @@ const ShopApp: React.FC = () => {
 
       {/* Floating WhatsApp Quick Contact */}
       {isStorefront && <WhatsAppButton />}
+
+      {/* Floating Category Shortcut */}
+      {isStorefront && <CategoryFloatingButton />}
 
       {/* Global Modals & Drawers */}
       <CartDrawer />
