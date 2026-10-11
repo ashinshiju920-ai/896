@@ -204,6 +204,11 @@ export async function onRequestPost(context) {
         console.warn('Portal bridge retry failed for already-paid webhook:', bridgeErr?.message);
       }
       try {
+        await sendPurchaseThankYouEmail(env, order, { source: 'CASHFREE_WEBHOOK_DUPLICATE_PAID' });
+      } catch (emailErr) {
+        console.warn('Purchase thank-you email retry failed for already-paid webhook:', emailErr?.message);
+      }
+      try {
         const metaResult = await deliverMetaPurchaseEvent(env, order, { source: 'CASHFREE_WEBHOOK_DUPLICATE_PAID' });
         if (metaResult.attempted) {
           await recordOrderEvent(env, {

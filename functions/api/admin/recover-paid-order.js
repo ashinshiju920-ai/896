@@ -4,6 +4,7 @@
 import { getOrder, saveOrder, updateOrderStatus, recordOrderEvent } from '../../utils/db.js';
 import { provisionPortalAccessForPaidOrder, recoverProductFromCashfreeOrder } from '../../utils/portalBridge.js';
 import { getCorsHeaders, handleOptions } from '../../utils/cors.js';
+import { sendPurchaseThankYouEmail } from '../../utils/purchaseEmail.js';
 
 export async function onRequestOptions(context) {
   return handleOptions(context.request, context.env);
@@ -264,6 +265,10 @@ export async function onRequest(context) {
         source: 'ADMIN_RECOVER_ORDER',
       });
 
+      const emailResult = await sendPurchaseThankYouEmail(env, recoveredOrder, {
+        source: 'ADMIN_RECOVER_ORDER',
+      });
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -274,6 +279,7 @@ export async function onRequest(context) {
           customerEmail: customerDetails.customer_email,
           recoveredProduct: recoveredItem,
           bridgeResult,
+          emailResult,
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...cors } }
       );
