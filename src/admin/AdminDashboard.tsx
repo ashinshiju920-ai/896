@@ -18,6 +18,8 @@ import {
   Tag,
   ArrowDown,
   AlertCircle,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { Book, AnalyticsDateFilter, AnalyticsDashboardResponse } from '../types';
 import { AdminSection } from './AdminSidebar';
@@ -59,6 +61,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardResponse | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const fetchAnalytics = useCallback(async () => {
     setAnalyticsLoading(true);
@@ -178,6 +184,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleResetStoreData = async () => {
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const res = await fetch('/api/admin/reset-store-data', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: resetConfirmText.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || 'Reset failed. Please try again.');
+      }
+
+      setAnalyticsData(null);
+      setResetConfirmText('');
+      setResetModalOpen(false);
+      await fetchAnalytics();
+      onRefreshOrders();
+    } catch (err: any) {
+      setResetError(err?.message || 'Reset failed. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Welcome Banner */}
@@ -236,6 +269,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 ${analyticsLoading ? 'animate-spin text-emerald-600' : ''}`} />
               <span>Refresh</span>
+            </button>
+            <button
+              onClick={() => {
+                setResetError(null);
+                setResetConfirmText('');
+                setResetModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Stats & Orders</span>
             </button>
           </div>
         </div>
@@ -302,6 +346,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </p>
         )}
       </div>
+
+      {resetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Reset Stats & Orders?</h3>
+                  <p className="text-xs text-slate-500">This cannot be undone.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!resetLoading) setResetModalOpen(false);
+                }}
+                disabled={resetLoading}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-900 space-y-2">
+                <p className="font-bold">This will permanently clear:</p>
+                <p className="text-xs leading-relaxed">
+                  orders, order logs, entitlements/material access records, Meta purchase outbox records, purchase email sent markers, order claim records, and analytics/funnel stats.
+                </p>
+                <p className="text-xs font-semibold">Products, offers, customers, and site content will remain.</p>
+              </div>
+
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Type RESET to confirm
+                </span>
+                <input
+                  value={resetConfirmText}
+                  onChange={(e) => setResetConfirmText(e.target.value)}
+                  disabled={resetLoading}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                  placeholder="RESET"
+                />
+              </label>
+
+              {resetError && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-xs text-red-700">
+                  {resetError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <button
+                onClick={() => setResetModalOpen(false)}
+                disabled={resetLoading}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetStoreData}
+                disabled={resetLoading || resetConfirmText.trim() !== 'RESET'}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 disabled:cursor-not-allowed rounded-xl shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{resetLoading ? 'Resetting...' : 'Reset Everything'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error state */}
       {analyticsError && (
