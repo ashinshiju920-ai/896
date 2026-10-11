@@ -140,9 +140,11 @@ export const CheckoutView: React.FC = () => {
           ? currentIds.filter((id) => id !== addonId)
           : [...currentIds, addonId];
 
-        const displayCalc = calculateDisplayPrice(item.book, item.format, newAddonIds);
+        const liveBook = books.find((b) => b.id === (item.bookId || item.book?.id)) || item.book;
+        const displayCalc = calculateDisplayPrice(liveBook, item.format, newAddonIds);
         return {
           ...item,
+          book: liveBook,
           price: displayCalc.totalPrice,
           originalPrice: displayCalc.totalOriginalPrice,
           selectedAddonIds: newAddonIds,
@@ -154,10 +156,10 @@ export const CheckoutView: React.FC = () => {
 
   const handleUpdateQuantity = (itemIndex: number, delta: number) => {
     setCart((prevCart) => {
-      return prevCart.map((item, idx) => {
+      return prevCart.flatMap((item, idx) => {
         if (idx !== itemIndex) return item;
         const newQty = item.quantity + delta;
-        return newQty > 0 ? { ...item, quantity: newQty } : item;
+        return newQty > 0 ? [{ ...item, quantity: newQty }] : [];
       });
     });
   };
@@ -585,8 +587,8 @@ export const CheckoutView: React.FC = () => {
               {cart.map((item, itemIdx) => {
                 const liveBook = books.find((b) => b.id === (item.bookId || item.book?.id)) || item.book;
                 const availableAddons = getSelectableAddons(liveBook);
-                const baseDigitalPrice = Number(liveBook.prices?.digital?.price) || item.price;
-                const baseDigitalOriginalPrice = Number(liveBook.prices?.digital?.originalPrice) || item.originalPrice || baseDigitalPrice;
+                const finalUnitPrice = Number(item.price) || Number(liveBook.prices?.digital?.price) || 0;
+                const finalOriginalUnitPrice = Number(item.originalPrice) || finalUnitPrice;
                 const coverImg = getProductImage(liveBook);
 
                 return (
@@ -628,10 +630,9 @@ export const CheckoutView: React.FC = () => {
                           <div className="flex items-center bg-slate-100/90 rounded-lg p-0.5 border border-slate-200/80">
                             <button
                               type="button"
-                              aria-label="Decrease quantity"
-                              disabled={item.quantity <= 1}
+                              aria-label={item.quantity <= 1 ? `Remove ${liveBook.title}` : 'Decrease quantity'}
                               onClick={() => handleUpdateQuantity(itemIdx, -1)}
-                              className="w-7 h-7 rounded flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-white active:scale-95 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer disabled:cursor-not-allowed text-xs font-bold"
+                              className="w-7 h-7 rounded flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-white active:scale-95 transition-all cursor-pointer text-xs font-bold"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
@@ -660,14 +661,14 @@ export const CheckoutView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Base Product Price */}
+                      {/* Final Product Line Price */}
                       <div className="text-right shrink-0">
                         <div className="text-base sm:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                          ₹{baseDigitalPrice * item.quantity}
+                          ₹{finalUnitPrice * item.quantity}
                         </div>
-                        {baseDigitalOriginalPrice > baseDigitalPrice && (
+                        {finalOriginalUnitPrice > finalUnitPrice && (
                           <div className="text-xs text-slate-400 line-through">
-                            ₹{baseDigitalOriginalPrice * item.quantity}
+                            ₹{finalOriginalUnitPrice * item.quantity}
                           </div>
                         )}
                       </div>
