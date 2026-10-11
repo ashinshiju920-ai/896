@@ -179,7 +179,7 @@ export async function fetchCatalogFromCloud(): Promise<{
 
     if (res.ok) {
       const data = await res.json();
-      if (data.success && Array.isArray(data.books) && data.books.length > 0) {
+      if (data.success && Array.isArray(data.books)) {
         return {
           books: data.books,
           examPaths: Array.isArray(data.examPaths) ? data.examPaths : undefined,

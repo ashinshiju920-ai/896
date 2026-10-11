@@ -215,14 +215,7 @@ const normalizeBookAddons = (book: Book): Book => {
   };
 };
 
-const mergeWithBuiltInBooks = (sourceBooks: Book[]): Book[] => {
-  const normalizedSource = sourceBooks.map(normalizeBookAddons);
-  const sourceIds = new Set(normalizedSource.map((book) => book.id));
-  return [
-    ...normalizedSource,
-    ...BOOKS.filter((book) => !sourceIds.has(book.id)).map(normalizeBookAddons),
-  ];
-};
+const normalizeCatalogBooks = (sourceBooks: Book[]): Book[] => sourceBooks.map(normalizeBookAddons);
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
@@ -267,7 +260,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('xylem_books_data');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return mergeWithBuiltInBooks(parsed);
+        if (Array.isArray(parsed)) return normalizeCatalogBooks(parsed);
       }
     } catch (e) {
       console.error('Failed to load books from storage:', e);
@@ -428,12 +421,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 2. Fetch full updated catalog
       const remote = await fetchCatalogFromCloud();
-      if (remote && Array.isArray(remote.books) && remote.books.length > 0) {
+      if (remote && Array.isArray(remote.books)) {
         const remoteVersion = Number(remote.version) || Math.floor(Date.now() / 1000);
-        const mergedBooks = mergeWithBuiltInBooks(remote.books);
+        const confirmedBooks = normalizeCatalogBooks(remote.books);
         if (force || remoteVersion > localCatalogVersionRef.current) {
           localCatalogVersionRef.current = remoteVersion;
-          setBooks(mergedBooks);
+          setBooks(confirmedBooks);
           if (Array.isArray(remote.examPaths)) {
             setExamPaths(remote.examPaths);
             try {
@@ -462,11 +455,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           setLastCloudSync(new Date());
           try {
-            localStorage.setItem('xylem_books_data', JSON.stringify(mergedBooks));
+            localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
             localStorage.setItem('xylem_books_version', String(remoteVersion));
           } catch {}
         }
-        return mergedBooks;
+        return confirmedBooks;
       }
       return null;
     } catch (err) {
@@ -490,7 +483,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const unsubscribe = subscribeToRealtimeBroadcast((newBooks, version, newPaths, newTestis, newBanner, newSpotlight) => {
-      const mergedBooks = mergeWithBuiltInBooks(newBooks);
+      const mergedBooks = normalizeCatalogBooks(newBooks);
       localCatalogVersionRef.current = version;
       setBooks(mergedBooks);
       if (newPaths && Array.isArray(newPaths)) {
@@ -1125,7 +1118,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = [normalizeBookAddons(newBook), ...books.map(normalizeBookAddons)];
     const res = await triggerCloudSync(updated);
     if (res.success) {
-      const confirmedBooks = Array.isArray(res.books) ? mergeWithBuiltInBooks(res.books) : updated;
+      const confirmedBooks = Array.isArray(res.books) ? normalizeCatalogBooks(res.books) : updated;
       setBooks(confirmedBooks);
       try {
         localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
@@ -1142,7 +1135,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const next = books.map((b) => normalizeBookAddons(b.id === id ? { ...b, ...updated } : b));
     const res = await triggerCloudSync(next);
     if (res.success) {
-      const confirmedBooks = Array.isArray(res.books) ? mergeWithBuiltInBooks(res.books) : next;
+      const confirmedBooks = Array.isArray(res.books) ? normalizeCatalogBooks(res.books) : next;
       setBooks(confirmedBooks);
       try {
         localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
@@ -1159,7 +1152,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const next = books.filter((b) => b.id !== id);
     const res = await triggerCloudSync(next);
     if (res.success) {
-      const confirmedBooks = Array.isArray(res.books) ? res.books : next;
+      const confirmedBooks = Array.isArray(res.books) ? normalizeCatalogBooks(res.books) : next;
       setBooks(confirmedBooks);
       try {
         localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));

@@ -20,7 +20,7 @@ interface ProductsPageProps {
   books: Book[];
   onOpenNewProduct: () => void;
   onOpenEditProduct: (book: Book) => void;
-  onDeleteProduct: (bookId: string) => void;
+  onDeleteProduct: (bookId: string) => Promise<boolean>;
   onNavigateToReorder: () => void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
@@ -36,6 +36,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<ExamCategory | 'All'>('All');
   const [productToDelete, setProductToDelete] = useState<Book | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   const { setPaperbackGlobally } = useShop();
   const [globalPaperbackModalOpen, setGlobalPaperbackModalOpen] = useState(false);
@@ -79,11 +80,19 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
     return matchesCategory && matchesSearch;
   });
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!productToDelete) return;
-    onDeleteProduct(productToDelete.id);
-    showToast(`Deleted "${productToDelete.title}" from catalog`, 'info');
-    setProductToDelete(null);
+    setIsDeletingProduct(true);
+    try {
+      const deleted = await onDeleteProduct(productToDelete.id);
+      if (deleted) {
+        setProductToDelete(null);
+      } else {
+        showToast(`Could not delete "${productToDelete.title}". Please try again.`, 'warning');
+      }
+    } finally {
+      setIsDeletingProduct(false);
+    }
   };
 
   return (
@@ -273,11 +282,14 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({
         isOpen={Boolean(productToDelete)}
         title="Delete Study Material?"
         message={`Are you sure you want to delete "${productToDelete?.title}" from the store catalog? This will remove the guide, its images, and study curriculum from the live storefront. This action cannot be undone.`}
-        confirmLabel="Yes, Delete Product"
+        confirmLabel={isDeletingProduct ? 'Deleting Product...' : 'Yes, Delete Product'}
         cancelLabel="Keep Product"
         isDanger={true}
+        isLoading={isDeletingProduct}
         onConfirm={confirmDelete}
-        onCancel={() => setProductToDelete(null)}
+        onCancel={() => {
+          if (!isDeletingProduct) setProductToDelete(null);
+        }}
       />
 
       {/* Global Paperback Batch Confirmation Modal */}
