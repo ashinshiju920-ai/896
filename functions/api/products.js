@@ -194,6 +194,7 @@ function sanitizeProduct(raw) {
 
     cleanAddons.push({
       id: normId,
+      addOnId: normId,
       name,
       subtitle,
       description,
@@ -214,6 +215,7 @@ function sanitizeProduct(raw) {
     finalAddons = [
       {
         id: 'digital',
+        addOnId: 'digital',
         name: 'Digital (PDF)',
         subtitle: 'Instant Download',
         description: 'Instant Download',
@@ -225,6 +227,7 @@ function sanitizeProduct(raw) {
       },
       {
         id: 'physical',
+        addOnId: 'physical',
         name: 'Physical (Printed)',
         subtitle: 'Delivered in 3-5 days',
         description: 'Delivered in 3-5 days',
@@ -321,6 +324,7 @@ function sanitizeProduct(raw) {
     addons,
     addOns: addons,
     buy2Get3rdFree: Boolean(raw.buy2Get3rdFree),
+    addonDealText: sanitizeString(raw.addonDealText, 200),
     reviews,
     order: sanitizeNumber(raw.order, 0, 1000, 0),
   };
@@ -649,7 +653,9 @@ export async function onRequestPost(context) {
         }
       : undefined;
 
-    const timestamp = Math.round(Date.now() / 1000);
+    const previousVersion = Number(currentCatalog?.version || 0);
+    const nowVersion = Date.now();
+    const timestamp = Math.max(nowVersion, previousVersion + 1);
     const updatedCatalog = {
       version: timestamp,
       updatedAt: new Date().toISOString(),

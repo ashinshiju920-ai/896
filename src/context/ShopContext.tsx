@@ -168,11 +168,59 @@ const defaultShipping: ShippingInfo = {
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
+const normalizeBookAddons = (book: Book): Book => {
+  const rawAddons = Array.isArray(book.addOns)
+    ? book.addOns
+    : (Array.isArray(book.addons) ? book.addons : []);
+
+  if (!Array.isArray(rawAddons)) {
+    return { ...book, addOns: [], addons: [] };
+  }
+
+  const seenIds = new Set<string>();
+  const normalized = rawAddons
+    .filter((addon) => addon && typeof addon === 'object')
+    .map((addon) => {
+      const rawId = String(addon.id || addon.addOnId || '').trim();
+      const id = rawId === 'addon_digital' ? 'digital' : (rawId === 'addon_physical' ? 'physical' : rawId);
+      if (!id || seenIds.has(id)) return null;
+      seenIds.add(id);
+
+      const price = Number(addon.price);
+      const pricePaise = Number(addon.pricePaise);
+      const resolvedPrice = Number.isFinite(price) && price >= 0
+        ? price
+        : (Number.isFinite(pricePaise) && pricePaise >= 0 ? Math.round(pricePaise / 100) : 0);
+
+      return {
+        ...addon,
+        id,
+        addOnId: id,
+        name: addon.name || (id === 'physical' ? 'Physical (Printed)' : (id === 'digital' ? 'Digital (PDF)' : 'Optional Study Material')),
+        description: addon.description || addon.subtitle || '',
+        subtitle: addon.subtitle || addon.description || '',
+        price: resolvedPrice,
+        pricePaise: Number.isFinite(pricePaise) && pricePaise >= 0 ? Math.round(pricePaise) : Math.round(resolvedPrice * 100),
+        originalPrice: Number(addon.originalPrice) || resolvedPrice,
+        active: addon.active !== false,
+        deliveryOption: addon.deliveryOption || (id === 'physical' ? 'physical' : 'digital'),
+      };
+    })
+    .filter(Boolean) as Book['addOns'];
+
+  return {
+    ...book,
+    addOns: normalized,
+    addons: normalized,
+  };
+};
+
 const mergeWithBuiltInBooks = (sourceBooks: Book[]): Book[] => {
-  const sourceIds = new Set(sourceBooks.map((book) => book.id));
+  const normalizedSource = sourceBooks.map(normalizeBookAddons);
+  const sourceIds = new Set(normalizedSource.map((book) => book.id));
   return [
-    ...sourceBooks,
-    ...BOOKS.filter((book) => !sourceIds.has(book.id)),
+    ...normalizedSource,
+    ...BOOKS.filter((book) => !sourceIds.has(book.id)).map(normalizeBookAddons),
   ];
 };
 
@@ -1074,10 +1122,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addBook = async (newBook: Book): Promise<boolean> => {
-    const updated = [newBook, ...books];
+    const updated = [normalizeBookAddons(newBook), ...books.map(normalizeBookAddons)];
     const res = await triggerCloudSync(updated);
     if (res.success) {
-      const confirmedBooks = Array.isArray(res.books) ? res.books : updated;
+      const confirmedBooks = Array.isArray(res.books) ? mergeWithBuiltInBooks(res.books) : updated;
       setBooks(confirmedBooks);
       try {
         localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
@@ -1091,10 +1139,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateBook = async (id: string, updated: Partial<Book>): Promise<boolean> => {
-    const next = books.map((b) => (b.id === id ? { ...b, ...updated } : b));
+    const next = books.map((b) => normalizeBookAddons(b.id === id ? { ...b, ...updated } : b));
     const res = await triggerCloudSync(next);
     if (res.success) {
-      const confirmedBooks = Array.isArray(res.books) ? res.books : next;
+      const confirmedBooks = Array.isArray(res.books) ? mergeWithBuiltInBooks(res.books) : next;
       setBooks(confirmedBooks);
       try {
         localStorage.setItem('xylem_books_data', JSON.stringify(confirmedBooks));
