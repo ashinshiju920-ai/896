@@ -1179,7 +1179,7 @@ export const CheckoutView: React.FC = () => {
                           <div className="flex items-center justify-between text-[9px] font-bold text-white/80 uppercase tracking-wider">
                             <span className="flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                              XYLEM
+                              AYLEM LEARNING
                             </span>
                             <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
                               {product.category}
@@ -1307,7 +1307,7 @@ export const CheckoutView: React.FC = () => {
                             <div className="flex items-center justify-between text-[8px] font-bold text-white/80 uppercase tracking-wider">
                               <span className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                XYLEM
+                                AYLEM LEARNING
                               </span>
                               <span className="px-1.5 py-0.5 rounded bg-white/15 text-[8px] font-extrabold text-white">
                                 {product.category}

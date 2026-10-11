@@ -424,14 +424,24 @@ export const HomeView: React.FC = () => {
             </div>
           ))}
         </div>
+
+        <div className="flex justify-center mt-8 sm:mt-10">
+          <button
+            onClick={() => navigateToCatalog('All')}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#00875a] px-6 py-3 text-sm sm:text-base font-bold text-white shadow-md shadow-emerald-900/10 transition-all hover:bg-[#00734c] hover:shadow-lg active:scale-95 font-['Plus_Jakarta_Sans',sans-serif]"
+          >
+            <span>Explore More Study Books</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </section>
 
 
-      {/* 5. WHY XYLEM LEARNING (Image 5) */}
+      {/* 5. Why Aylem Learning */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <span className="text-xs font-semibold tracking-widest uppercase text-emerald-700 block mb-1 font-['DM_Sans',sans-serif]">
-            WHY XYLEM LEARNING
+            WHY AYLEM LEARNING
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
             More Than Just Books. A Complete Learning Partner.
