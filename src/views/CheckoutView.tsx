@@ -10,7 +10,6 @@ import {
   Shield,
   Headphones,
   Search,
-  User,
   ShoppingBag,
   Loader2,
   Plus,
@@ -468,14 +467,6 @@ export const CheckoutView: React.FC = () => {
               <Search className="w-5 h-5" />
             </button>
             <Link
-              to="/orders"
-              className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors cursor-pointer"
-              title="My Account"
-              aria-label="Account"
-            >
-              <User className="w-5 h-5" />
-            </Link>
-            <Link
               to="/cart"
               className="relative w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors cursor-pointer"
               title="Shopping Cart"
@@ -864,25 +855,29 @@ export const CheckoutView: React.FC = () => {
               </div>
 
               {/* Your Purchase Includes Card (Desktop view) */}
-              <div className="hidden lg:block bg-[#eef9f5] border border-emerald-100 rounded-2xl p-4 text-left space-y-2">
-                <div className="flex items-center gap-2 text-slate-900 font-bold text-xs sm:text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Your purchase includes</span>
+              <div className="hidden lg:block rounded-lg border border-emerald-200 bg-white p-4 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-extrabold text-slate-950">Your purchase includes</h3>
+                    <div className="mt-3 grid gap-2">
+                      <div className="flex items-center gap-2 text-xs text-slate-700">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>Redirect to student portal after payment</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-700">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>Materials available inside the portal</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-700">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>Secure encrypted payment</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <ul className="text-xs text-slate-600 space-y-1.5 pl-6 list-none">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Redirects to student portal after payment</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Access materials inside the student portal</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Secure and encrypted payment</span>
-                  </li>
-                </ul>
               </div>
 
               {/* Descriptive Heading */}
@@ -936,25 +931,29 @@ export const CheckoutView: React.FC = () => {
               </div>
 
               {/* Your Purchase Includes Card (Mobile view) */}
-              <div className="block lg:hidden bg-[#eef9f5] border border-emerald-100 rounded-2xl p-4 text-left space-y-2 mt-3">
-                <div className="flex items-center gap-2 text-slate-900 font-bold text-xs sm:text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Your purchase includes</span>
+              <div className="block lg:hidden rounded-lg border border-emerald-200 bg-white p-4 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] mt-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-extrabold text-slate-950">Your purchase includes</h3>
+                    <div className="mt-3 grid gap-2">
+                      <div className="flex items-center gap-2 text-xs text-slate-700">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>Redirect to student portal after payment</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-700">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>Materials available inside the portal</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-700">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>Secure encrypted payment</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <ul className="text-xs text-slate-600 space-y-1.5 pl-6 list-none">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Redirects to student portal after payment</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Access materials inside the student portal</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Secure and encrypted payment</span>
-                  </li>
-                </ul>
               </div>
 
               {/* Bottom Security Card (Desktop view) */}
