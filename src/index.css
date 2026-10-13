@@ -190,17 +190,39 @@
   }
 }
 
-@keyframes course-plane-fly {
+@keyframes course-plane-glide {
   0% {
-    transform: translate(-18px, -50%) rotate(45deg);
+    left: -65px;
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  97% {
+    left: calc(100% + 15px);
+    opacity: 0;
   }
   100% {
-    transform: translate(calc(var(--course-plane-track-width, 42vw) + 18px), -50%) rotate(45deg);
+    left: calc(100% + 15px);
+    opacity: 0;
   }
 }
 
-.course-plane-track {
-  --course-plane-track-width: min(58vw, 620px);
+.course-plane-runner {
+  animation: course-plane-glide 3.6s linear infinite;
+  will-change: left, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .course-plane-runner {
+    animation: none !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    opacity: 1 !important;
+  }
 }
 
 .animate-whatsapp-float {

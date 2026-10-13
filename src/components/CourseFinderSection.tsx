@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Plane, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles, Star } from 'lucide-react';
 import { BookCover } from './BookCover';
 import { Book, BookFormat, ExamCategory, HomeSpotlightConfig } from '../types';
 
@@ -115,9 +115,20 @@ export const CourseFinderSection: React.FC<CourseFinderSectionProps> = ({
               <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">COK</div>
               <div className="mt-1 text-xs font-medium">Kerala</div>
             </div>
-            <div className="course-plane-track relative min-w-12 flex-1 overflow-hidden text-yellow-300">
-              <span className="block h-px w-full border-t border-dashed border-white/60" />
-              <Plane className="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rotate-45 fill-yellow-300 shrink-0 animate-[course-plane-fly_1.25s_linear_infinite]" />
+            <div className="course-plane-track relative mx-2 sm:mx-4 flex-1 h-7 sm:h-8 min-w-16 flex items-center overflow-hidden">
+              <span className="block h-px w-full border-t border-dashed border-white/50" />
+              <div className="course-plane-runner absolute top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10">
+                {/* Glowing jet contrail vapor behind tail */}
+                <span className="h-[2px] w-6 sm:w-10 bg-gradient-to-l from-yellow-300/80 via-yellow-300/30 to-transparent -mr-1 rounded-full" />
+                {/* Authentic commercial airliner silhouette - forward heading East */}
+                <svg
+                  className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-300 fill-current drop-shadow-[0_0_8px_rgba(253,224,71,0.65)] shrink-0"
+                  viewBox="0 0 576 512"
+                  aria-hidden="true"
+                >
+                  <path d="M482.3 192c34.2 0 93.7 29 93.7 64 0 36-59.5 64-93.7 64l-116.6 0-149.2 165.9c-7.4 8.3-18.1 13.1-29.3 13.1l-34.6 0c-8.6 0-15.1-7.7-13.7-16.2l30.9-182.8-105.1 0-38.3 47.9c-4.4 5.5-11.1 8.7-18.2 8.7L2.7 356.6c-4.2 0-7.3-4.1-6.1-8.1l20.4-68.5-20.4-68.5c-1.2-4 1.9-8.1 6.1-8.1l10.4 0c7.1 0 13.8 3.2 18.2 8.7l38.3 47.9 105.1 0-30.9-182.8c-1.4-8.5 5.1-16.2 13.7-16.2l34.6 0c11.2 0 21.9 4.8 29.3 13.1L365.7 192l116.6 0z" />
+                </svg>
+              </div>
             </div>
             <div className="min-w-0 text-right">
               <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">{destination?.code || '...'}</div>
