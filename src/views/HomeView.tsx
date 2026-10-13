@@ -16,6 +16,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
 import { HeroBookShowcase } from '../components/HeroBookShowcase';
+import { BuyNowLottieAccent } from '../components/BuyNowLottieAccent';
 import {
   getExamImageSrcSet,
   getHeroBannerImageUrl,
@@ -420,13 +421,16 @@ export const HomeView: React.FC = () => {
                   </span>
                 </div>
 
-                <button
-                  id={`buy-now-${book.id}`}
-                  onClick={() => buyNow(book, 'digital')}
-                  className="w-full py-2 sm:py-2.5 px-2 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif] whitespace-nowrap"
-                >
-                  <span>Buy Now • ₹{book.prices?.digital?.price ?? 199}</span>
-                </button>
+                <div className="relative">
+                  <button
+                    id={`buy-now-${book.id}`}
+                    onClick={() => buyNow(book, 'digital')}
+                    className="w-full py-2 sm:py-2.5 px-2 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif] whitespace-nowrap"
+                  >
+                    <span>Buy Now • ₹{book.prices?.digital?.price ?? 199}</span>
+                  </button>
+                  <BuyNowLottieAccent />
+                </div>
               </div>
             </div>
           ))}
