@@ -10,8 +10,11 @@ import {
   RotateCcw,
   Server,
   Lock,
+  Palette,
 } from 'lucide-react';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { ThemePage } from './ThemePage';
+
 
 interface SettingsPageProps {
   isCloudSyncing: boolean;
@@ -32,6 +35,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'infra' | 'theme'>('infra');
+
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -57,15 +62,48 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="pb-4 border-b border-slate-200">
-        <h2 className="text-xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
-          System Infrastructure & Cloud Settings
-        </h2>
-        <p className="text-xs text-slate-500">
-          Monitor Cloudflare Edge functions, database bindings, media synchronization, and security controls.
-        </p>
+      <div className="pb-4 border-b border-slate-200 flex flex-col gap-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
+            Settings
+          </h2>
+          <p className="text-xs text-slate-500">
+            Manage storefront colours, Cloudflare sync, infrastructure, and security controls.
+          </p>
+        </div>
+
+        <div className="inline-flex w-fit rounded-2xl border border-slate-200 bg-white p-1 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab('infra')}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'infra'
+                ? 'bg-[#00875a] text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            Cloud
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('theme')}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'theme'
+                ? 'bg-[#00875a] text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5" />
+            Theme Colours
+          </button>
+        </div>
       </div>
 
+      {activeTab === 'theme' ? (
+        <ThemePage showToast={showToast} />
+      ) : (
+        <>
       {/* Cloud Sync Status Card */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 space-y-6">
         <div className="flex items-center justify-between">
@@ -257,6 +295,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }}
         onCancel={() => setShowResetModal(false)}
       />
+        </>
+      )}
     </div>
   );
 };
