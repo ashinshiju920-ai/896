@@ -18,7 +18,7 @@ export const COURSE_FINDER_DESTINATIONS: Destination[] = [
   { code: 'JFK', title: 'USA & Canada', courses: ['IELTS', 'PTE', 'OET', 'Not sure yet'] },
   { code: 'SYD', title: 'Australia & NZ', courses: ['PTE', 'IELTS', 'OET', 'Not sure yet'] },
   { code: 'FRA', title: 'Germany', courses: ['German', 'IELTS', 'Not sure yet'] },
-  { code: 'COK', title: 'Career in Kerala', courses: ['IELTS', 'OET', 'PTE', 'German', 'Not sure yet'] },
+  { code: 'COK', title: 'Mock Test', courses: ['CBT'] },
 ];
 
 export const COURSE_FINDER_COURSES: CourseCode[] = ['IELTS', 'OET', 'PTE', 'German', 'CBT', 'Not sure yet'];
@@ -37,6 +37,16 @@ const courseToCategory: Partial<Record<CourseCode, ExamCategory>> = {
   OET: 'OET',
   PTE: 'PTE',
   German: 'German',
+};
+
+const getMockTestProduct = (books: Book[]) => {
+  const published = books.filter((book) => book.active !== false);
+  return (
+    published.find((book) => book.title.toLowerCase().includes('mock test engine')) ||
+    published.find((book) => book.id.includes('practice-tests')) ||
+    published.find((book) => book.category === 'Mock Test' || book.type === 'Mock Tests') ||
+    published[0]
+  );
 };
 
 interface CourseFinderSectionProps {
@@ -138,6 +148,11 @@ export const CourseFinderSection: React.FC<CourseFinderSectionProps> = ({
                     key={item.code}
                     type="button"
                     onClick={() => {
+                      if (item.code === 'COK') {
+                        const mockTestProduct = getMockTestProduct(books);
+                        if (mockTestProduct) navigateToProduct(mockTestProduct.id);
+                        return;
+                      }
                       setDestination(item);
                       setCourse(null);
                     }}

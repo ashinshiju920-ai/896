@@ -250,6 +250,9 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
 
         <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4">
           <p className="text-xs font-bold text-blue-900">Destination logic</p>
+          <p className="mt-1 text-[11px] text-blue-700">
+            COK Mock Test opens the mock-test product directly.
+          </p>
           <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px] text-blue-700">
             {COURSE_FINDER_DESTINATIONS.map((destination) => (
               <div key={destination.code}>
