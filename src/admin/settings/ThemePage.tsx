@@ -1,21 +1,34 @@
 ﻿import React, { useState, useCallback } from "react";
-import { Palette, RotateCcw, Save, CheckCircle2, Loader2, Zap, Eye } from "lucide-react";
+import { Palette, RotateCcw, Save, CheckCircle2, Loader2, Zap, Eye, Undo2 } from "lucide-react";
 import { useTheme, ThemeConfig, DEFAULT_THEME } from "../../context/ThemeContext";
 
 // ─── Preset Palettes ──────────────────────────────────────────────────────────
 
-const PRESETS: { label: string; primary: string; bg: string }[] = [
-  { label: "Emerald (Default)", primary: "#00875a", bg: "#f8fafc" },
-  { label: "Ocean Blue",        primary: "#0070f3", bg: "#f0f6ff" },
-  { label: "Royal Purple",      primary: "#7c3aed", bg: "#faf5ff" },
-  { label: "Crimson Red",       primary: "#dc2626", bg: "#fff5f5" },
-  { label: "Amber Gold",        primary: "#d97706", bg: "#fffbeb" },
-  { label: "Rose Pink",         primary: "#e11d48", bg: "#fff1f2" },
-  { label: "Teal",              primary: "#0891b2", bg: "#f0fdfe" },
-  { label: "Slate Dark",        primary: "#334155", bg: "#f1f5f9" },
-  { label: "Indigo",            primary: "#4f46e5", bg: "#eef2ff" },
-  { label: "Forest Green",      primary: "#15803d", bg: "#f0fdf4" },
+const PRESETS: Array<{ label: string; theme: ThemeConfig }> = [
+  { label: "Emerald Default", theme: DEFAULT_THEME },
+  {
+    label: "Ocean Blue",
+    theme: { ...DEFAULT_THEME, primaryColor: "#0070f3", secondaryColor: "#082f49", pageBgColor: "#f0f6ff", footerBgColor: "#082f49", textColor: "#0f2747" },
+  },
+  {
+    label: "Royal Purple",
+    theme: { ...DEFAULT_THEME, primaryColor: "#7c3aed", secondaryColor: "#2e1065", pageBgColor: "#faf5ff", footerBgColor: "#24104f", textColor: "#2e1065" },
+  },
+  {
+    label: "Crimson",
+    theme: { ...DEFAULT_THEME, primaryColor: "#dc2626", secondaryColor: "#3f1111", pageBgColor: "#fff5f5", footerBgColor: "#3f1111", textColor: "#391515" },
+  },
+  {
+    label: "Amber Gold",
+    theme: { ...DEFAULT_THEME, primaryColor: "#d97706", secondaryColor: "#2f2411", pageBgColor: "#fffbeb", footerBgColor: "#2f2411", textColor: "#2f2411" },
+  },
+  {
+    label: "Slate Premium",
+    theme: { ...DEFAULT_THEME, primaryColor: "#334155", secondaryColor: "#0f172a", pageBgColor: "#f1f5f9", footerBgColor: "#0f172a", textColor: "#0f172a" },
+  },
 ];
+
+const THEME_HISTORY_LIMIT = 30;
 
 // ─── Swatch ───────────────────────────────────────────────────────────────────
 
@@ -37,52 +50,82 @@ const Swatch: React.FC<{
 
 // ─── LivePreview ──────────────────────────────────────────────────────────────
 
-const LivePreview: React.FC<{ primary: string; bg: string }> = ({ primary, bg }) => {
-  // Darken primary for hover simulation
-  const darken = (hex: string, a = 18) => {
-    const c = hex.replace("#", "");
-    const n = parseInt(c, 16);
-    const r = Math.max(0, (n >> 16) - a);
-    const g = Math.max(0, ((n >> 8) & 0xff) - a);
-    const b = Math.max(0, (n & 0xff) - a);
-    return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
-  };
-  const dark = darken(primary, 20);
+const ColorControl: React.FC<{
+  label: string;
+  description: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ label, description, value, onChange }) => (
+  <div className="flex items-start justify-between gap-4">
+    <div>
+      <label className="text-xs font-bold text-slate-800 block">{label}</label>
+      <p className="text-[11px] text-slate-400">{description}</p>
+    </div>
+    <div className="flex items-center gap-2 shrink-0">
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer p-0.5"
+        title={`Pick ${label}`}
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const next = e.target.value.trim();
+          if (/^#[0-9a-fA-F]{6}$/.test(next)) onChange(next);
+        }}
+        maxLength={7}
+        className="w-24 px-2 py-1.5 text-xs font-mono rounded-xl border border-slate-300 bg-slate-50 focus:bg-white text-center uppercase"
+      />
+    </div>
+  </div>
+);
+
+const LivePreview: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
+  const { primaryColor, pageBgColor, cardBgColor, headerBgColor, footerBgColor, textColor, buttonTextColor } = theme;
 
   return (
     <div
-      className="rounded-2xl border border-slate-200 p-4 space-y-3 transition-all duration-300"
-      style={{ backgroundColor: bg }}
+      className="rounded-2xl border border-slate-200 overflow-hidden transition-all duration-300"
+      style={{ backgroundColor: pageBgColor }}
     >
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200" style={{ backgroundColor: headerBgColor }}>
+        <span className="text-xs font-black" style={{ color: textColor }}>Aylem Store</span>
+        <span className="text-[10px] font-bold" style={{ color: primaryColor }}>Books</span>
+      </div>
+
+      <div className="p-4 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <Eye className="w-3.5 h-3.5 text-slate-400" />
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Live Preview</span>
       </div>
 
       {/* Simulated product card */}
-      <div className="bg-white rounded-xl border border-slate-100 p-3 space-y-2 shadow-xs">
+      <div className="rounded-xl border border-slate-100 p-3 space-y-2 shadow-xs" style={{ backgroundColor: cardBgColor }}>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: primary + "20" }}>
+          <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: primaryColor + "20" }}>
             <div className="w-full h-full rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: primary }} />
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: primaryColor }} />
             </div>
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-900">IELTS Band 8 Guide</div>
-            <div className="text-[10px]" style={{ color: primary }}>IELTS · Study Guide</div>
+            <div className="text-xs font-bold" style={{ color: textColor }}>IELTS Band 8 Guide</div>
+            <div className="text-[10px]" style={{ color: primaryColor }}>IELTS Study Guide</div>
           </div>
         </div>
         <div className="h-px bg-slate-100" />
         <div className="flex gap-2">
           <button
-            className="flex-1 py-1.5 rounded-lg text-white text-[11px] font-bold transition-all"
-            style={{ backgroundColor: primary }}
+            className="flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+            style={{ backgroundColor: primaryColor, color: buttonTextColor }}
           >
             Buy Now
           </button>
           <button
             className="px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all"
-            style={{ borderColor: primary, color: primary }}
+            style={{ borderColor: primaryColor, color: primaryColor }}
           >
             Preview
           </button>
@@ -91,17 +134,22 @@ const LivePreview: React.FC<{ primary: string; bg: string }> = ({ primary, bg })
 
       {/* Simulated nav link */}
       <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: primary }} />
-        <span className="text-[11px] font-semibold" style={{ color: primary }}>View all IELTS products →</span>
+        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+        <span className="text-[11px] font-semibold" style={{ color: primaryColor }}>View all IELTS products</span>
       </div>
 
       {/* Simulated badge */}
       <div
         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold"
-        style={{ backgroundColor: primary + "15", color: primary }}
+        style={{ backgroundColor: primaryColor + "15", color: primaryColor }}
       >
         <Zap className="w-3 h-3" />
         Best Seller
+      </div>
+      </div>
+
+      <div className="px-4 py-3 text-[10px] font-bold" style={{ backgroundColor: footerBgColor, color: buttonTextColor }}>
+        Footer and dark sections use this colour
       </div>
     </div>
   );
@@ -118,15 +166,29 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
 
   // Local draft — applied live to DOM via setTheme, saved on Save button
   const [draft, setDraft] = useState<ThemeConfig>({ ...theme });
+  const [history, setHistory] = useState<ThemeConfig[]>([]);
   const [justSaved, setJustSaved] = useState(false);
 
-  const applyDraft = useCallback((next: ThemeConfig) => {
+  const applyDraft = useCallback((next: ThemeConfig, options: { remember?: boolean } = {}) => {
+    const { remember = true } = options;
+    if (remember && JSON.stringify(next) !== JSON.stringify(draft)) {
+      setHistory((prev) => [...prev.slice(-(THEME_HISTORY_LIMIT - 1)), draft]);
+    }
     setDraft(next);
     setTheme(next); // immediate live preview
-  }, [setTheme]);
+  }, [draft, setTheme]);
+
+  const handleUndo = () => {
+    const previous = history[history.length - 1];
+    if (!previous) return;
+    setHistory((prev) => prev.slice(0, -1));
+    applyDraft(previous, { remember: false });
+    showToast("Theme change undone", "info");
+  };
 
   const handleSave = async () => {
     await saveTheme(draft);
+    setHistory([]);
     setJustSaved(true);
     showToast("Theme saved and synced across all tabs!", "success");
     setTimeout(() => setJustSaved(false), 2500);
@@ -134,13 +196,15 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
 
   const handleReset = () => {
     const def = { ...DEFAULT_THEME };
+    setHistory((prev) => [...prev.slice(-(THEME_HISTORY_LIMIT - 1)), draft]);
     setDraft(def);
     resetTheme();
     showToast("Theme reset to default emerald palette", "info");
   };
 
-  const isDirty =
-    draft.primaryColor !== theme.primaryColor || draft.pageBgColor !== theme.pageBgColor;
+  const isDirty = Object.keys(DEFAULT_THEME).some((key) => (
+    draft[key as keyof ThemeConfig] !== theme[key as keyof ThemeConfig]
+  ));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -156,6 +220,15 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+            title="Undo last theme colour change"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+            Undo
+          </button>
           <button
             onClick={handleReset}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
@@ -194,19 +267,20 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
               {PRESETS.map((p) => (
                 <button
                   key={p.label}
-                  onClick={() => applyDraft({ primaryColor: p.primary, pageBgColor: p.bg })}
+                  onClick={() => applyDraft({ ...p.theme })}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all cursor-pointer text-left ${
-                    draft.primaryColor === p.primary && draft.pageBgColor === p.bg
+                    draft.primaryColor === p.theme.primaryColor && draft.pageBgColor === p.theme.pageBgColor
                       ? "border-slate-400 bg-slate-50 shadow-xs"
                       : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
                   }`}
                 >
                   <div className="flex gap-1.5 shrink-0">
-                    <div className="w-5 h-5 rounded-md border border-white/50 shadow-xs" style={{ backgroundColor: p.primary }} />
-                    <div className="w-5 h-5 rounded-md border border-slate-200" style={{ backgroundColor: p.bg }} />
+                    <div className="w-5 h-5 rounded-md border border-white/50 shadow-xs" style={{ backgroundColor: p.theme.primaryColor }} />
+                    <div className="w-5 h-5 rounded-md border border-white/50 shadow-xs" style={{ backgroundColor: p.theme.secondaryColor }} />
+                    <div className="w-5 h-5 rounded-md border border-slate-200" style={{ backgroundColor: p.theme.pageBgColor }} />
                   </div>
                   <span className="text-xs font-semibold text-slate-700 truncate">{p.label}</span>
-                  {draft.primaryColor === p.primary && draft.pageBgColor === p.bg && (
+                  {draft.primaryColor === p.theme.primaryColor && draft.pageBgColor === p.theme.pageBgColor && (
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 ml-auto shrink-0" />
                   )}
                 </button>
@@ -220,34 +294,13 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
               Custom Colours
             </h3>
 
-            {/* Primary Button / Brand Color */}
             <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <label className="text-xs font-bold text-slate-800 block">Primary / Button Colour</label>
-                  <p className="text-[11px] text-slate-400">Used on all CTA buttons, links, badges, and accents</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={draft.primaryColor}
-                    onChange={(e) => applyDraft({ ...draft, primaryColor: e.target.value })}
-                    className="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer p-0.5"
-                    title="Pick primary color"
-                  />
-                  <input
-                    type="text"
-                    value={draft.primaryColor}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (/^#[0-9a-fA-F]{0,6}$/.test(v)) applyDraft({ ...draft, primaryColor: v });
-                    }}
-                    maxLength={7}
-                    className="w-24 px-2 py-1.5 text-xs font-mono rounded-xl border border-slate-300 bg-slate-50 focus:bg-white text-center uppercase"
-                    placeholder="#00875a"
-                  />
-                </div>
-              </div>
+              <ColorControl
+                label="Primary / Button Colour"
+                description="Buy Now, checkout buttons, active links, badges, and accents"
+                value={draft.primaryColor}
+                onChange={(primaryColor) => applyDraft({ ...draft, primaryColor })}
+              />
 
               {/* Quick Swatches: Primary */}
               <div className="flex flex-wrap gap-2">
@@ -265,34 +318,13 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
 
             <div className="h-px bg-slate-100" />
 
-            {/* Page Background Color */}
             <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <label className="text-xs font-bold text-slate-800 block">Page Background Colour</label>
-                  <p className="text-[11px] text-slate-400">Applied to the entire storefront body background</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={draft.pageBgColor}
-                    onChange={(e) => applyDraft({ ...draft, pageBgColor: e.target.value })}
-                    className="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer p-0.5"
-                    title="Pick background color"
-                  />
-                  <input
-                    type="text"
-                    value={draft.pageBgColor}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (/^#[0-9a-fA-F]{0,6}$/.test(v)) applyDraft({ ...draft, pageBgColor: v });
-                    }}
-                    maxLength={7}
-                    className="w-24 px-2 py-1.5 text-xs font-mono rounded-xl border border-slate-300 bg-slate-50 focus:bg-white text-center uppercase"
-                    placeholder="#f8fafc"
-                  />
-                </div>
-              </div>
+              <ColorControl
+                label="Page Background Colour"
+                description="Overall storefront background behind sections and product grids"
+                value={draft.pageBgColor}
+                onChange={(pageBgColor) => applyDraft({ ...draft, pageBgColor })}
+              />
 
               {/* Quick Swatches: Background */}
               <div className="flex flex-wrap gap-2">
@@ -306,6 +338,47 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
                   />
                 ))}
               </div>
+            </div>
+
+            <div className="h-px bg-slate-100" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <ColorControl
+                label="Secondary / Dark Colour"
+                description="Hero overlays, secondary buttons, and dark sections"
+                value={draft.secondaryColor}
+                onChange={(secondaryColor) => applyDraft({ ...draft, secondaryColor })}
+              />
+              <ColorControl
+                label="Button Text Colour"
+                description="Text shown on primary filled buttons"
+                value={draft.buttonTextColor}
+                onChange={(buttonTextColor) => applyDraft({ ...draft, buttonTextColor })}
+              />
+              <ColorControl
+                label="Card Colour"
+                description="Product cards and light content panels"
+                value={draft.cardBgColor}
+                onChange={(cardBgColor) => applyDraft({ ...draft, cardBgColor })}
+              />
+              <ColorControl
+                label="Header Colour"
+                description="Storefront navigation header background"
+                value={draft.headerBgColor}
+                onChange={(headerBgColor) => applyDraft({ ...draft, headerBgColor })}
+              />
+              <ColorControl
+                label="Footer Colour"
+                description="Storefront footer background"
+                value={draft.footerBgColor}
+                onChange={(footerBgColor) => applyDraft({ ...draft, footerBgColor })}
+              />
+              <ColorControl
+                label="Main Text Colour"
+                description="Headings and important dark text"
+                value={draft.textColor}
+                onChange={(textColor) => applyDraft({ ...draft, textColor })}
+              />
             </div>
           </div>
 
@@ -329,7 +402,7 @@ export const ThemePage: React.FC<ThemePageProps> = ({ showToast }) => {
             <h3 className="text-sm font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
               Storefront Preview
             </h3>
-            <LivePreview primary={draft.primaryColor} bg={draft.pageBgColor} />
+            <LivePreview theme={draft} />
 
             <div className="pt-1 grid grid-cols-2 gap-3 text-xs">
               <div className="space-y-1">

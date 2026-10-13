@@ -17,8 +17,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ThemeConfig {
-  primaryColor: string;   // e.g. "#00875a"
-  pageBgColor: string;    // e.g. "#f8fafc"
+  primaryColor: string;      // Main CTA buttons, links, active states
+  secondaryColor: string;    // Dark hero/accent surfaces
+  pageBgColor: string;       // Storefront page background
+  cardBgColor: string;       // Product cards and light panels
+  headerBgColor: string;     // Storefront header
+  footerBgColor: string;     // Storefront footer
+  textColor: string;         // Main headings/body emphasis
+  buttonTextColor: string;   // Text on primary buttons
 }
 
 interface ThemeContextType {
@@ -33,7 +39,13 @@ interface ThemeContextType {
 
 export const DEFAULT_THEME: ThemeConfig = {
   primaryColor: "#00875a",
+  secondaryColor: "#0a2540",
   pageBgColor: "#f8fafc",
+  cardBgColor: "#ffffff",
+  headerBgColor: "#ffffff",
+  footerBgColor: "#0b1f33",
+  textColor: "#0a2540",
+  buttonTextColor: "#ffffff",
 };
 
 const LS_KEY = "xylem_theme_config";
@@ -60,56 +72,165 @@ function hexWithAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function normalizeTheme(input: Partial<ThemeConfig> | null | undefined): ThemeConfig {
+  return { ...DEFAULT_THEME, ...(input || {}) };
+}
+
 /** Inject (or update) the single dynamic override <style> tag in <head> */
 function applyThemeToDom(theme: ThemeConfig) {
-  const { primaryColor, pageBgColor } = theme;
+  const {
+    primaryColor,
+    secondaryColor,
+    pageBgColor,
+    cardBgColor,
+    headerBgColor,
+    footerBgColor,
+    textColor,
+    buttonTextColor,
+  } = normalizeTheme(theme);
   const dark = darkenHex(primaryColor, 20);
   const darker = darkenHex(primaryColor, 30);
+  const secondaryDark = darkenHex(secondaryColor, 16);
   const shadow = hexWithAlpha(primaryColor, 0.32);
   const shadowLight = hexWithAlpha(primaryColor, 0.2);
-
-  // Escape for CSS attribute selector
-  const esc = (c: string) => c.replace("#", "\\#").replace("(", "\\(").replace(")", "\\)");
-  const primary = esc(primaryColor);
-  const darkHex = esc(dark);
+  const primarySoft = hexWithAlpha(primaryColor, 0.12);
+  const primarySofter = hexWithAlpha(primaryColor, 0.07);
+  const primaryBorder = hexWithAlpha(primaryColor, 0.28);
 
   const css = `
 :root {
   --brand-primary: ${primaryColor};
   --brand-primary-dark: ${dark};
   --brand-primary-darker: ${darker};
+  --brand-secondary: ${secondaryColor};
+  --brand-secondary-dark: ${secondaryDark};
   --page-bg: ${pageBgColor};
+  --card-bg: ${cardBgColor};
+  --header-bg: ${headerBgColor};
+  --footer-bg: ${footerBgColor};
+  --theme-text: ${textColor};
+  --button-text: ${buttonTextColor};
 }
 
 /* Page background */
 body { background-color: ${pageBgColor} !important; }
+[data-storefront="true"] { background-color: ${pageBgColor} !important; color: ${textColor}; }
 
-/* ── Tailwind arbitrary-value overrides ───────────────────────────────── */
-/* bg-[#00875a]  → brand primary */
-[class*="bg-[${primary}]"]           { background-color: ${primaryColor} !important; }
-[class*="hover\\:bg-[${primary}]"]:hover { background-color: ${primaryColor} !important; }
+/* Primary storefront controls: buttons, links, active states, badges */
+[class*="bg-[\\#00875a]"],
+.bg-emerald-600,
+.bg-emerald-500,
+.bg-emerald-400 {
+  background-color: ${primaryColor} !important;
+  color: ${buttonTextColor} !important;
+}
 
-/* bg-[#00734c] / bg-[#006e49] (hover darks) → brand dark */
-[class*="bg-[${darkHex}]"]           { background-color: ${dark} !important; }
-[class*="hover\\:bg-[${darkHex}]"]:hover { background-color: ${dark} !important; }
-[class*="bg-[\\#006e49]"]            { background-color: ${dark} !important; }
-[class*="hover\\:bg-[\\#006e49]"]:hover { background-color: ${dark} !important; }
+[class*="hover\\:bg-[\\#00875a]"]:hover,
+[class*="hover\\:bg-[\\#00734c]"]:hover,
+[class*="bg-[\\#00734c]"],
+[class*="bg-[\\#006e49]"],
+.hover\\:bg-emerald-700:hover,
+.hover\\:bg-emerald-600:hover,
+.hover\\:bg-emerald-500:hover {
+  background-color: ${dark} !important;
+  color: ${buttonTextColor} !important;
+}
 
-/* text-[#00875a] → brand primary text */
-[class*="text-[${primary}]"]         { color: ${primaryColor} !important; }
-[class*="hover\\:text-[${primary}]"]:hover { color: ${primaryColor} !important; }
+.text-emerald-950,
+.text-emerald-900,
+.text-emerald-800,
+.text-emerald-700,
+.text-emerald-600,
+.text-emerald-500,
+.text-emerald-400,
+[class*="text-[\\#00875a]"] {
+  color: ${primaryColor} !important;
+}
 
-/* from-[#00875a] gradient stops */
-[class*="from-[${primary}]"]         { --tw-gradient-from: ${primaryColor} !important; }
-[class*="via-[${primary}]"]          { --tw-gradient-via: ${primaryColor} !important; }
-[class*="to-[${primary}]"]           { --tw-gradient-to: ${primaryColor} !important; }
+.hover\\:text-emerald-700:hover,
+.hover\\:text-emerald-400:hover,
+[class*="hover\\:text-[\\#00875a]"]:hover {
+  color: ${primaryColor} !important;
+}
 
-/* border-[#00875a] */
-[class*="border-[${primary}]"]       { border-color: ${primaryColor} !important; }
+.border-emerald-800,
+.border-emerald-600,
+.border-emerald-500,
+.border-emerald-400,
+.border-emerald-300,
+.border-emerald-200,
+.border-emerald-100,
+[class*="border-[\\#00875a]"] {
+  border-color: ${primaryBorder} !important;
+}
+
+.bg-emerald-950,
+.bg-emerald-100,
+.bg-emerald-50,
+[class*="bg-emerald-100"],
+[class*="bg-emerald-50"] {
+  background-color: ${primarySoft} !important;
+}
+
+[class*="ring-emerald"],
+[class*="focus\\:ring-emerald"],
+[class*="focus-visible\\:ring-emerald"] {
+  --tw-ring-color: ${primaryBorder} !important;
+}
+
+[class*="focus\\:border-emerald"] {
+  border-color: ${primaryColor} !important;
+}
+
+.from-emerald-600,
+.from-emerald-50,
+[class*="from-[\\#00875a]"] {
+  --tw-gradient-from: ${primaryColor} var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: ${hexWithAlpha(primaryColor, 0)} var(--tw-gradient-to-position) !important;
+}
+
+.via-emerald-50,
+[class*="via-[\\#00875a]"] {
+  --tw-gradient-via: ${primarySofter} var(--tw-gradient-via-position) !important;
+}
+
+.to-emerald-50,
+[class*="to-[\\#00875a]"] {
+  --tw-gradient-to: ${primarySofter} var(--tw-gradient-to-position) !important;
+}
+
+/* Secondary/dark brand surfaces */
+[class*="bg-[\\#0a2540]"],
+[class*="bg-[\\#0b1f33]"] {
+  background-color: ${secondaryColor} !important;
+}
+
+[class*="hover\\:bg-[\\#081d33]"]:hover {
+  background-color: ${secondaryDark} !important;
+}
+
+[class*="text-[\\#0a2540]"],
+[class*="text-[\\#0b1f33]"] {
+  color: ${textColor} !important;
+}
+
+/* Storefront header/footer and cards */
+header,
+header[class*="bg-white"] {
+  background-color: ${headerBgColor} !important;
+}
+
+footer {
+  background-color: ${footerBgColor} !important;
+}
+
+[data-storefront="true"] main .bg-white,
+[data-storefront="true"] main [class*="bg-[#ffffff]"] {
+  background-color: ${cardBgColor} !important;
+}
 
 /* outline (focus ring) */
 [class*="outline-[\\#00704a]"]       { outline-color: ${dark} !important; }
-[class*="focus\\:border-emerald"]    { /* keep tailwind emerald, intentional */ }
 
 /* CSS keyframe shadow colors in index.css */
 @keyframes pulse-glow {
@@ -124,8 +245,11 @@ body { background-color: ${pageBgColor} !important; }
 }
 
 /* hover box-shadow with brand color */
-[class*="hover\\:bg-[${darkHex}]"]:hover,
-[class*="hover\\:bg-[${primary}]"]:hover {
+[class*="hover\\:bg-[\\#00875a]"]:hover,
+[class*="hover\\:bg-[\\#00734c]"]:hover,
+.hover\\:bg-emerald-700:hover,
+.hover\\:bg-emerald-600:hover,
+.hover\\:bg-emerald-500:hover {
   box-shadow: 0 8px 18px -3px ${shadow}, 0 3px 6px -2px ${shadowLight};
 }
 
@@ -152,7 +276,14 @@ body { background-color: ${pageBgColor} !important; }
   const root = document.documentElement;
   root.style.setProperty("--brand-primary", primaryColor);
   root.style.setProperty("--brand-primary-dark", dark);
+  root.style.setProperty("--brand-secondary", secondaryColor);
+  root.style.setProperty("--brand-secondary-dark", secondaryDark);
   root.style.setProperty("--page-bg", pageBgColor);
+  root.style.setProperty("--card-bg", cardBgColor);
+  root.style.setProperty("--header-bg", headerBgColor);
+  root.style.setProperty("--footer-bg", footerBgColor);
+  root.style.setProperty("--theme-text", textColor);
+  root.style.setProperty("--button-text", buttonTextColor);
 }
 
 // ─── Load from localStorage ───────────────────────────────────────────────────
@@ -163,7 +294,7 @@ function loadStoredTheme(): ThemeConfig {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.primaryColor === "string") {
-        return { ...DEFAULT_THEME, ...parsed };
+        return normalizeTheme(parsed);
       }
     }
   } catch {}
@@ -184,6 +315,38 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyThemeToDom(theme);
   }, []);
 
+  // Pull saved cloud theme when available. localStorage still wins instantly first,
+  // then the remote value reconciles across devices without blocking paint.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCloudTheme() {
+      try {
+        const res = await fetch(`/api/products?_t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store" },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.themeConfig?.primaryColor || cancelled) return;
+
+        const incoming = normalizeTheme(data.themeConfig);
+        _setTheme(incoming);
+        applyThemeToDom(incoming);
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify(incoming));
+        } catch {}
+      } catch {
+        // Cloud theme is optional; keep local/default theme if unavailable.
+      }
+    }
+
+    loadCloudTheme();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Set up BroadcastChannel listener for cross-tab sync
   useEffect(() => {
     if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
@@ -191,7 +354,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     bcRef.current = bc;
     bc.onmessage = (e) => {
       if (e.data?.type === "THEME_UPDATED" && e.data.theme) {
-        const incoming: ThemeConfig = e.data.theme;
+        const incoming: ThemeConfig = normalizeTheme(e.data.theme);
         _setTheme(incoming);
         applyThemeToDom(incoming);
       }
@@ -206,8 +369,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const parsed = JSON.parse(e.newValue);
           if (parsed?.primaryColor) {
-            _setTheme(parsed);
-            applyThemeToDom(parsed);
+            const incoming = normalizeTheme(parsed);
+            _setTheme(incoming);
+            applyThemeToDom(incoming);
           }
         } catch {}
       }
@@ -218,24 +382,26 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   /** Live-preview: apply immediately to DOM without persisting */
   const setTheme = useCallback((t: ThemeConfig) => {
-    _setTheme(t);
-    applyThemeToDom(t);
+    const next = normalizeTheme(t);
+    _setTheme(next);
+    applyThemeToDom(next);
   }, []);
 
   /** Persist to localStorage + BroadcastChannel + Cloudflare KV */
   const saveTheme = useCallback(async (t: ThemeConfig) => {
-    _setTheme(t);
-    applyThemeToDom(t);
+    const next = normalizeTheme(t);
+    _setTheme(next);
+    applyThemeToDom(next);
 
     // 1. localStorage
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(t));
+      localStorage.setItem(LS_KEY, JSON.stringify(next));
     } catch {}
 
     // 2. BroadcastChannel (instant cross-tab)
     if (bcRef.current) {
       try {
-        bcRef.current.postMessage({ type: "THEME_UPDATED", theme: t });
+        bcRef.current.postMessage({ type: "THEME_UPDATED", theme: next });
       } catch {}
     }
 
@@ -261,7 +427,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               testimonials: data.testimonials,
               catalogBanner: data.catalogBanner,
               homeSpotlight: data.homeSpotlight,
-              themeConfig: t,
+              themeConfig: next,
             }),
           });
         }

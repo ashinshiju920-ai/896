@@ -143,7 +143,10 @@ const ShopApp: React.FC = () => {
   const isStorefront = !location.pathname.startsWith('/checkout') && !location.pathname.startsWith('/admin');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#ffffff] text-slate-900 font-['DM_Sans',sans-serif] selection:bg-emerald-100 selection:text-emerald-900 relative">
+    <div
+      data-storefront={isStorefront ? 'true' : undefined}
+      className="min-h-screen flex flex-col bg-[#ffffff] text-slate-900 font-['DM_Sans',sans-serif] selection:bg-emerald-100 selection:text-emerald-900 relative"
+    >
       <SEO books={books} />
 
       {/* Top Header Navigation */}
