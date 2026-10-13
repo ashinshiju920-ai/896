@@ -140,7 +140,9 @@ const ShopApp: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
 
-  const isStorefront = !location.pathname.startsWith('/checkout') && !location.pathname.startsWith('/admin');
+  const isStorefront =
+    !location.pathname.startsWith('/checkout') &&
+    !location.pathname.startsWith('/admin');
 
   return (
     <div

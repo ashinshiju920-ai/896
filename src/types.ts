@@ -292,6 +292,7 @@ export interface HomeSpotlightConfig {
   originalPrice?: number;
   buttonText?: string;
   backgroundColor?: string;
+  courseFinderProductMap?: Record<string, string[]>;
 }
 
 

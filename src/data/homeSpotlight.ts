@@ -12,4 +12,5 @@ export const DEFAULT_HOME_SPOTLIGHT: HomeSpotlightConfig = {
   originalPrice: undefined,
   buttonText: 'Buy Now',
   backgroundColor: '#ffffff',
+  courseFinderProductMap: {},
 };

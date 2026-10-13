@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   ArrowRight,
   Star,
@@ -10,15 +10,14 @@ import {
   Headphones,
   FileText,
   Sparkles,
-  DownloadCloud,
   ChevronRight,
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { BookCover } from '../components/BookCover';
+import { CourseFinderSection } from '../components/CourseFinderSection';
 import { HeroBookShowcase } from '../components/HeroBookShowcase';
 import {
   getExamImageSrcSet,
-  getHeroBannerImageUrl,
   getImageOrigin,
   getOptimizedExamImage,
 } from '../utils/imageOptimization';
@@ -42,18 +41,6 @@ export const HomeView: React.FC = () => {
   // Featured books dynamically respect the admin's custom arrangement (6 products for balanced 2x3 mobile grid)
   const publishedBooks = React.useMemo(() => books.filter((book) => book.active !== false), [books]);
   const featuredBooks = (publishedBooks && publishedBooks.length > 0 ? publishedBooks.slice(0, 6) : []).filter(Boolean);
-  const bestProduct = React.useMemo(
-    () => publishedBooks.find((book) => book.id === homeSpotlight?.productId) || publishedBooks.find((book) => book.id === 'select-your-path-guide') || featuredBooks[0],
-    [publishedBooks, featuredBooks, homeSpotlight?.productId]
-  );
-  const bestProductImage = bestProduct
-    ? homeSpotlight?.imageUrl || bestProduct.coverImage || bestProduct.imageUrl || bestProduct.images?.[0] || ''
-    : '';
-  const bestProductPrice = homeSpotlight?.price ?? bestProduct?.prices?.digital?.price ?? 199;
-  const bestProductOriginalPrice = homeSpotlight?.originalPrice ?? bestProduct?.prices?.digital?.originalPrice ?? 599;
-  const bestProductTitle = homeSpotlight?.title?.trim() || bestProduct?.title || '';
-  const bestProductDescription = homeSpotlight?.description?.trim() || bestProduct?.description || '';
-  const bestProductButtonText = homeSpotlight?.buttonText?.trim() || 'Buy Now';
   const priorityExamPaths = React.useMemo(() => examPaths.slice(0, 4), [examPaths]);
 
   React.useEffect(() => {
@@ -130,90 +117,13 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. BEST PRODUCT SPOTLIGHT */}
-      {bestProduct && homeSpotlight?.enabled !== false && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-12">
-          <div
-            className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-emerald-100 shadow-[0_18px_60px_rgba(8,47,73,0.08)]"
-            style={{ backgroundColor: homeSpotlight?.backgroundColor || '#ffffff' }}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-              <div className="lg:col-span-7 bg-gradient-to-br from-slate-50 via-white to-emerald-50/60 p-4 sm:p-6 lg:p-7">
-                <button
-                  type="button"
-                  onClick={() => navigateToProduct(bestProduct.id)}
-                  className="group relative w-full overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 bg-white aspect-[16/8.5] sm:aspect-[16/7.2] lg:aspect-[16/6.4] flex items-center justify-center shadow-xs"
-                  aria-label={`View ${bestProductTitle}`}
-                >
-                  {bestProductImage ? (
-                    <img
-                      src={getHeroBannerImageUrl(bestProductImage)}
-                      alt={`${bestProductTitle} digital study material from Aylem Learning`}
-                      className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-[1.015]"
-                      loading="eager"
-                      fetchPriority="high"
-                      decoding="async"
-                    />
-                  ) : (
-                    <BookCover book={bestProduct} size="lg" />
-                  )}
-                </button>
-              </div>
-
-              <div className="lg:col-span-5 p-5 sm:p-7 lg:p-8 flex flex-col justify-center bg-white">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-[#00875a] bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">
-                      {homeSpotlight?.badgeText || 'Best Product'}
-                    </span>
-                    {(homeSpotlight?.secondaryBadgeText ?? 'Instant PDF') && (
-                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                        <DownloadCloud className="w-3.5 h-3.5 text-[#00875a]" />
-                        {homeSpotlight?.secondaryBadgeText || 'Instant PDF'}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif] tracking-tight leading-tight">
-                      {bestProductTitle}
-                    </h2>
-                    <p className="text-sm text-slate-600 leading-relaxed mt-2 font-['DM_Sans',sans-serif]">
-                      {bestProductDescription}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-3xl font-black text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
-                      ₹{bestProductPrice}
-                    </span>
-                    {bestProductOriginalPrice > bestProductPrice && (
-                      <>
-                        <span className="text-sm text-slate-400 line-through font-semibold">
-                          ₹{bestProductOriginalPrice}
-                        </span>
-                        <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                          Save ₹{bestProductOriginalPrice - bestProductPrice}
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  <button
-                    id="homepage-best-product-buy-now"
-                    type="button"
-                    onClick={() => buyNow(bestProduct, 'digital')}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-sm sm:text-base font-bold shadow-md shadow-emerald-700/20 active:scale-95 transition-all"
-                  >
-                    <span>{bestProductButtonText} ₹{bestProductPrice}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* 2. COURSE FINDER */}
+      <CourseFinderSection
+        books={publishedBooks}
+        config={homeSpotlight}
+        buyNow={buyNow}
+        navigateToProduct={navigateToProduct}
+      />
 
       {/* 3. CHOOSE YOUR EXAM - SELECT YOUR PATH (Exact Match from User Reference) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -387,7 +297,7 @@ export const HomeView: React.FC = () => {
                       <span className="text-slate-400 font-normal ml-0.5">({book.reviewCount})</span>
                     </div>
                     {book.buyersCount !== undefined && book.buyersCount > 0 && (
-                      <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">• {book.buyersCount.toLocaleString()} bought</span>
+                      <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">â€¢ {book.buyersCount.toLocaleString()} bought</span>
                     )}
                   </div>
                   {book.isBestSeller && (
@@ -410,10 +320,10 @@ export const HomeView: React.FC = () => {
               <div className="p-2.5 sm:p-3.5 pt-2 border-t border-slate-100 mt-2">
                 <div className="flex items-baseline gap-1 sm:gap-1.5 mb-2.5 flex-wrap">
                   <span className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                    ₹{book.prices?.digital?.price ?? 199}
+                    â‚¹{book.prices?.digital?.price ?? 199}
                   </span>
                   <span className="text-[10px] sm:text-xs text-slate-400 line-through font-['DM_Sans',sans-serif]">
-                    ₹{book.prices?.digital?.originalPrice ?? 599}
+                    â‚¹{book.prices?.digital?.originalPrice ?? 599}
                   </span>
                   <span className="text-[9px] sm:text-[10px] lg:text-[11px] font-semibold text-emerald-600 ml-auto font-['DM_Sans',sans-serif]">
                     {book.prices?.digital?.discountPercent ?? 67}% OFF
@@ -425,7 +335,7 @@ export const HomeView: React.FC = () => {
                   onClick={() => buyNow(book, 'digital')}
                   className="w-full py-2 sm:py-2.5 px-2 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif] whitespace-nowrap"
                 >
-                  <span>Buy Now • ₹{book.prices?.digital?.price ?? 199}</span>
+                  <span>Buy Now â€¢ â‚¹{book.prices?.digital?.price ?? 199}</span>
                 </button>
               </div>
             </div>

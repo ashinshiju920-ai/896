@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, RotateCcw, Save, Upload } from 'lucide-react';
+import { CheckCircle2, RotateCcw, Save, Search } from 'lucide-react';
+import { COURSE_FINDER_COURSES, COURSE_FINDER_DESTINATIONS } from '../../components/CourseFinderSection';
 import { Book, HomeSpotlightConfig } from '../../types';
 import { DEFAULT_HOME_SPOTLIGHT } from '../../data/homeSpotlight';
-import { uploadImageToCloud } from '../../utils/cloudSync';
 
 interface HomeSpotlightEditorProps {
   books: Book[];
@@ -11,6 +11,15 @@ interface HomeSpotlightEditorProps {
   onResetHomeSpotlight?: () => Promise<boolean> | void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
+
+const categoryForCourse: Record<string, string> = {
+  IELTS: 'IELTS',
+  OET: 'OET',
+  PTE: 'PTE',
+  German: 'German',
+  CBT: 'Mock Test',
+  'Not sure yet': 'Mock Test',
+};
 
 export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
   books,
@@ -21,62 +30,55 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
 }) => {
   const activeConfig = useMemo(() => ({ ...DEFAULT_HOME_SPOTLIGHT, ...(homeSpotlight || {}) }), [homeSpotlight]);
   const [enabled, setEnabled] = useState(activeConfig.enabled !== false);
-  const [productId, setProductId] = useState(activeConfig.productId || books[0]?.id || '');
-  const [imageUrl, setImageUrl] = useState(activeConfig.imageUrl || '');
-  const [badgeText, setBadgeText] = useState(activeConfig.badgeText || '');
-  const [secondaryBadgeText, setSecondaryBadgeText] = useState(activeConfig.secondaryBadgeText || '');
-  const [title, setTitle] = useState(activeConfig.title || '');
-  const [description, setDescription] = useState(activeConfig.description || '');
-  const [price, setPrice] = useState(activeConfig.price?.toString() || '');
-  const [originalPrice, setOriginalPrice] = useState(activeConfig.originalPrice?.toString() || '');
-  const [buttonText, setButtonText] = useState(activeConfig.buttonText || 'Buy Now');
-  const [backgroundColor, setBackgroundColor] = useState(activeConfig.backgroundColor || '#ffffff');
+  const [selectedCourse, setSelectedCourse] = useState<string>('IELTS');
+  const [productMap, setProductMap] = useState<Record<string, string[]>>(activeConfig.courseFinderProductMap || {});
+  const [query, setQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-
-  const selectedBook = books.find((book) => book.id === productId) || books[0];
-  const previewImage = imageUrl || selectedBook?.coverImage || selectedBook?.imageUrl || selectedBook?.images?.[0] || '';
-  const previewTitle = title || selectedBook?.title || 'Featured product title';
-  const previewDescription = description || selectedBook?.description || 'Featured product description';
-  const previewPrice = price || String(selectedBook?.prices?.digital?.price ?? 199);
-  const previewOriginal = originalPrice || String(selectedBook?.prices?.digital?.originalPrice ?? 599);
 
   useEffect(() => {
     setEnabled(activeConfig.enabled !== false);
-    setProductId(activeConfig.productId || books[0]?.id || '');
-    setImageUrl(activeConfig.imageUrl || '');
-    setBadgeText(activeConfig.badgeText || '');
-    setSecondaryBadgeText(activeConfig.secondaryBadgeText || '');
-    setTitle(activeConfig.title || '');
-    setDescription(activeConfig.description || '');
-    setPrice(activeConfig.price?.toString() || '');
-    setOriginalPrice(activeConfig.originalPrice?.toString() || '');
-    setButtonText(activeConfig.buttonText || 'Buy Now');
-    setBackgroundColor(activeConfig.backgroundColor || '#ffffff');
-  }, [activeConfig, books]);
+    setProductMap(activeConfig.courseFinderProductMap || {});
+  }, [activeConfig]);
 
-  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const filteredBooks = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return books
+      .filter((book) => book.active !== false)
+      .filter((book) => {
+        if (!normalized) return true;
+        return `${book.title} ${book.subtitle} ${book.category}`.toLowerCase().includes(normalized);
+      });
+  }, [books, query]);
 
-    setIsUploading(true);
-    try {
-      const url = await uploadImageToCloud(file, 'homepage_spotlight');
-      setImageUrl(url);
-      showToast('Spotlight image uploaded.', 'success');
-    } catch (err: any) {
-      showToast(err?.message || 'Spotlight image upload failed.', 'warning');
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
-    }
+  const selectedIds = productMap[selectedCourse] || [];
+  const selectedBooks = selectedIds
+    .map((id) => books.find((book) => book.id === id))
+    .filter(Boolean) as Book[];
+
+  const toggleProduct = (bookId: string) => {
+    setProductMap((prev) => {
+      const current = prev[selectedCourse] || [];
+      const next = current.includes(bookId)
+        ? current.filter((id) => id !== bookId)
+        : [...current, bookId];
+      return { ...prev, [selectedCourse]: next };
+    });
   };
 
-  const parseOptionalPrice = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return undefined;
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  const autoFillCourse = () => {
+    const targetCategory = categoryForCourse[selectedCourse];
+    const nextIds = books
+      .filter((book) => book.active !== false)
+      .filter((book) => (
+        selectedCourse === 'Not sure yet'
+          ? book.id === 'select-your-path-guide' || book.category === 'Mock Test'
+          : book.category === targetCategory || book.type === 'Mock Tests'
+      ))
+      .slice(0, 4)
+      .map((book) => book.id);
+
+    setProductMap((prev) => ({ ...prev, [selectedCourse]: nextIds }));
+    showToast(`Auto-filled ${selectedCourse} recommendations`, 'info');
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -85,17 +87,9 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
     try {
       await onUpdateHomeSpotlight({
         enabled,
-        productId,
-        imageUrl: imageUrl.trim(),
-        badgeText: badgeText.trim(),
-        secondaryBadgeText: secondaryBadgeText.trim(),
-        title: title.trim(),
-        description: description.trim(),
-        price: parseOptionalPrice(price),
-        originalPrice: parseOptionalPrice(originalPrice),
-        buttonText: buttonText.trim() || 'Buy Now',
-        backgroundColor: backgroundColor.trim() || '#ffffff',
+        courseFinderProductMap: productMap,
       });
+      showToast('Course finder product connections saved', 'success');
     } finally {
       setIsSaving(false);
     }
@@ -104,6 +98,7 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
   const handleReset = async () => {
     if (onResetHomeSpotlight) {
       await onResetHomeSpotlight();
+      showToast('Course finder reset to automatic recommendations', 'info');
     }
   };
 
@@ -113,10 +108,10 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-extrabold text-[#0a2540] font-['Plus_Jakarta_Sans',sans-serif]">
-              Homepage Best Product Spotlight
+              Homepage Course Finder
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Customize the large product section below the homepage hero.
+              Connect each course choice to products shown in the boarding-pass finder under the homepage hero.
             </p>
           </div>
           <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700">
@@ -130,59 +125,78 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
           </label>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Featured Product">
-            <select value={productId} onChange={(e) => setProductId(e.target.value)} className={inputClass}>
-              {books.map((book) => (
-                <option key={book.id} value={book.id}>
-                  {book.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Button Text">
-            <input value={buttonText} onChange={(e) => setButtonText(e.target.value)} className={inputClass} placeholder="Buy Now" />
-          </Field>
-        </div>
-
-        <Field label="Override Image URL">
-          <div className="flex gap-2">
-            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className={inputClass} placeholder="Leave empty to use product image" />
-            <label className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800">
-              <Upload className="w-3.5 h-3.5" />
-              {isUploading ? 'Uploading' : 'Upload'}
-              <input type="file" accept="image/*" onChange={handleUploadImage} className="hidden" disabled={isUploading} />
-            </label>
+        <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {COURSE_FINDER_COURSES.map((course) => (
+              <button
+                key={course}
+                type="button"
+                onClick={() => setSelectedCourse(course)}
+                className={`rounded-xl px-3 py-2 text-xs font-bold text-left transition-all ${
+                  selectedCourse === course
+                    ? 'bg-[#00875a] text-white shadow-sm'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:border-emerald-200'
+                }`}
+              >
+                {course}
+                <span className="block text-[10px] opacity-75 mt-0.5">
+                  {(productMap[course] || []).length} product{(productMap[course] || []).length === 1 ? '' : 's'}
+                </span>
+              </button>
+            ))}
           </div>
-        </Field>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Primary Badge">
-            <input value={badgeText} onChange={(e) => setBadgeText(e.target.value)} className={inputClass} placeholder="Best Product" />
-          </Field>
-          <Field label="Secondary Badge">
-            <input value={secondaryBadgeText} onChange={(e) => setSecondaryBadgeText(e.target.value)} className={inputClass} placeholder="Instant PDF" />
-          </Field>
         </div>
 
-        <Field label="Title Override">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="Leave empty to use product title" />
-        </Field>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900">{selectedCourse} Products</h3>
+            <p className="text-xs text-slate-500">Select products in the order you want customers to see them.</p>
+          </div>
+          <button
+            type="button"
+            onClick={autoFillCourse}
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+          >
+            Auto-fill
+          </button>
+        </div>
 
-        <Field label="Description Override">
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={inputClass} placeholder="Leave empty to use product description" />
-        </Field>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            placeholder="Search products by title, subtitle, or category"
+          />
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Field label="Price Override">
-            <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className={inputClass} placeholder="199" />
-          </Field>
-          <Field label="Original Price">
-            <input type="number" min="0" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} className={inputClass} placeholder="599" />
-          </Field>
-          <Field label="Background">
-            <input type="color" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} className="w-full h-10 rounded-xl border border-slate-300 bg-white p-1" />
-          </Field>
+        <div className="max-h-[460px] overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100">
+          {filteredBooks.map((book) => {
+            const isSelected = selectedIds.includes(book.id);
+            return (
+              <button
+                key={book.id}
+                type="button"
+                onClick={() => toggleProduct(book.id)}
+                className={`w-full flex items-start gap-3 p-3 text-left transition-colors ${
+                  isSelected ? 'bg-emerald-50/70' : 'bg-white hover:bg-slate-50'
+                }`}
+              >
+                <span className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                  isSelected ? 'bg-[#00875a] border-[#00875a] text-white' : 'border-slate-300 bg-white'
+                }`}>
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-slate-900 line-clamp-1">{book.title}</span>
+                  <span className="block text-[11px] text-slate-500 line-clamp-1 mt-0.5">{book.subtitle}</span>
+                  <span className="inline-flex mt-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{book.category}</span>
+                </span>
+                <span className="text-xs font-black text-slate-900 shrink-0">₹{book.prices?.digital?.price ?? 199}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -192,7 +206,7 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#00875a] hover:bg-[#00734c] disabled:opacity-60 text-white text-xs font-bold shadow-xs cursor-pointer"
           >
             <Save className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save Spotlight'}
+            {isSaving ? 'Saving...' : 'Save Course Finder'}
           </button>
           <button
             type="button"
@@ -200,54 +214,51 @@ export const HomeSpotlightEditor: React.FC<HomeSpotlightEditorProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
-            Reset Defaults
+            Reset Automatic
           </button>
         </div>
       </form>
 
       <div className="xl:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
-          <Image className="w-4 h-4 text-emerald-600" />
-          Live Preview
-        </div>
-        <div className="overflow-hidden rounded-2xl border border-emerald-100" style={{ backgroundColor }}>
-          <div className="bg-gradient-to-br from-slate-50 via-white to-emerald-50/60 p-4">
-            <div className="aspect-[16/7.2] rounded-xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center">
-              {previewImage ? (
-                <img src={previewImage} alt="" className="w-full h-full object-contain" />
-              ) : (
-                <div className="text-xs text-slate-400">No image selected</div>
+        <h3 className="text-sm font-extrabold text-slate-900">Preview Connections</h3>
+        <div className="rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-[#171333] text-white p-4 flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-black">COK</div>
+              <div className="text-[11px]">Kerala</div>
+            </div>
+            <div className="text-xs text-yellow-300">- - - ✈ - - -</div>
+            <div className="text-right">
+              <div className="text-2xl font-black">•••</div>
+              <div className="text-[11px]">Your destination</div>
+            </div>
+          </div>
+          <div className="p-4 bg-white">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{selectedCourse}</p>
+            <div className="mt-3 space-y-2">
+              {selectedBooks.length > 0 ? selectedBooks.map((book) => (
+                <div key={book.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                  <span className="text-xs font-bold text-slate-800 line-clamp-1">{book.title}</span>
+                  <span className="text-xs font-black text-[#00875a] shrink-0">₹{book.prices?.digital?.price ?? 199}</span>
+                </div>
+              )) : (
+                <p className="text-xs text-slate-500">No manual products selected. Storefront will use automatic recommendations.</p>
               )}
             </div>
           </div>
-          <div className="p-5 space-y-4 bg-white">
-            <div className="flex flex-wrap gap-2">
-              {badgeText && <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00875a] bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">{badgeText}</span>}
-              {secondaryBadgeText && <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">{secondaryBadgeText}</span>}
-            </div>
-            <div>
-              <h3 className="text-xl font-extrabold text-[#0a2540] leading-tight">{previewTitle}</h3>
-              <p className="text-xs text-slate-600 leading-relaxed mt-2">{previewDescription}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-black text-[#0a2540]">₹{previewPrice}</span>
-              {Number(previewOriginal) > Number(previewPrice) && <span className="text-xs text-slate-400 line-through font-semibold">₹{previewOriginal}</span>}
-            </div>
-            <button type="button" className="inline-flex px-5 py-2.5 rounded-xl bg-[#00875a] text-white text-xs font-bold">
-              {buttonText || 'Buy Now'} ₹{previewPrice}
-            </button>
+        </div>
+
+        <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4">
+          <p className="text-xs font-bold text-blue-900">Destination logic</p>
+          <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px] text-blue-700">
+            {COURSE_FINDER_DESTINATIONS.map((destination) => (
+              <div key={destination.code}>
+                <span className="font-black">{destination.code}</span> {destination.title}: {destination.courses.join(', ')}
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-400';
-
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <label className="block space-y-1.5">
-    <span className="text-xs font-bold text-slate-700">{label}</span>
-    {children}
-  </label>
-);

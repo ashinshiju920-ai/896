@@ -253,9 +253,9 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
           }`}
         >
           <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Homepage Spotlight</span>
+          <span>Course Finder</span>
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">
-            Best Product
+            Products
           </span>
         </button>
       </div>

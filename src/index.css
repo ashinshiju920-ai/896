@@ -383,7 +383,10 @@ button[id^="buy-now"],
   position: relative;
   overflow: hidden;
   will-change: transform, box-shadow;
-  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  isolation: isolate;
+  transform: translateZ(0);
+  box-shadow: 0 10px 18px -8px rgba(0, 135, 90, 0.45), 0 3px 7px -4px rgba(0, 70, 45, 0.3);
+  transition: transform 0.16s ease, box-shadow 0.22s ease, filter 0.2s ease;
 }
 
 /* Ensure button text/content remains sharp and above the pseudo-element shimmer */
@@ -393,6 +396,24 @@ button[id^="buy-now"] > *,
   z-index: 2;
 }
 
+button[id^="buy-now"] span:first-child,
+.buy-now-wave span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+button[id^="buy-now"] span:first-child::after,
+.buy-now-wave span:first-child::after {
+  content: '→';
+  display: inline-block;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateX(0);
+  opacity: 0.9;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
 /* 2. Idle Shimmer via ::before pseudo-element */
 button[id^="buy-now"]::before,
 .buy-now-wave::before {
@@ -400,14 +421,14 @@ button[id^="buy-now"]::before,
   position: absolute;
   top: -60%;
   left: -130%;
-  width: 55%;
+  width: 62%;
   height: 220%;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.03) 20%,
-    rgba(255, 255, 255, 0.26) 50%,
-    rgba(255, 255, 255, 0.03) 80%,
+    rgba(255, 255, 255, 0.04) 18%,
+    rgba(255, 255, 255, 0.38) 50%,
+    rgba(255, 255, 255, 0.04) 82%,
     transparent 100%
   );
   transform: rotate(25deg);
@@ -422,12 +443,16 @@ button[id^="buy-now"]::after,
   inset: auto -18% -58% -18%;
   height: 120%;
   background:
-    radial-gradient(70% 45% at 20% 0%, rgba(255, 255, 255, 0.22), transparent 62%),
-    radial-gradient(70% 45% at 80% 12%, rgba(255, 255, 255, 0.16), transparent 64%);
+    radial-gradient(70% 45% at 20% 0%, rgba(255, 255, 255, 0.28), transparent 62%),
+    radial-gradient(70% 45% at 80% 12%, rgba(255, 255, 255, 0.2), transparent 64%);
   border-radius: 42% 58% 0 0;
-  opacity: 0.45;
+  opacity: 0.55;
   pointer-events: none;
   z-index: 1;
+}
+
+button[id^="buy-now"]:not(:disabled) {
+  outline: 0 solid rgba(0, 135, 90, 0);
 }
 
 @keyframes buynow-btn-shimmer {
@@ -457,14 +482,25 @@ button[id^="buy-now"]::after,
   }
 }
 
+@keyframes buynow-click-ring {
+  0%, 100% {
+    outline-width: 0;
+    outline-color: rgba(0, 135, 90, 0);
+  }
+  42% {
+    outline-width: 5px;
+    outline-color: rgba(0, 135, 90, 0.14);
+  }
+}
+
 button[id^="buy-now"]:not(:disabled)::before,
 .buy-now-wave:not(:disabled)::before {
-  animation: buynow-btn-shimmer 6s ease-in-out infinite;
+  animation: buynow-btn-shimmer 4.2s ease-in-out infinite;
 }
 
 button[id^="buy-now"]:not(:disabled)::after,
 .buy-now-wave:not(:disabled)::after {
-  animation: buynow-wave 3.2s ease-in-out infinite;
+  animation: buynow-wave 2.8s ease-in-out infinite;
 }
 
 /* 3. Subtle Breathing Effect (scale: 1 -> 1.008 -> 1) */
@@ -473,30 +509,37 @@ button[id^="buy-now"]:not(:disabled)::after,
     transform: scale(1);
   }
   50% {
-    transform: scale(1.008);
+    transform: translateY(-1px) scale(1.015);
   }
 }
 
 button[id^="buy-now"]:not(:disabled),
 .buy-now-wave:not(:disabled) {
-  animation: buynow-btn-breathe 3.5s ease-in-out infinite;
+  animation: buynow-btn-breathe 2.8s ease-in-out infinite, buynow-click-ring 3.8s ease-in-out infinite;
 }
 
 /* 4. Desktop Hover */
 @media (hover: hover) and (pointer: fine) {
   button[id^="buy-now"]:not(:disabled):hover,
   .buy-now-wave:not(:disabled):hover {
-    transform: translateY(-1px) scale(1.008);
-    box-shadow: 0 8px 18px -3px rgba(0, 135, 90, 0.32), 0 3px 6px -2px rgba(0, 135, 90, 0.2);
-    filter: brightness(1.03);
+    transform: translateY(-2px) scale(1.025);
+    box-shadow: 0 16px 30px -10px rgba(0, 135, 90, 0.55), 0 8px 14px -8px rgba(0, 70, 45, 0.35);
+    filter: brightness(1.06) saturate(1.08);
     animation-play-state: paused;
+  }
+
+  button[id^="buy-now"]:not(:disabled):hover span:first-child::after,
+  .buy-now-wave:not(:disabled):hover span:first-child::after {
+    transform: translateX(3px);
+    opacity: 1;
   }
 }
 
 /* 5. Press / Active State */
 button[id^="buy-now"]:not(:disabled):active,
 .buy-now-wave:not(:disabled):active {
-  transform: scale(0.985) !important;
+  transform: translateY(1px) scale(0.975) !important;
+  box-shadow: 0 5px 10px -7px rgba(0, 70, 45, 0.42) !important;
   transition: transform 0.05s ease-out;
 }
 

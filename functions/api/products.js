@@ -634,6 +634,18 @@ export async function onRequestPost(context) {
       : undefined;
 
     const rawHomeSpotlight = payload.homeSpotlight !== undefined ? payload.homeSpotlight : currentCatalog?.homeSpotlight;
+    const sanitizeProductMap = (value) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+      const result = {};
+      Object.entries(value).slice(0, 20).forEach(([key, ids]) => {
+        if (!Array.isArray(ids)) return;
+        result[sanitizeString(key, 80)] = ids
+          .map((id) => sanitizeString(id, 100))
+          .filter(Boolean)
+          .slice(0, 12);
+      });
+      return result;
+    };
     const sanitizedHomeSpotlight = rawHomeSpotlight && typeof rawHomeSpotlight === 'object'
       ? {
           enabled: rawHomeSpotlight.enabled !== false,
@@ -651,6 +663,7 @@ export async function onRequestPost(context) {
             : sanitizeNumber(rawHomeSpotlight.originalPrice, 0, 1000000, 0),
           buttonText: sanitizeString(rawHomeSpotlight.buttonText, 80),
           backgroundColor: sanitizeString(rawHomeSpotlight.backgroundColor, 50),
+          courseFinderProductMap: sanitizeProductMap(rawHomeSpotlight.courseFinderProductMap),
         }
       : undefined;
 
