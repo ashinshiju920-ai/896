@@ -297,7 +297,7 @@ export const HomeView: React.FC = () => {
                       <span className="text-slate-400 font-normal ml-0.5">({book.reviewCount})</span>
                     </div>
                     {book.buyersCount !== undefined && book.buyersCount > 0 && (
-                      <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">â€¢ {book.buyersCount.toLocaleString()} bought</span>
+                      <span className="text-[10px] text-slate-400 font-normal hidden xl:inline">• {book.buyersCount.toLocaleString()} bought</span>
                     )}
                   </div>
                   {book.isBestSeller && (
@@ -320,10 +320,10 @@ export const HomeView: React.FC = () => {
               <div className="p-2.5 sm:p-3.5 pt-2 border-t border-slate-100 mt-2">
                 <div className="flex items-baseline gap-1 sm:gap-1.5 mb-2.5 flex-wrap">
                   <span className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-                    â‚¹{book.prices?.digital?.price ?? 199}
+                    ₹{book.prices?.digital?.price ?? 199}
                   </span>
                   <span className="text-[10px] sm:text-xs text-slate-400 line-through font-['DM_Sans',sans-serif]">
-                    â‚¹{book.prices?.digital?.originalPrice ?? 599}
+                    ₹{book.prices?.digital?.originalPrice ?? 599}
                   </span>
                   <span className="text-[9px] sm:text-[10px] lg:text-[11px] font-semibold text-emerald-600 ml-auto font-['DM_Sans',sans-serif]">
                     {book.prices?.digital?.discountPercent ?? 67}% OFF
@@ -335,7 +335,7 @@ export const HomeView: React.FC = () => {
                   onClick={() => buyNow(book, 'digital')}
                   className="w-full py-2 sm:py-2.5 px-2 rounded-xl bg-[#00875a] hover:bg-[#00734c] text-white text-[11px] sm:text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95 font-['DM_Sans',sans-serif] whitespace-nowrap"
                 >
-                  <span>Buy Now â€¢ â‚¹{book.prices?.digital?.price ?? 199}</span>
+                  <span>Buy Now • ₹{book.prices?.digital?.price ?? 199}</span>
                 </button>
               </div>
             </div>
