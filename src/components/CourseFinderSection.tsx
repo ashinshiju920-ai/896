@@ -115,10 +115,9 @@ export const CourseFinderSection: React.FC<CourseFinderSectionProps> = ({
               <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">COK</div>
               <div className="mt-1 text-xs font-medium">Kerala</div>
             </div>
-            <div className="flex min-w-12 flex-1 items-center justify-center gap-1.5 sm:gap-2 text-yellow-300">
-              <span className="h-px flex-1 border-t border-dashed border-white/60" />
-              <Plane className="h-3.5 w-3.5 sm:h-4 sm:w-4 rotate-45 fill-yellow-300 shrink-0" />
-              <span className="h-px flex-1 border-t border-dashed border-white/60" />
+            <div className="course-plane-track relative min-w-12 flex-1 overflow-hidden text-yellow-300">
+              <span className="block h-px w-full border-t border-dashed border-white/60" />
+              <Plane className="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rotate-45 fill-yellow-300 shrink-0 animate-[course-plane-fly_1.25s_linear_infinite]" />
             </div>
             <div className="min-w-0 text-right">
               <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">{destination?.code || '...'}</div>

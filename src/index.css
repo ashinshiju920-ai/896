@@ -190,6 +190,19 @@
   }
 }
 
+@keyframes course-plane-fly {
+  0% {
+    transform: translate(-18px, -50%) rotate(45deg);
+  }
+  100% {
+    transform: translate(calc(var(--course-plane-track-width, 42vw) + 18px), -50%) rotate(45deg);
+  }
+}
+
+.course-plane-track {
+  --course-plane-track-width: min(58vw, 620px);
+}
+
 .animate-whatsapp-float {
   animation: whatsapp-float 3s ease-in-out infinite;
 }
