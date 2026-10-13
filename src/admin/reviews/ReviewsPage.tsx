@@ -3,13 +3,14 @@ import {
   Star,
   Plus,
   Trash2,
-  BookOpen,
-  CheckCircle2,
   MessageSquare,
-  Search,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Book, Review } from '../../types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { BulkReviewUpload } from './BulkReviewUpload';
+
+type ReviewTab = 'single' | 'bulk';
 
 interface ReviewsPageProps {
   books: Book[];
@@ -24,6 +25,7 @@ export const ReviewsPage: React.FC<ReviewsPageProps> = ({
   onUpdateBook,
   showToast,
 }) => {
+  const [activeTab, setActiveTab] = useState<ReviewTab>('single');
   const [selectedBookId, setSelectedBookId] = useState<string>(books[0]?.id || '');
   const [author, setAuthor] = useState('');
   const [rating, setRating] = useState(5);
@@ -71,8 +73,44 @@ export const ReviewsPage: React.FC<ReviewsPageProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Product Selection Bar */}
-      <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl w-fit">
+        {([
+          { id: 'single' as ReviewTab, label: 'Single Review', icon: <MessageSquare className="w-3.5 h-3.5" /> },
+          { id: 'bulk' as ReviewTab, label: 'Bulk Upload', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
+        ] as const).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === tab.id
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+            {tab.id === 'bulk' && (
+              <span className="ml-0.5 text-[9px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">New</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Bulk Upload Tab */}
+      {activeTab === 'bulk' && (
+        <BulkReviewUpload
+          books={books}
+          onUpdateBook={onUpdateBook}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Single Review Tab */}
+      {activeTab === 'single' && (
+        <>
+        {/* Product Selection Bar */}
+        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
         <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
           Select Study Guide to Manage Reviews
         </label>
@@ -230,6 +268,8 @@ export const ReviewsPage: React.FC<ReviewsPageProps> = ({
         onConfirm={confirmDeleteReview}
         onCancel={() => setReviewToDelete(null)}
       />
+      </>
+      )}
     </div>
   );
 };
